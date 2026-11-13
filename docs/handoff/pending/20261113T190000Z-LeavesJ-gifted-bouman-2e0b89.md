@@ -34,10 +34,17 @@ a design session.
 **Order.** The founder put this after the three releases queued ahead of it by
 number, #494, #509 and #511, on 2026-11-13. Once they land, merge main here
 again and record. The fix keeps 0.49.344 if they land as 0.49.341 to 0.49.343.
-Then gate alone and run `felix merge --dry-run`. At 19:41Z, main's engine
-computed the blockers of `bf3127c3` against main `d3eecbc9`: no escape line.
-The instrument step had not run then, and any escape line it names is the
-founder's to answer on what he is shown.
+Then gate alone and run `felix merge --dry-run`, which runs main's part 1860
+over the tree as suite work. The escape count is not measured yet. At 19:41Z,
+main's engine computed the blockers of `bf3127c3` against main `d3eecbc9`
+without the instrument step, and they held no escape line. A static read of
+`_felix_instr_drops` predicts eight escape lines from the instrument step, one
+for each renamed assertion (A45, A47 to A51, A59, A93). Main's 1860 reaches the
+old names, and the tree's manifest no longer holds them, so each reads as
+"drops assertion". They are the founder's to answer on what he is shown.
+`.snapshot-ack.tsv` is in none of the escape tables, so `felix merge` does not
+stop on its rows, though its header says each row is a person's judgment,
+reviewed in the pull request that adds it.
 
 **Next.** Once this lands, run `snapshot.sh` from the home on main (it runs the
 suite on the snapshot). Audit what differs from the staged preview, test the

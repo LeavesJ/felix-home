@@ -163,7 +163,7 @@ EOF
   printf 'where: a statement given now is given at: %s\n' "$1"   # not `given: `, which is the statement's own field
   printf 'main: %s\n' "${_FA_MAIN:--}"
   s="$(felix_word_stop)"
-  if [ -n "$s" ]; then printf 'word: stop (statement %s)\n' "$s"; else printf 'word: go\n'; fi
+  if [ -n "$s" ]; then printf 'word: stop\nword-from: statement %s\n' "$s"; else printf 'word: go\n'; fi   # the word alone, as status prints it
   printf 'statements: %s\n' "$_DL_N"
   from=$((_DL_N - 5)); [ "$from" -ge 0 ] || from=0
   for (( i = from; i < _DL_N; i++ )); do

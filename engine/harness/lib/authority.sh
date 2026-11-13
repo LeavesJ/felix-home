@@ -174,8 +174,9 @@ EOF
 # one, and the lock with its directory. Directories, and not a list of the tools' names: a list is the tools
 # found so far, and the first one written here named twenty and left out one the door runs. A link is read as
 # itself and as what it points at. "Can write" is: owns it, or it is writable by every login, or by a group a
-# worker is in. A path a third login owns (a system's role account) is not a worker's. NOT READ: the
-# directories above these, and what a link in a PATH directory points into; the slice's document lists both.
+# worker is in, or it carries an access-control entry that allows. A path a third login owns (a system's role
+# account) is not a worker's. NOT READ: the directories above these, and what a link in a PATH directory
+# points into; the slice's document lists both.
 _fa_code_offenders() {
   local d w rest g u e="${SCRIPT_DIR:-/nonexistent}" ifs="$IFS"
   local -a a=() dirs=() grp=() own=()
@@ -208,9 +209,23 @@ _fa_code_offenders() {
   [ ${#grp[@]} -gt 0 ] || { grp=(-group 0 -a ! -group 0); }
   find "${a[@]}" -prune \( "${own[@]}" \) -print 2>/dev/null
   find -L "${a[@]}" -prune \( \( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
-  [ ${#dirs[@]} -gt 0 ] || return 0
-  find "${dirs[@]}" -mindepth 1 -maxdepth 1 -type l \( "${own[@]}" \) -print 2>/dev/null
-  find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d \( \( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
+  if [ ${#dirs[@]} -gt 0 ]; then
+    find "${dirs[@]}" -mindepth 1 -maxdepth 1 -type l \( "${own[@]}" \) -print 2>/dev/null
+    find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d \( \( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
+  fi
+  # An access-control entry that is not a deny can let a login write what the owner and the mode say it
+  # cannot, so the same paths are read for one. Whose entry it is is not read: any that allows is named.
+  if ls -lLde "$e" >/dev/null 2>&1; then
+    { ls -lLde "${a[@]}" 2>/dev/null
+      [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -exec ls -lLde {} + 2>/dev/null
+    } | LC_ALL=C awk '
+      /^ [0-9]+: / { if ($0 !~ / deny / && last != "") { print last " (an access-control entry that allows)"; last = "" } next }
+      { last = $0; sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, "", last) }'
+  else
+    { ls -lLd "${a[@]}" 2>/dev/null
+      [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -exec ls -lLd {} + 2>/dev/null
+    } | LC_ALL=C awk 'substr($1, 11, 1) == "+" { sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, ""); print $0 " (an access-control list)" }'
+  fi
   return 0
 }
 

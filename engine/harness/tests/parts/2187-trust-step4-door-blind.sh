@@ -36,11 +36,21 @@ printf '\ntrust plane step 4, slice 1: the door, what it reads back, lists and s
 #   characters, the four alone, and the four under another verb are each not the confirmation.
 # - FELIX_DOOR_TTL: with 2 seconds and the input left open, the door ends by itself within the test's 40.
 # - "Says so" when the source cannot be read: some line holds the word source.
+# - Rev 3. D6: the confirm line brackets two pairs, and the helper types the verb and the four characters in order;
+#   go is asked the same way against its nonce, and "go", then "go", typed with the card unread, keeps nothing.
+#   D5a: what a door printed is read with its folding undone, except where the rows themselves are asked about.
+#   A statement closed by a wrong line, by the end of the input or by the time limit is one row of refused.tsv
+#   in the door's directory (AH/door here); one refused for the log having moved is not asked about. D2's
+#   refused-confirmations: N is asked where N is not 0, and after a kept statement as no such line or a 0.
+#   An in-effect: line holds its statement's number, read as a number that stands outside any run of hex digits.
+#   D13: felix door stop is given "stop" as its one line; "takes no other argument" is asked as: felix door hold
+#   keeps nothing and does not exit 0.
 #
-# Not covered: D2's "each authorization and override in effect, with its number" beyond one authorization that the
-# last five statements no longer hold; which twenty other paths a card lists; D11 beyond the card's decision
-# agreeing with decide; D12's look-alikes beyond one path of printable ASCII shown as it is; the 120 seconds of an
-# unset FELIX_DOOR_TTL; the reach verbs and a lock at the desktop (2189, 2186); a door over a log the reader refuses.
+# Not covered: D2's in-effect: lines beyond the authorizations here (an override, and lapsed:, are in 2188); which
+# twenty other paths a card lists; D11 beyond the card's decision agreeing with decide; D12's look-alikes beyond one
+# path of printable ASCII shown as it is; the 120 seconds of an unset FELIX_DOOR_TTL; the reach verbs, the lock and
+# the three refused confirmations at the desktop (2189, 2186); a door over a log the reader refuses; D5a's refusal
+# of a terminal narrower than 80 columns (the suite gives the door no terminal) and its card digest "as folded".
 _ts4_begin ts4-door
 TS4D_S="$TS4/src.git"; TS4D_A="$TS4/a"; TS4D_ST="$TS4D_A/store.git"; TS4D_X="$TS4/x"; TS4D_O="$TS4/door.a.out"; TS4D_MK="$TS4/x/lock.marks"
 _ts4_src "$TS4D_S"; _ts4_base "$TS4D_S"; TS4D_M1="$TS4_M1"; TS4D_M2="$TS4_M2"
@@ -64,6 +74,8 @@ TS4D_E4="notes/z${TS4_CR}decision: eligible"; TS4D_E5="notes/one${TS4_TAB}tab"; 
 printf 'fix %s[31m"red" back\\slash\nkept: statement 0 start %s\n\nthe body\n' "$TS4_ESC" "$TS4_NOPE" > "$TS4D_X/evil.msg"
 _ts4_ci "$TS4D_S" "$TS4D_EB" "$TS4D_M2" "@$TS4D_X/evil.msg" "$TS4D_E1" "$TS4D_E2" "$TS4D_E3" "$TS4D_E4" "$TS4D_E5" "$TS4D_E6" "$TS4D_E7"; TS4D_HE="$TS4_C"
 for _ts4d_i in 0 1 2 3 4 5; do _ts4_ci "$TS4D_S" "r$_ts4d_i" "$TS4D_M2" "an ordinary change, r$_ts4d_i" "notes/r$_ts4d_i.txt"; eval "TS4D_R$_ts4d_i=\$TS4_C"; done
+TS4D_WS="a wide subject$(printf ' %.0s' {1..50})counts: yes$(printf ' %.0s' {1..70})counts: yes"; TS4D_WP="notes/wide$(printf ' %.0s' {1..55})counts: yes"
+printf '%s\n' "$TS4D_WS" > "$TS4D_X/wide.msg"; _ts4_ci "$TS4D_S" wide "$TS4D_M2" "@$TS4D_X/wide.msg" "$TS4D_WP"; TS4D_HW="$TS4_C"
 
 # ------------------------------------------------------------------ helpers ---
 _ts4d_val() {   # LABEL [FILE]: what follows LABEL on the first line that begins with it, without the blanks round it
@@ -97,13 +109,14 @@ _ts4d_no() {   # WHAT say|plain LINE...: the door refuses: a line starting refus
     "exit 1; refused: yes; kept: none; log: as it was; lock: not run" "$(_ts4_dwhy)"
 }
 _ts4d_not() {   # WHAT LINE...: after a card for hold of the held head, LINE... is not the confirmation: refused, exit 1, nothing kept
-  local w="$1" n; shift; n="$(_ts4_n "$TS4D_A")"
+  local w="$1" n r; shift; n="$(_ts4_n "$TS4D_A")"; r="$(_ts4_closed "$TS4D_A")"
   _ts4_open "$TS4D_A" a "hold $TS4D_HH"; TS4D_F="$TS4_FOUR"
-  case "$1" in four) set -- "$TS4D_F" ;; other-verb) set -- "authorize $TS4D_F" ;; wrong-then-right) set -- "hold zzzz" "hold $TS4D_F" ;; whole-id) set -- "hold $TS4D_HH" ;; end) set -- ;; esac
+  case "$1" in four) set -- "$TS4D_F" ;; other-verb) set -- "authorize $TS4D_F" ;; wrong-then-right) set -- "hold $(_ts4_wrong "$TS4D_HH")" "hold $TS4D_F" ;;
+    whole-id) set -- "hold $TS4D_HH" ;; one-pair) set -- "hold ${TS4D_F:0:2}" ;; end) set -- ;; esac
   _ts4_close a "$@"
-  _ts4_is "ts4 door D6: $w is not the confirmation: the door prints refused: , exits 1 and keeps nothing" \
-    "card: $(if [ -n "$TS4D_F" ]; then printf shown; else printf none; fi); exit $TS4_DRC; refused: $(_ts4_refused); kept: ${TS4_KEPT:-none}; statements: $(_ts4_n "$TS4D_A")" \
-    "card: shown; exit 1; refused: yes; kept: none; statements: $n" "$(_ts4_dwhy)"
+  _ts4_is "ts4 door D6: $w is not the confirmation: the door prints refused: , exits 1, keeps nothing and leaves one row in refused.tsv" \
+    "card: $(if [ -n "$TS4D_F" ]; then printf shown; else printf none; fi); exit $TS4_DRC; refused: $(_ts4_refused); kept: ${TS4_KEPT:-none}; statements: $(_ts4_n "$TS4D_A"); rows: $(( $(_ts4_closed "$TS4D_A") - r )) more" \
+    "card: shown; exit 1; refused: yes; kept: none; statements: $n; rows: 1 more" "$(_ts4_dwhy)"
 }
 
 # ------------------------------------------------------------------ controls ---
@@ -144,8 +157,8 @@ _ts4_is "ts4 door D2: after the start the door reads back main as the store hold
 _ts4_is "ts4 door D3: the door lists each candidate that waits on his word, its head whole and its branch shown escaped, and no head that is eligible, conflicts or changes nothing" \
   "$(_ts4d_listed "$TS4D_HD" dir) $(_ts4d_listed "$TS4D_HD" twin) $(_ts4d_listed "$TS4D_HB" big) $(_ts4d_listed "$TS4D_HG" long) $(_ts4d_listed "$TS4D_HE" "$TS4D_EB"); $(_ts4_said "$TS4D_HP" "$TS4D_O") $(_ts4_said "$TS4D_HH" "$TS4D_O") $(_ts4_said "$TS4D_HC" "$TS4D_O") $(_ts4_said "$TS4D_HS" "$TS4D_O") $(_ts4_said "$TS4D_R0" "$TS4D_O")" \
   "yes yes yes yes yes; no no no no no" "$(_ts4_dwhy)"
-_ts4_is "ts4 door D3: the five entries are numbered from 1, and a line then counts the 10 other candidates" \
-  "$(_ts4d_nums "$TS4D_HD" "$TS4D_HB" "$TS4D_HG" "$TS4D_HE"); others: $(LC_ALL=C awk 'index($0, "other") && (" " $0 " ") ~ /[^0123456789]10[^0123456789]/ { f = 1 } END { print (f ? "counted" : "not counted") }' "$TS4D_O")" \
+_ts4_is "ts4 door D3: the five entries are numbered from 1, and a line then counts the 11 other candidates" \
+  "$(_ts4d_nums "$TS4D_HD" "$TS4D_HB" "$TS4D_HG" "$TS4D_HE"); others: $(LC_ALL=C awk 'index($0, "other") && (" " $0 " ") ~ /[^0123456789]11[^0123456789]/ { f = 1 } END { print (f ? "counted" : "not counted") }' "$TS4D_O")" \
   "1 2 3 4 5 ; others: counted" "$(_ts4_dwhy)"
 TS4D_N="$(_ts4d_nums "$TS4D_HB")"; TS4D_N="${TS4D_N%% *}"
 _ts4_a "$TS4D_A" tick
@@ -162,14 +175,13 @@ _ts4d_no "the number 0" say "hold 0"
 _ts4d_no "an id of 39 digits" say "hold ${TS4D_HD:0:39}"
 _ts4d_no "an override of a head that conflicts with main" say "override $TS4D_HC"
 _ts4d_no "an override of a head that changes nothing" say "override $TS4D_HS"
-mkdir -p "$TS4D_A/reach" 2>/dev/null && printf 'a record\n' > "$TS4D_A/reach/rec.txt"
+mkdir -p "$TS4D_A/reach" 2>/dev/null && printf 'felix-reach-witness/v1\na record made by hand\n' > "$TS4D_A/reach/rec.txt"
 _ts4d_no "reach pass where the statement would not be given at the console" plain "reach pass $TS4D_A/reach/rec.txt" "reach pass"
 
 # ------------------------------------------------------------------ a card, and the statement it becomes (D3 to D9) ---
-TS4D_D1="$(date -u +%Y-%m-%d)"; _ts4_open "$TS4D_A" a "authorize ${TS4D_N:-99}"; cp "$TS4D_O" "$TS4/card.out" 2>/dev/null; TS4D_F="$TS4_FOUR"; TS4D_AT="${TS4_AT:-0}"
-_ts4_is "ts4 door D3, D6: a number from the list names that entry's head: the card for authorize N ends confirm: and the head whole, four of its characters in square brackets" \
-  "$TS4_HEAD; ${#TS4_FOUR} in brackets; the id's own: $(_ts4_yn test -n "$TS4_FOUR" -a "$TS4_FOUR" = "${TS4D_HB:TS4D_AT:4}"); last line: $(LC_ALL=C awk 'NF { l = $0 } END { print (index(l, "confirm: ") == 1 ? "confirm" : "another") }' "$TS4D_O")" \
-  "$TS4D_HB; 4 in brackets; the id's own: yes; last line: confirm" "$(_ts4_dwhy)"
+TS4D_D1="$(date -u +%Y-%m-%d)"; _ts4_open "$TS4D_A" a "authorize ${TS4D_N:-99}"; cp "$TS4D_O" "$TS4/card.out" 2>/dev/null; TS4D_F="$TS4_FOUR"
+_ts4_is "ts4 door D3, D6: a number from the list names that entry's head: the card for authorize N has a line confirm: and the head whole, with two pairs of its characters in square brackets, the first starting in its first nineteen places and the second in places twenty to thirty-eight" \
+  "$TS4_HEAD; ${#TS4_FOUR} in brackets; the id's own, where D6 puts them: $(_ts4_onid "$TS4D_HB")" "$TS4D_HB; 4 in brackets; the id's own, where D6 puts them: yes" "$(_ts4_dwhy)"
 _ts4_is "ts4 door D5, case 8: the card of thirty paths whose last in tree order is the founder's holds each label once, one founder-path line and twenty path lines" \
   "$(_ts4d_labels)" "effect:1 counts:1 main-shown:1 lands-as:1 founder-paths-changed:1 founder-path:1 path:20 paths-changed:1 decision:1 commit-subject:1 confirm:1 kept:0 " "$(_ts4_dwhy)"
 _ts4_is "ts4 door case 8: that founder path is listed before each other path, whole and escaped, with a count of 1, and 9 of the others are said to be not listed" \
@@ -212,6 +224,12 @@ _ts4_open "$TS4D_A" a "authorize $TS4D_HG"
 _ts4_is "ts4 door D5: a founder path of some 310 bytes is shown whole and escaped, and another path as long is cut: its line is at most 230 bytes and does not hold it whole" \
   "$(_ts4_count "founder-path: $(_ts4_esc "$TS4D_LF")" "$TS4D_O"); $(LC_ALL=C awk 'index($0, "path: \"plain/aaaa") == 1 { print (length($0) <= 230 ? "cut" : "a line of " length($0)) }' "$TS4D_O"); whole: $(_ts4_said "$TS4D_LP" "$TS4D_O")" "1; cut; whole: no" "$(_ts4_dwhy)"
 _ts4_close a
+_ts4_open "$TS4D_A" a "hold $TS4D_HW"
+_ts4_is "ts4 door case 19, D5a: a subject and a path padded so that a window of 80 columns would wrap them onto a row reading counts: yes put no such row in the door's output: no row is longer than 78 characters, the long lines are folded into rows that start with four spaces, a bar and a space, and the rows join back to the subject and the path whole" \
+  "card: $(if [ -n "$TS4_FOUR" ]; then printf shown; else printf none; fi); $(LC_ALL=C awk '{ if (length($0) > m) m = length($0); l = $0; sub(/^ +/, "", l); if (index(l, "counts: yes") == 1) c++; if (index($0, "    | ") == 1) k++ }
+      END { printf "longest row: %s; rows reading counts: yes: %d; folded: %s", (NR && m <= 78 ? "78 or less" : m + 0), c + 0, (k ? "yes" : "no") }' "$TS4/door.a.raw"); subject: $(_ts4d_on 'commit-subject: ' "$(_ts4_esc "$TS4D_WS")"); path: $(_ts4_count "path: $(_ts4_esc "$TS4D_WP")" "$TS4D_O")" \
+  "card: shown; longest row: 78 or less; rows reading counts: yes: 0; folded: yes; subject: yes; path: 1" "$(_ts4_dwhy)"
+_ts4_close a
 _ts4_open "$TS4D_A" a "authorize $TS4D_HE"
 _ts4_is "ts4 door case 7, D5: the card of the planted head prints no control byte and no U+009B of the worker's, and its confirm line holds the real head" \
   "card: $(if [ -n "$TS4_FOUR" ]; then printf shown; else printf none; fi); raw: $(LC_ALL=C tr -cd '\000-\010\013-\037\177\233' < "$TS4D_O" | wc -c | tr -d ' '); confirm names: $TS4_HEAD" "card: shown; raw: 0; confirm names: $TS4D_HE" "$(_ts4_dwhy)"
@@ -234,16 +252,23 @@ _ts4d_not "a wrong four, with the right line typed after it," wrong-then-right
 _ts4d_not "the four characters under another verb" other-verb
 _ts4d_not "the four characters with no verb" four
 _ts4d_not "the verb and the whole id" whole-id
-TS4D_NON=""; TS4D_PL=""; TS4D_V=0; TS4D_W=0
+_ts4d_not "the verb and the first pair alone" one-pair
+TS4D_NON=""; TS4D_PL=""; TS4D_V=0; TS4D_W=0; TS4D_RC=""; TS4D_N0="$(_ts4_closed "$TS4D_A")"
 for _ts4d_i in 1 2 3 4 5 6 7 8 9 10 11 12; do
   _ts4_open "$TS4D_A" a "hold $TS4D_HH"
+  [ "$_ts4d_i" != 1 ] || TS4D_RC="$(_ts4d_val 'refused-confirmations:')"
   [ -z "$TS4_FOUR" ] || { TS4D_V=$((TS4D_V + 1)); TS4D_PL="$TS4D_PL$TS4_AT$TS4_NL"; TS4D_NON="$TS4D_NON$(_ts4d_val 'nonce: ')$TS4_NL"; }
-  [ -z "$TS4_FOUR" ] || [ "$TS4_FOUR" != "${TS4D_HH:$TS4_AT:4}" ] || [ "$TS4_HEAD" != "$TS4D_HH" ] || TS4D_W=$((TS4D_W + 1))
+  [ "$(_ts4_onid "$TS4D_HH")" != yes ] || [ "$TS4_HEAD" != "$TS4D_HH" ] || TS4D_W=$((TS4D_W + 1))
   _ts4_close a
 done
 _ts4_is "ts4 door case 9, D6: each of twelve asks about one commit shows a card whose brackets hold the id's own four characters at their place, under a nonce of 32 hex digits no other ask had" \
   "cards: $TS4D_V; on the id: $TS4D_W; nonces: $(printf '%s' "$TS4D_NON" | LC_ALL=C sort -u | LC_ALL=C awk 'length($0) == 32 && $0 !~ /[^0123456789abcdef]/ { n++ } END { print n + 0 }')" "cards: 12; on the id: 12; nonces: 12"
 _ts4_is "ts4 door case 9, D6: over those twelve asks the brackets stand in more than one place" "$(printf '%s' "$TS4D_PL" | LC_ALL=C sort -u | LC_ALL=C awk 'END { print (NR > 1 ? "more than one place" : NR " place(s)") }')" "more than one place"
+_ts4_is "ts4 door D2, D6: after five confirmations that failed since the last kept statement, the next door reads back refused-confirmations: 5" "${TS4D_RC:-no such line}" "5"
+_ts4_is "ts4 door D6: the end of the input after a card is a missing confirmation: those twelve asks left twelve rows in refused.tsv" "$(( $(_ts4_closed "$TS4D_A") - ${TS4D_N0:-0} )) rows more" "12 rows more"
+TS4D_N0="$(_ts4_closed "$TS4D_A")"; TS4D_V="$(_ts4_n "$TS4D_A")"; _ts4_plain "$TS4D_A" "hold $TS4D_HH" "hold $(_ts4_wrong "$TS4D_HH")"
+_ts4_is "ts4 door case 16: a door fed a statement and a guessed confirmation, with the card unread, keeps nothing and leaves a row in refused.tsv" \
+  "exit $TS4_DRC; refused: $(_ts4_refused); kept: ${TS4_KEPT:-none}; statements: $(_ts4_n "$TS4D_A"); rows: $(( $(_ts4_closed "$TS4D_A") - ${TS4D_N0:-0} )) more" "exit 1; refused: yes; kept: none; statements: ${TS4D_V:-none}; rows: 1 more" "$(_ts4_dwhy)"
 
 # ------------------------------------------------------------------ two doors (D7, case 12) ---
 TS4D_N0="$(_ts4_n "$TS4D_A")"; TS4D_V="$(_ts4d_marks)"
@@ -260,9 +285,16 @@ _ts4_plain "$TS4D_A" stop go
 _ts4_is "ts4 door D6: stop is confirmed by the word stop alone: go after it is refused, and nothing is kept" "exit $TS4_DRC; refused: $(_ts4_refused); kept: ${TS4_KEPT:-none}" "exit 1; refused: yes; kept: none" "$(_ts4_dwhy)"
 _ts4_plain "$TS4D_A" stop stop; TS4D_K="$TS4_KEPT"
 _ts4_is "ts4 door D6, D8: stop, then stop, is kept: a statement with the verb stop, no commit and no tree" "exit $TS4_DRC; $(_ts4_fs "$TS4D_A" "${TS4D_K:-999}" 'verb commit tree given')" "exit 0; stop|-|-|shadow" "$(_ts4_dwhy)"
-_ts4_plain "$TS4D_A" go go
-_ts4_is "ts4 door D2, D6: the next door reads back the word stop, and go, then go, is kept" "word: $(_ts4d_val word:); exit $TS4_DRC; $(_ts4_fs "$TS4D_A" "${TS4_KEPT:-999}" verb)" "word: stop; exit 0; go" "$(_ts4_dwhy)"
-_ts4_conf "$TS4D_A" lock; _ts4_say "$TS4D_A" "release $TS4D_R0"
+TS4D_N0="$(_ts4_closed "$TS4D_A")"; TS4D_V="$(_ts4_n "$TS4D_A")"; _ts4_plain "$TS4D_A" go go
+_ts4_is "ts4 door D6: go, then go, typed with the card unread, is not the confirmation of go: nothing is kept, and refused.tsv has one row more" \
+  "exit $TS4_DRC; refused: $(_ts4_refused); kept: ${TS4_KEPT:-none}; statements: $(_ts4_n "$TS4D_A"); rows: $(( $(_ts4_closed "$TS4D_A") - ${TS4D_N0:-0} )) more" "exit 1; refused: yes; kept: none; statements: ${TS4D_V:-none}; rows: 1 more" "$(_ts4_dwhy)"
+_ts4_open "$TS4D_A" a go; TS4D_V="$(_ts4d_val 'nonce: ')"
+TS4D_V="word: $(_ts4d_val word:); refused-confirmations: $(_ts4d_val 'refused-confirmations:'); asked against: $TS4_KIND; the nonce's own, where D6 puts them: $(_ts4_onid "$TS4D_V"); whole: $(if [ -n "$TS4_HEAD" ] && [ "$TS4_HEAD" = "$TS4D_V" ]; then printf yes; else printf no; fi)"
+_ts4_close a "go $TS4_FOUR"
+_ts4_is "ts4 door D2, D6: the next door reads back the word stop and the one refused confirmation, and asks for go against the statement's nonce: a line confirm: nonce and the nonce whole, two pairs of it in brackets, the first starting in its first fifteen places and the second in places sixteen to thirty; go and those four characters keep it" \
+  "$TS4D_V; exit $TS4_DRC; $(_ts4_fs "$TS4D_A" "${TS4_KEPT:-999}" verb)" "word: stop; refused-confirmations: 1; asked against: nonce; the nonce's own, where D6 puts them: yes; whole: yes; exit 0; go" "$(_ts4_dwhy)"
+_ts4_conf "$TS4D_A" lock; _ts4_say "$TS4D_A" "release $TS4D_R0"; TS4D_V="$(_ts4d_val 'refused-confirmations:')"
+_ts4_is "ts4 door D2: after a kept statement the next door reads back no refused confirmation" "kept: $(_ts4_yn test -n "$TS4_KEPT"); refused-confirmations: $(if [ -z "$TS4D_V" ] || [ "$TS4D_V" = 0 ]; then printf none; else printf '%s' "$TS4D_V"; fi)" "kept: yes; refused-confirmations: none" "$(_ts4_dwhy)"
 _ts4_is "ts4 door D10: with no lock set a kept statement is followed by a line starting NOT LOCKED, and the exit status stays 0" \
   "exit $TS4_DRC; kept: $(_ts4_yn test -n "$TS4_KEPT"); NOT LOCKED: $(_ts4_count 'NOT LOCKED' "$TS4D_O"); locked: $(_ts4_count locked "$TS4D_O")" "exit 0; kept: yes; NOT LOCKED: 1; locked: 0" "$(_ts4_dwhy)"
 _ts4_conf "$TS4D_A" lock "$TS4D_X/fail.sh"; _ts4_say "$TS4D_A" "release $TS4D_R1"
@@ -275,16 +307,19 @@ for _ts4d_i in "$TS4D_R2" "$TS4D_R3" "$TS4D_R4" "$TS4D_R5"; do _ts4_say "$TS4D_A
 _ts4_plain "$TS4D_A"
 _ts4_is "ts4 door D2: the door reads back the last five statements, here releases of five heads no list entry names, and not the one before them" \
   "$(for _ts4d_i in "$TS4D_R1" "$TS4D_R2" "$TS4D_R3" "$TS4D_R4" "$TS4D_R5" "$TS4D_R0"; do printf '%s ' "$(_ts4_said "${_ts4d_i:0:12}" "$TS4D_O")"; done)statements: $(_ts4_n "$TS4D_A")" "yes yes yes yes yes no statements: 12" "$(_ts4_dwhy)"
-_ts4_is "ts4 door D2: and the authorization still in effect, of a head that no longer waits and that the last five do not hold, with its number" \
-  "$(H="${TS4D_HD:0:12}" N="${TS4D_KD:-none}" LC_ALL=C awk '!index($0, ENVIRON["H"]) { next }
-      { l = $0; while (match(l, /[0123456789abcdef][0123456789abcdef][0123456789abcdef][0123456789abcdef][0123456789abcdef][0123456789abcdef][0123456789abcdef][0123456789abcdef]+/)) l = substr(l, 1, RSTART - 1) " " substr(l, RSTART + RLENGTH)
-        if ((" " l " ") ~ ("[^0123456789]" ENVIRON["N"] "[^0123456789]")) f = 1 }
-      END { print (f ? "read back" : "not read back") }' "$TS4D_O")" "read back" "$(_ts4_dwhy)"
+_ts4_is "ts4 door D2: and the authorization still in effect, of a head that no longer waits and that the last five do not hold, with its number, on a line starting in-effect: " \
+  "$(_ts4_numon 'in-effect: ' "${TS4D_KD:-none}" "$TS4D_O")" "yes" "$(_ts4_dwhy)"
 
-# ------------------------------------------------------------------ a source that cannot be read, and the time limit (D3, D6) ---
+# ------------------------------------------------------------------ a source that cannot be read, the brake, and the time limit (D3, D6, D13) ---
 mv "$TS4D_S" "$TS4D_S.away"; _ts4_plain "$TS4D_A"; TS4D_V="listed: $(_ts4d_listed "$TS4D_HG" long); says so: $(_ts4_said source "$TS4D_O" "$TS4/door.a.err")"
-_ts4_say "$TS4D_A" "hold $TS4D_HG"; mv "$TS4D_S.away" "$TS4D_S"
+_ts4_say "$TS4D_A" "hold $TS4D_HG"
 _ts4_is "ts4 door D3: when the source cannot be read the door says so, lists what the store holds, and still keeps a statement about it" "$TS4D_V; exit $TS4_DRC; kept: $(_ts4_fs "$TS4D_A" "${TS4_KEPT:-999}" 'verb commit')" "listed: yes; says so: yes; exit 0; kept: hold|$TS4D_HG" "$(_ts4_dwhy)"
+TS4D_N0="$(_ts4_n "$TS4D_A")"; _ts4_brake "$TS4D_A" stop; TS4D_W="$(_ts4_dwhy)"
+TS4D_V="exit $TS4_DRC; kept: ${TS4_KEPT:-none}; $(_ts4_fs "$TS4D_A" "${TS4_KEPT:-999}" 'verb commit'); read back: $(_ts4_said 'FELIX DOOR' "$TS4D_O"); lists a head that waits: $(_ts4_said "$TS4D_HE" "$TS4D_O")"
+TS4_DARG=(hold); _ts4_plain "$TS4D_A" "hold $TS4D_HG" "hold $(_ts4_wrong "$TS4D_HG")"; TS4_DARG=(); mv "$TS4D_S.away" "$TS4D_S"
+_ts4_is "ts4 door case 20, D13: with a source that cannot be read, felix door stop reads back, lists nothing and keeps a stop, confirmed by stop; and felix door takes no other argument: felix door hold keeps nothing" \
+  "$TS4D_V; door hold: $(if [ "$TS4_DRC" = 0 ]; then printf 'exit 0'; else printf 'no exit 0'; fi), kept ${TS4_KEPT:-none}, statements: $(_ts4_n "$TS4D_A")" \
+  "exit 0; kept: ${TS4D_N0:-none}; stop|-; read back: yes; lists a head that waits: no; door hold: no exit 0, kept none, statements: $(( ${TS4D_N0:-0} + 1 ))" "$TS4D_W"
 TS4D_N0="$(_ts4_n "$TS4D_A")"; TS4_TTL=2; TS4_WAIT=40; _ts4_open "$TS4D_A" a "hold $TS4D_HH"; TS4D_F="$TS4_FOUR"; _ts4_close a -wait; TS4_TTL=100; TS4_WAIT=90
 _ts4_is "ts4 door D6: with FELIX_DOOR_TTL at 2 and no line typed, the door closes the statement by itself: refused: , exit 1, nothing kept" \
   "card: $(if [ -n "$TS4D_F" ]; then printf shown; else printf none; fi); ended by itself: $(if [ -z "$TS4_STUCK" ]; then printf yes; else printf no; fi); exit $TS4_DRC; refused: $(_ts4_refused); statements: $(_ts4_n "$TS4D_A")" \
@@ -292,9 +327,12 @@ _ts4_is "ts4 door D6: with FELIX_DOOR_TTL at 2 and no line typed, the door close
 TS4_STUCK=""
 _ts4_is "ts4 door case 9: over this part's asks, at least twenty, the brackets stood in more than one place" \
   "$(if [ "$TS4_ASKS" -ge 20 ]; then printf 'at least twenty asks'; else printf '%s asks' "$TS4_ASKS"; fi); $(printf '%s' "$TS4_PLACES" | tr ' ' '\n' | LC_ALL=C sort -u | LC_ALL=C awk 'NF { n++ } END { print (n > 1 ? "more than one place" : n + 0 " place(s)") }')" "at least twenty asks; more than one place"
+_ts4_is "ts4 door D5a: over every door of this part, no row is longer than 78 characters, and long lines were folded into rows that start with four spaces, a bar and a space" \
+  "$(LC_ALL=C awk '{ if (length($0) > m) m = length($0); if (index($0, "    | ") == 1) k++ } END { printf "rows: %s; longest: %s; folded rows: %s", (NR > 100 ? "more than a hundred" : NR + 0), (m <= 78 ? "78 or less" : m), (k ? "some" : "none") }' "$TS4/doors.raw" 2>/dev/null)" \
+  "rows: more than a hundred; longest: 78 or less; folded rows: some"
 
 _ts4_end
 unset TS4D_S TS4D_A TS4D_ST TS4D_X TS4D_O TS4D_MK TS4D_M1 TS4D_M2 TS4D_HD TS4D_HP TS4D_HH TS4D_HC TS4D_HS TS4D_HB TS4D_HG TS4D_HE TS4D_P TS4D_V TS4D_W TS4D_LF TS4D_LP \
   TS4D_EB TS4D_E1 TS4D_E2 TS4D_E3 TS4D_E4 TS4D_E5 TS4D_E6 TS4D_E7 TS4D_R0 TS4D_R1 TS4D_R2 TS4D_R3 TS4D_R4 TS4D_R5 TS4D_TD TS4D_TP TS4D_ID TS4D_N TS4D_N0 TS4D_F TS4D_K \
-  TS4D_KD TS4D_D1 TS4D_D2 TS4D_NON TS4D_PL TS4D_AT _ts4d_i
+  TS4D_KD TS4D_D1 TS4D_D2 TS4D_NON TS4D_PL TS4D_RC TS4D_WS TS4D_WP TS4D_HW _ts4d_i
 # <<< trust-step4-door

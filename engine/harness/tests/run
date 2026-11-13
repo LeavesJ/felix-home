@@ -419,6 +419,7 @@ fi
 . "$HERE/parts/2186-trust-step4-authority-store-blind.sh"
 . "$HERE/parts/2187-trust-step4-door-blind.sh"
 . "$HERE/parts/2188-trust-step4-reading-blind.sh"
+. "$HERE/parts/2189-trust-step4-reader-reach-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

@@ -9,7 +9,7 @@ printf '\ntrust plane step 4, slice 1: the authority, its parameters, its store,
 # The fixture: a bare source whose main (M1, M2) holds .felix and a land table with one founder row, five branches
 # of ordinary changes whose names sort differently by byte and by locale (Zed, alpha, beta-2, beta_1, merge), and
 # old, whose head is in main's history. Authority a is shadow by construction (this login is the user and the one
-# worker), b is a second store whose authority.conf the W2 cases rewrite, l has another login as its worker.
+# worker), b is a second store whose authority.conf the W2 cases rewrite, q and l have another login as their worker.
 #
 # Readings, where the spec leaves room:
 # - "Prints the authority's id": init's stdout holds exactly one run of 40 lowercase hex digits, whatever stands
@@ -37,14 +37,32 @@ printf '\ntrust plane step 4, slice 1: the authority, its parameters, its store,
 #   would be given at the desktop), the home is made writable by its group before the confirmation is typed (it
 #   would now be given in shadow), and nothing may be kept. No process of another login is started or stopped.
 #
+# - Rev 3 of the spec (2026-11-13) and its addendum on W6 e were read after that, and these were added or changed.
+#   Every felix call is given a PATH of the system's own directories of programs (the helper says why): W6 e reads
+#   each directory PATH names and each program in one. Where this login is the worker, e fails by its letter, for
+#   this login owns the engine the suite runs, and the store that is shadow by construction says not the
+#   authority's alone as well; case 1 does not say so, W6 e does. So W6 b and e are asked on a store whose one
+#   worker is another login that runs no process, where neither why shows until a test stages it: for b a file
+#   inside the store and inside the door's directory, and an access-control list (chmod +a, skipped where that
+#   fails); for e a file of the engine's lib, a lock and its directory that anyone can write, a lock's
+#   access-control entry that allows and one that denies, a directory anyone can write first on PATH (case 22),
+#   and an entry of PATH that is empty or not absolute. Where status gives such a store a why line of a, b or e
+#   before anything is staged, each assertion that needs the console or the desktop is skipped under its own name,
+#   as case 22 asks. W6 a: with root as the worker, shadow. Case 2: the busy login is the one, neither this login
+#   nor root, that the process list shows most, and a start at the desktop is refused. W8's "lacks process 1" is a
+#   ps and a pgrep that succeed and print nothing. Case 16 at the desktop: a statement is kept first, so that the
+#   count of refused confirmations starts there. W2: a key with a space. W4: an argument with a tab or a newline.
+#
 # Not covered: AH's default, $HOME/.felix/authority (no call here may fall back to it); W6 b's "owned by user"
-# (nothing here can change an owner); a fetch through an https:// or ssh:// source; W7's last sentence, that nothing
+# (nothing here can change an owner) and e's group clause (nothing here can put a login in a group); W8's
+# effective user; a fetch through an https:// or ssh:// source, and a candidate's submodules (W10: a fetch into a
+# bare store follows none whatever the code does, so no test here could fail); W7's last sentence, that nothing
 # else in the engine reads the store, the log or the ledger; W10's replacement refs and the system's own
 # configuration file; a tick whose source cannot be read (the spec says what the door does, not the tick); W8's
 # second reading where the two differ by a worker's process starting; live standing, which needs a reach pass
-# (part 2189); the reading of statements (2188) and the door's own rules (2187).
+# (part 2189); the reading of statements and the attributes of case 17 (2188); the door's own rules (2187).
 _ts4_begin ts4-store
-TS4S_S="$TS4/src.git"; TS4S_A="$TS4/a"; TS4S_B="$TS4/b"; TS4S_L="$TS4/l"; TS4S_ST="$TS4S_A/store.git"; TS4S_X="$TS4/x"
+TS4S_S="$TS4/src.git"; TS4S_A="$TS4/a"; TS4S_B="$TS4/b"; TS4S_L="$TS4/l"; TS4S_Q="$TS4/q"; TS4S_ST="$TS4S_A/store.git"; TS4S_X="$TS4/x"
 _ts4_src "$TS4S_S"; _ts4_base "$TS4S_S"; TS4S_M1="$TS4_M1"; TS4S_M2="$TS4_M2"
 _ts4_ci "$TS4S_S" Zed "$TS4S_M2" 'an ordinary change, z' notes/z.txt; TS4S_HZ="$TS4_C"
 _ts4_ci "$TS4S_S" alpha "$TS4S_M2" 'an ordinary change, a' notes/a.txt; TS4S_HA="$TS4_C"
@@ -74,10 +92,14 @@ _ts4s_unread() {   # WHAT: b's authority.conf as it now stands is unreadable: st
     "$(_ts4s_w2); home $s" "exit 1; 1 stderr line(s); felix: yes; home unchanged" "$(_ts4_why)"
   _ts4s_fresh
 }
-_ts4s_b() {   # WHAT PATH MODE: with PATH given MODE, status gives condition b's why, and not once the mode is taken back
-  local w; chmod "$3" "$2" 2>/dev/null; _ts4_a "$TS4S_A" status; w="$(_ts4_whys)"
-  chmod go-w "$2" 2>/dev/null; _ts4_a "$TS4S_A" status
-  _ts4_is "ts4 store W6: $1 is not the authority's alone, and status says so until the mode is taken back" "$w, then $(_ts4_whys)" "abcd, then acd" "$(_ts4_why)"
+_ts4s_b() {   # WHAT PATH MODE: with PATH given MODE, status for q says not the authority's alone, and not once the mode is taken back
+  local w; chmod "$3" "$2" 2>/dev/null; _ts4_a "$TS4S_Q" status; w="$(_ts4_whys)"
+  chmod go-w "$2" 2>/dev/null; _ts4_a "$TS4S_Q" status
+  _ts4_is "ts4 store W6: $1 is not the authority's alone, and status says so until the mode is taken back" "$w, then $(_ts4_whys)" "bcd, then cd" "$(_ts4_why)"
+}
+_ts4s_e() {   # WHAT ENV...: with that environment, status for q says not the authority's alone, and not without it
+  local w n="$1"; shift; TS4_ENV=("$@"); _ts4_a "$TS4S_Q" status; TS4_ENV=(); w="$(_ts4_whys)"; _ts4_a "$TS4S_Q" status
+  _ts4_is "ts4 store W6 e: $n, the standing is shadow with not the authority's alone, and that why is gone without it" "$w, then $(_ts4_whys)" "bcd, then cd" "$(_ts4_why)"
 }
 
 # ------------------------------------------------------------------ controls ---
@@ -86,6 +108,8 @@ is "ts4 store (control): the source holds main, five branches whose heads main's
   "Zed alpha beta-2 beta_1 main merge old ; old in main: yes; merge: tree"
 is "ts4 store (control): this machine has no login ts4nologin, and has a login other than this one" "$(_ts4_yn id -u ts4nologin) $(_ts4_yn id -u "$TS4S_OTHER") $( [ "$TS4S_OTHER" != "$TS4_ME" ] && printf other)" "no yes other"
 is "ts4 (control): the test's own escaping writes a newline, a backslash, a quote, an escape and a tab as section 0 says" "$(_ts4_esc $'a\nb\\c"d\033e\tf')" '"a\x0ab\x5cc\x22d\x1be\x09f"'
+is "ts4 store (control): the PATH each felix call is given here names absolute directories only, and git, perl, awk, sed, ps and id are found in them" \
+  "$(case ":$TS4_PATH:" in (*::*|*:[!/]*) printf 'an empty or relative entry' ;; (*) printf absolute ;; esac); missing: $(for _ts4s_c in git perl awk sed ps id; do _ts4_which "$_ts4s_c" >/dev/null || printf '%s ' "$_ts4s_c"; done)" "absolute; missing: "
 
 # ------------------------------------------------------------------ init, the id and status (W4, W5, 2.2) ---
 _ts4_init "$TS4S_A" "$TS4_ME" "$TS4S_S"; TS4S_ID="$TS4_ID"; TS4S_V="$(_ts4_mode "$TS4S_A")"
@@ -104,12 +128,12 @@ _ts4_is "ts4 store W4: init makes the store, a bare git repository, and the door
   "bare: true; door: yes; main and log: 0"
 _ts4_a "$TS4S_A" status
 _ts4_is "ts4 store 2.2: status exits 0 and prints authority, standing, the why lines, user, workers, home, store, door, source, source-main, lock, main, statements and word, in that order and nothing else" \
-  "exit $TS4_RC; $(_ts4_keys)" "exit 0; authority standing why why why user workers home store door source source-main lock main statements word " "$(_ts4_why)"
+  "exit $TS4_RC; $(_ts4_keys)" "exit 0; authority standing why why why why user workers home store door source source-main lock main statements word " "$(_ts4_why)"
 _ts4_is "ts4 store W5: status prints the id init printed" "$(_ts4_sv authority)" "${TS4S_ID:-no id from init}"
 _ts4_is "ts4 store 2.2: status says this user and worker, the home, its store.git and door, the source, refs/heads/main, no lock, no main, no statement and go" \
   "$(_ts4_sv user)|$(_ts4_sv workers)|$(_ts4_sv home)|$(_ts4_sv store)|$(_ts4_sv door)|$(_ts4_sv source)|$(_ts4_sv source-main)|$(_ts4_sv lock)|$(_ts4_sv main)|$(_ts4_sv statements)|$(_ts4_sv word)" \
   "$TS4_ME|$TS4_ME|$TS4S_A|$TS4S_A/store.git|$TS4S_A/door|$TS4S_S|refs/heads/main|-|-|0|go"
-_ts4_is "ts4 store case 1, W6: with this login as user and among workers the standing is shadow, with the why lines of conditions a, c and d and not of b" "$(_ts4_sv standing) $(_ts4_whys)" "shadow acd"
+_ts4_is "ts4 store case 1, W6: with this login as user and among workers the standing is shadow, with one why line each for a, c and d, and one for e: this login, a worker, owns the engine it runs" "$(_ts4_sv standing) $(_ts4_whys)" "shadow abcd"
 _ts4_x "$TS4S_A" /dev/null help
 _ts4_is "ts4 store 2: felix help names authority with init, status, tick, decide, log and verify, and felix door" \
   "$(LC_ALL=C awk 'index($0, "authority") { n = split("init status tick decide log verify", w, " "); for (i = 1; i <= n; i++) if (index($0, w[i])) s[w[i]] = 1 }
@@ -139,6 +163,8 @@ _ts4s_noinit "a source that starts with -" "$TS4/r12" --user "$TS4_ME" --workers
 _ts4s_noinit "a source of the ext:: transport" "$TS4/r13" --user "$TS4_ME" --workers "$TS4_ME" --source "ext::sh -c true"
 _ts4s_noinit "a source that is an http:// URL" "$TS4/r14" --user "$TS4_ME" --workers "$TS4_ME" --source http://example.invalid/src.git
 _ts4s_noinit "a source of the form user@host:path" "$TS4/r15" --user "$TS4_ME" --workers "$TS4_ME" --source git@example.invalid:src.git
+_ts4s_noinit "a lock that holds a tab" "$TS4/r16" "${TS4S_U[@]}" --lock "$TS4S_X/mark.sh${TS4_TAB}x"
+_ts4s_noinit "a door that holds a newline and a row of its own" "$TS4/r17" "${TS4S_U[@]}" --door "$TS4S_X/dr17${TS4_NL}workers${TS4_TAB}root"
 _ts4_a "$TS4/fu" init --user "$TS4_ME" --workers "$TS4_ME" --source "file://$TS4S_S"; TS4S_V="exit $TS4_RC"; _ts4_a "$TS4/fu" status
 _ts4_is "ts4 store W1: init takes a source that is a file:// URL, and status prints it" "$TS4S_V; $(_ts4_sv source)" "exit 0; file://$TS4S_S" "$(_ts4_why)"
 _ts4_a "$TS4/c" init "${TS4S_U[@]}" --source-main refs/heads/trunk --store "$TS4S_X/st" --door "$TS4S_X/dr" --lock "$TS4S_X/mark.sh"; TS4S_V="exit $TS4_RC"
@@ -146,9 +172,8 @@ _ts4_a "$TS4/c" status
 _ts4_is "ts4 store W4: init takes --source-main, --store (an empty directory that exists), --door and --lock, makes the store and the door there, and status prints each as given" \
   "$TS4S_V; $(_ts4_sv source-main)|$(_ts4_sv store)|$(_ts4_sv door)|$(_ts4_sv lock); bare: $(_ts4_sg "$TS4S_X/st" rev-parse --is-bare-repository); door: $(_ts4_yn test -d "$TS4S_X/dr")" \
   "exit 0; refs/heads/trunk|$TS4S_X/st|$TS4S_X/dr|$TS4S_X/mark.sh; bare: true; door: yes" "$(_ts4_why)"
-TS4_UMASK=000; _ts4_init "$TS4/u" "$TS4_ME" "$TS4S_S"; TS4_UMASK=022; TS4S_V="$(_ts4_mode "$TS4/u")"; _ts4_a "$TS4/u" status
+TS4_UMASK=000; _ts4_init "$TS4/u" "$TS4_ME" "$TS4S_S"; TS4_UMASK=022; TS4S_V="$(_ts4_mode "$TS4/u")"
 _ts4_is "ts4 store W4: under a umask of 000 init still makes the home with no access for group or other" "${TS4S_V:0:1}${TS4S_V:4:6}" "d------" "ls says [$TS4S_V]"
-_ts4_is "ts4 store W6 (a reading): and the store and the door it made there are the authority's alone: status gives no why of condition b" "$(_ts4_sv standing) $(_ts4_whys)" "shadow acd"
 
 # ------------------------------------------------------------------ authority.conf (W1 to W3) ---
 for _ts4s_c in status tick "decide $TS4S_M2" log verify door; do
@@ -164,6 +189,8 @@ _ts4s_fresh
 _ts4s_add 'colour\tblue\n'; _ts4s_unread "a key the table lacks"
 _ts4s_add 'source\t%s\n' "$TS4S_S"; _ts4s_unread "a key given twice"
 _ts4s_add 'lock /bin/true\n'; _ts4s_unread "a row with no tab"
+_ts4s_add 'source main\trefs/heads/main\n'; _ts4s_unread "a key that holds a space"
+_ts4s_add 'lock \t/bin/true\n'; _ts4s_unread "a key of the table with a space after it"
 _ts4s_add 'lock\t/tmp/caf\303\251\n'; _ts4s_unread "a value with a byte outside printable ASCII"
 _ts4s_add 'lock\t/tmp/a\tb\n'; _ts4s_unread "a value that holds a tab"
 _ts4_conf "$TS4S_B" user 9lives; _ts4s_unread "a user that is not a login name"
@@ -190,11 +217,6 @@ _ts4_is "ts4 store W1, W3: a parameter is the row of authority.conf: with the wo
   "$(_ts4_sv workers)|$(_ts4_sv source-main)|$(_ts4_sv lock)" "$TS4_ME,$TS4S_OTHER|refs/heads/trunk|$TS4S_X/mark.sh" "$(_ts4_why)"
 _ts4s_fresh
 
-# ------------------------------------------------------------------ standing, condition b (W6) ---
-_ts4s_b "a home its group can write" "$TS4S_A" g+w
-_ts4s_b "a store anyone can write" "$TS4S_ST" o+w
-_ts4s_b "a door directory its group can write" "$TS4S_A/door" g+w
-
 # ------------------------------------------------------------------ the first start (case 3, W11, D7) ---
 _ts4_a "$TS4S_A" tick
 _ts4_is "ts4 store case 3: before the first start a tick prints paused with no main, exits 3, decides nothing and makes no main" \
@@ -213,8 +235,8 @@ _ts4_is "ts4 store 2.6, case 1: log prints one row of seven fields for it: its n
   "exit $TS4_RC; rows: $(LC_ALL=C awk 'END { print NR }' "$TS4/o"); $(_ts4_lr 0); time: $(LC_ALL=C awk -F'\t' '$1 == 0 { print ($7 == "" ? "none" : "given") }' "$TS4/o")" \
   "exit 0; rows: 1; 7:0|start|$TS4S_M2|-|shadow|no; time: given" "$(_ts4_why)"
 _ts4_a "$TS4S_A" status
-_ts4_is "ts4 store case 1, 2.2: after a start given in shadow, status prints main and one statement, and the standing is still shadow for a, c and d" \
-  "$(_ts4_sv main)|$(_ts4_sv statements)|$(_ts4_sv standing) $(_ts4_whys)" "$TS4S_M2|1|shadow acd" "$(_ts4_why)"
+_ts4_is "ts4 store case 1, 2.2: after a start given in shadow, status prints main and one statement, and the standing is still shadow, with each why it had" \
+  "$(_ts4_sv main)|$(_ts4_sv statements)|$(_ts4_sv standing) $(_ts4_whys)" "$TS4S_M2|1|shadow abcd" "$(_ts4_why)"
 _ts4_plain "$TS4S_A" "start $TS4S_M1" "start ${TS4S_M1:0:4}"
 _ts4_is "ts4 store D4, W11: a start on a log that holds a statement is refused, and main stays" "exit $TS4_DRC; refused: $(_ts4_refused); statements: $(_ts4_n "$TS4S_A"); main: $(_ts4_main "$TS4S_A")" "exit 1; refused: yes; statements: 1; main: $TS4S_M2" "$(_ts4_dwhy)"
 
@@ -303,16 +325,66 @@ else
   skip "ts4 store W10: a fetch checks each object it takes: after a tick the store does not hold a commit with no author line, and no line calls it eligible" "the malformed commit could not be staged with this git"
 fi
 
-# ------------------------------------------------------------------ how a statement is given (W8, case 2) ---
-_ts4_logins
+# ------------------------------------------------------------------ root as the worker (W6 a, case 2) ---
+_ts4_init "$TS4/l3" root "$TS4S_S"; _ts4_a "$TS4/l3" status; TS4S_V="$(_ts4_sv standing) $(_ts4_whys)"; _ts4_say "$TS4/l3" "start $TS4S_M3"
+_ts4_is "ts4 store W6 a, case 2: with root as the worker the standing is shadow with not its own login and not the authority's alone, whoever this login is, and a start given there is kept as given in shadow" \
+  "$TS4S_V; kept: $TS4_KEPT; $(_ts4_fs "$TS4/l3" 0 given)" "shadow abcd; kept: 0; shadow" "$(_ts4_dwhy)"
+
+# ------------------------------------------------------------------ another login as the worker: conditions b and e (W6, case 22) ---
+# From here each store has another login of this machine, not root, as its one worker. Where none is found, or where
+# status gives such a store a why line of a, b or e before anything is staged, what follows is skipped by name.
+TS4_LOCK="$TS4S_X/mark.sh"; _ts4_logins
 if [ "$TS4_PS" = yes ] && [ -n "$TS4_IDLE" ] && [ -n "$TS4_BUSY" ]; then
-  ok "ts4 store (control): ps lists this machine's processes, and it has a login other than this one that runs none and one that runs some"
+  ok "ts4 store (control): ps lists this machine's processes, and it has a login other than this one that runs none and one, not root, that runs some"
 else
-  TS4_SKIP="no login that runs no process, or none that runs some, was found here (ps lists: $TS4_PS)"
-  skip "ts4 store (control): ps lists this machine's processes, and it has a login other than this one that runs none and one that runs some" "$TS4_SKIP"
+  TS4_SKIP="no login that runs no process, or none but root that runs some, was found here (ps lists: $TS4_PS)"
+  skip "ts4 store (control): ps lists this machine's processes, and it has a login other than this one that runs none and one, not root, that runs some" "$TS4_SKIP"
 fi
-_ts4_init "$TS4S_L" "${TS4_IDLE:-none}" "$TS4S_S" --lock "$TS4S_X/mark.sh"; _ts4_a "$TS4S_L" status
-_ts4_is "ts4 store W6: with another login as the only worker, conditions a and b hold: the standing is shadow with the why lines of c and d alone" "$(_ts4_sv standing) $(_ts4_whys)" "shadow cd" "$(_ts4_why)"
+_ts4_init "$TS4S_Q" "${TS4_IDLE:-none}" "$TS4S_S"; _ts4_canstand "$TS4S_Q" "${TS4_IDLE:-none}"
+_ts4_init "$TS4/l2" "${TS4_BUSY:-none}" "$TS4S_S" --lock "$TS4S_X/mark.sh"; _ts4_canstand "$TS4/l2" "${TS4_BUSY:-none}"
+_ts4_a "$TS4S_Q" status
+_ts4_is "ts4 store W6: with another login, not root, as the only worker, conditions a, b and e hold: the standing is shadow with the why lines of c and d alone" "$(_ts4_sv standing) $(_ts4_whys)" "shadow cd" "$(_ts4_why)"
+_ts4s_b "a home its group can write" "$TS4S_Q" g+w
+_ts4s_b "a store anyone can write" "$TS4S_Q/store.git" o+w
+_ts4s_b "a door directory its group can write" "$TS4S_Q/door" g+w
+_ts4s_b "a store in which one file can be written by its group" "$TS4S_Q/store.git/HEAD" g+w
+[ ! -d "$TS4S_Q/door" ] || : > "$TS4S_Q/door/ts4-note"; _ts4s_b "a door directory in which one file can be written by anyone" "$TS4S_Q/door/ts4-note" o+w; rm -f "$TS4S_Q/door/ts4-note"
+TS4S_N="ts4 store W6 b: a home that carries an access-control list is not the authority's alone, and status says so until the list is taken off"
+if [ -z "$TS4_SKIP" ] && [ -d "$TS4S_Q" ] && ! chmod +a "everyone allow read" "$TS4S_Q" 2>/dev/null; then
+  skip "$TS4S_N" "chmod +a put no access-control list on a directory here"
+else
+  _ts4_a "$TS4S_Q" status; TS4S_W="$(_ts4_whys)"; chmod -N "$TS4S_Q" 2>/dev/null; _ts4_a "$TS4S_Q" status
+  _ts4_is "$TS4S_N" "$TS4S_W, then $(_ts4_whys)" "bcd, then cd" "$(_ts4_why)"
+fi
+TS4_UMASK=000; _ts4_init "$TS4/u2" "${TS4_IDLE:-none}" "$TS4S_S"; TS4_UMASK=022; _ts4_a "$TS4/u2" status
+_ts4_is "ts4 store W6 (a reading): and the store and the door init made under a umask of 000 are the authority's alone: status gives no why of condition b" "$(_ts4_sv standing) $(_ts4_whys)" "shadow cd" "$(_ts4_why)"
+TS4S_V="$(find "$FROOT/harness/lib" -type f 2>/dev/null | LC_ALL=C sort | LC_ALL=C awk 'NR == 1')"
+_ts4s_b "a file of the engine's lib that anyone can write (W6 e)" "${TS4S_V:-$TS4S_X/none}" o+w
+_ts4_conf "$TS4S_Q" lock "$TS4S_X/mark.sh"
+_ts4s_b "a lock program anyone can write (W6 e)" "$TS4S_X/mark.sh" o+w
+_ts4s_b "a lock program whose directory anyone can write (W6 e)" "$TS4S_X" o+w
+TS4S_N="ts4 store W6 e: a lock that carries an access-control entry that allows is within a worker's reach, and one whose only entry denies is not"
+if [ -z "$TS4_SKIP" ] && [ -d "$TS4S_Q" ] && ! chmod +a "everyone allow write" "$TS4S_X/mark.sh" 2>/dev/null; then
+  skip "$TS4S_N" "chmod +a put no access-control entry on a file here"
+else
+  _ts4_a "$TS4S_Q" status; TS4S_W="allows: $(_ts4_whys)"; chmod -N "$TS4S_X/mark.sh" 2>/dev/null
+  chmod +a "everyone deny delete" "$TS4S_X/mark.sh" 2>/dev/null; _ts4_a "$TS4S_Q" status; TS4S_W="$TS4S_W; denies: $(_ts4_whys)"; chmod -N "$TS4S_X/mark.sh" 2>/dev/null
+  _ts4_is "$TS4S_N" "$TS4S_W" "allows: bcd; denies: cd" "$(_ts4_why)"
+fi
+_ts4_conf "$TS4S_Q" lock
+mkdir -p "$TS4S_X/wbin"; ln -s "$(_ts4_which git)" "$TS4S_X/wbin/git" 2>/dev/null; chmod 777 "$TS4S_X/wbin"
+_ts4_is "ts4 store (control): a directory that every login can write, holding a program named git that runs, is staged" "$(_ts4_mode "$TS4S_X/wbin" | cut -c9) $(_ts4_yn "$TS4S_X/wbin/git" --version)" "w yes"
+_ts4s_e "case 22: with a directory every login can write first on PATH" PATH="$TS4S_X/wbin:$TS4_PATH"
+chmod 755 "$TS4S_X/wbin"
+_ts4s_e "with an empty entry on PATH" PATH="$TS4_PATH:"
+_ts4s_e "with an entry on PATH that is not absolute" PATH="$TS4_PATH:rel/bin"
+
+# ------------------------------------------------------------------ how a statement is given (W8, case 2) ---
+_ts4_say "$TS4/l2" "start $TS4S_M3"
+_ts4_is "ts4 store case 2, D4: with a worker login that runs a process, a start would be given at the desktop and is refused: nothing is kept and no main is made" \
+  "exit $TS4_DRC; refused: $(_ts4_refused); statements: $(_ts4_n "$TS4/l2"); main: $(_ts4_main "$TS4/l2")" "exit 1; refused: yes; statements: 0; main: none" "$(_ts4_dwhy)"
+_ts4_init "$TS4S_L" "${TS4_IDLE:-none}" "$TS4S_S" --lock "$TS4S_X/mark.sh"; _ts4_canstand "$TS4S_L" "${TS4_IDLE:-none}"
+_ts4_is "ts4 store W6: a lock, when one is set and is the authority's alone, changes nothing: the standing is shadow with the why lines of c and d alone" "$(_ts4_sv standing) $(_ts4_whys)" "shadow cd" "$(_ts4_why)"
 _ts4_say "$TS4S_L" "start $TS4S_M3"; TS4S_V="kept: $TS4_KEPT; $(_ts4_fs "$TS4S_L" 0 given)"; TS4S_W="$(_ts4_dwhy)"; _ts4_a "$TS4S_L" log; TS4S_V="$TS4S_V; $(_ts4_lr 0)"; _ts4_a "$TS4S_L" status
 _ts4_is "ts4 store case 2, W8: a start kept while the worker's login runs no process is given at the console and counts, and only the reach test then keeps the standing at shadow" \
   "$TS4S_V; $(_ts4_sv standing) $(_ts4_whys)" "kept: 0; console; 7:0|start|$TS4S_M3|-|console|yes; shadow d" "$TS4S_W"
@@ -322,16 +394,24 @@ _ts4_is "ts4 store case 2, W8: with a worker login that runs a process a stateme
 _ts4_conf "$TS4S_L" lock; _ts4_say "$TS4S_L" "hold $TS4S_HA"
 _ts4_is "ts4 store D4, W8: a statement that would be given at the desktop is refused when no lock is set, and nothing is kept" \
   "exit $TS4_DRC; refused: $(_ts4_refused); statements: $(_ts4_n "$TS4S_L")" "exit 1; refused: yes; statements: 2" "$(_ts4_dwhy)"
-_ts4_conf "$TS4S_L" lock "$TS4S_X/mark.sh"; _ts4_conf "$TS4S_L" workers "${TS4_IDLE:-none}"; mkdir -p "$TS4S_X/noproc"
+_ts4_conf "$TS4S_L" lock "$TS4S_X/mark.sh"; _ts4_conf "$TS4S_L" workers "${TS4_IDLE:-none}"; mkdir -p "$TS4S_X/noproc" "$TS4S_X/noone"
 for _ts4s_c in ps pgrep; do
-  printf '#!/bin/sh\n: >> "%s"\necho "%s: cannot list processes" >&2\nexit 1\n' "$TS4S_X/noproc/asked" "$_ts4s_c" > "$TS4S_X/noproc/$_ts4s_c"; chmod 755 "$TS4S_X/noproc/$_ts4s_c"
+  printf '#!/bin/sh\n: >> "%s"\necho "%s: cannot list processes" >&2\nexit 1\n' "$TS4S_X/noproc/asked" "$_ts4s_c" > "$TS4S_X/noproc/$_ts4s_c"
+  printf '#!/bin/sh\n: >> "%s"\nexit 0\n' "$TS4S_X/noone/asked" > "$TS4S_X/noone/$_ts4s_c"; chmod 755 "$TS4S_X/noproc/$_ts4s_c" "$TS4S_X/noone/$_ts4s_c"
 done
-TS4_ENV=(PATH="$TS4S_X/noproc:$PATH"); _ts4_say "$TS4S_L" "hold $TS4S_HA"; TS4_ENV=()
+TS4_ENV=(PATH="$TS4S_X/noproc:$TS4_PATH"); _ts4_say "$TS4S_L" "hold $TS4S_HA"; TS4_ENV=()
 if [ -z "$TS4_SKIP" ] && [ "$TS4_HAVE" = yes ] && [ ! -e "$TS4S_X/noproc/asked" ]; then
   skip "ts4 store W8: where the processes cannot be listed, a statement is given at the desktop, though the worker's login runs none" "the door asked neither ps nor pgrep on PATH, so nothing here stages a machine whose processes cannot be listed"
 else
   _ts4_is "ts4 store W8: where the processes cannot be listed, a statement is given at the desktop, though the worker's login runs none" \
-    "kept: $TS4_KEPT; given: $(_ts4_fs "$TS4S_L" 2 given)" "kept: 2; given: desktop" "$(_ts4_dwhy)"
+    "kept: $TS4_KEPT; given: $(_ts4_fs "$TS4S_L" "${TS4_KEPT:-999}" given)" "kept: 2; given: desktop" "$(_ts4_dwhy)"
+fi
+TS4S_W="$(_ts4_n "$TS4S_L")"; TS4_ENV=(PATH="$TS4S_X/noone:$TS4_PATH"); _ts4_say "$TS4S_L" "hold $TS4S_H2"; TS4_ENV=()
+if [ -z "$TS4_SKIP" ] && [ "$TS4_HAVE" = yes ] && [ ! -e "$TS4S_X/noone/asked" ]; then
+  skip "ts4 store W8: where the list of processes comes back without process 1 and without the door's own, a statement is given at the desktop, though the worker's login runs none" "the door asked neither ps nor pgrep on PATH, so nothing here stages a list that lacks them"
+else
+  _ts4_is "ts4 store W8: where the list of processes comes back without process 1 and without the door's own, a statement is given at the desktop, though the worker's login runs none" \
+    "kept: ${TS4_KEPT:-none}; given: $(_ts4_fs "$TS4S_L" "${TS4_KEPT:-999}" given)" "kept: ${TS4S_W:-none}; given: desktop" "$(_ts4_dwhy)"
 fi
 # W8, rev 2: how the statement is given is read when the door opens and again when it keeps. Here it opens at the
 # desktop, and before the confirmation is typed the home is made writable by its group, so it would be kept in shadow.
@@ -340,9 +420,22 @@ TS4S_V="$(_ts4_line 'given: ' "$TS4/door.a.out")"; TS4S_V="card: $(if [ -n "$TS4
 chmod g+w "$TS4S_L" 2>/dev/null; TS4S_V="$TS4S_V; then the home's group: $(_ts4_mode "$TS4S_L" | cut -c6)"; _ts4_close a "hold $TS4_FOUR"; chmod g-w "$TS4S_L" 2>/dev/null
 _ts4_is "ts4 store W8 (rev 2): a door that opened at the desktop and would keep in shadow, the home having been made writable by its group meanwhile, keeps nothing and prints refused: " \
   "$TS4S_V; exit $TS4_DRC; refused: $(_ts4_refused); kept: ${TS4_KEPT:-none}; statements: $(_ts4_n "$TS4S_L")" "card: shown, as given at the desktop; then the home's group: w; exit 1; refused: yes; kept: none; statements: ${TS4S_W:-none}" "$(_ts4_dwhy)"
-TS4_SKIP=""
+# Case 16 at the desktop. A statement is kept first, so that the count of refused confirmations starts here.
+_ts4_say "$TS4S_L" "hold $TS4S_H1"; TS4S_V="a statement kept at the $(_ts4_fs "$TS4S_L" "${TS4_KEPT:-999}" given)"; TS4S_W="$(_ts4_closed "$TS4S_L")"
+for _ts4s_c in 1 2 3; do _ts4_plain "$TS4S_L" "hold $TS4S_HM" "hold $(_ts4_wrong "$TS4S_HM")"; TS4S_V="$TS4S_V; $_ts4s_c: exit $TS4_DRC, kept ${TS4_KEPT:-none}"; done
+_ts4_is "ts4 store case 16, D6: at the desktop, three statements typed with a guessed confirmation and the card unread keep nothing and leave three rows in refused.tsv" \
+  "$TS4S_V; rows: $(( $(_ts4_closed "$TS4S_L") - ${TS4S_W:-0} )) more" "a statement kept at the desktop; 1: exit 1, kept none; 2: exit 1, kept none; 3: exit 1, kept none; rows: 3 more" "$(_ts4_dwhy)"
+TS4S_W="$(_ts4_closed "$TS4S_L")"; _ts4_say "$TS4S_L" "hold $TS4S_HM"
+_ts4_is "ts4 store case 16, D4, D2: after those three the door at the desktop reads back refused-confirmations: 3 and refuses to take a statement: it shows no card, keeps nothing and leaves no row more" \
+  "$(_ts4_line 'refused-confirmations: ' "$TS4/door.a.out"); cards: $(_ts4_count 'confirm: ' "$TS4/door.a.out"); exit $TS4_DRC; refused: $(_ts4_refused); kept: ${TS4_KEPT:-none}; rows: $(( $(_ts4_closed "$TS4S_L") - ${TS4S_W:-0} )) more" \
+  "refused-confirmations: 3; cards: 0; exit 1; refused: yes; kept: none; rows: 0 more" "$(_ts4_dwhy)"
+TS4S_W="$(_ts4_n "$TS4S_L")"; _ts4_conf "$TS4S_L" workers "${TS4_IDLE:-none}"; _ts4_say "$TS4S_L" "hold $TS4S_HM"; TS4S_V="at the $(_ts4_fs "$TS4S_L" "${TS4_KEPT:-999}" given): kept ${TS4_KEPT:-none}"
+_ts4_conf "$TS4S_L" workers "${TS4_BUSY:-none}"; _ts4_say "$TS4S_L" "hold $TS4S_HL"
+_ts4_is "ts4 store case 16, D4: the next statement is given at the console, and after it the door at the desktop takes a statement again" \
+  "$TS4S_V; then at the $(_ts4_fs "$TS4S_L" "${TS4_KEPT:-999}" given): kept ${TS4_KEPT:-none}" "at the console: kept ${TS4S_W:-none}; then at the desktop: kept $(( ${TS4S_W:-0} + 1 ))" "$(_ts4_dwhy)"
+TS4_SKIP=""; TS4_LOCK=""
 
 _ts4_end
-unset TS4S_S TS4S_A TS4S_B TS4S_L TS4S_ST TS4S_X TS4S_M1 TS4S_M2 TS4S_M3 TS4S_HZ TS4S_HA TS4S_H2 TS4S_H1 TS4S_HM TS4S_HL TS4S_HT TS4S_CT TS4S_OTHER TS4S_U \
+unset TS4S_S TS4S_A TS4S_B TS4S_L TS4S_Q TS4S_N TS4S_ST TS4S_X TS4S_M1 TS4S_M2 TS4S_M3 TS4S_HZ TS4S_HA TS4S_H2 TS4S_H1 TS4S_HM TS4S_HL TS4S_HT TS4S_CT TS4S_OTHER TS4S_U \
   TS4S_ID TS4S_IDB TS4S_V TS4S_W TS4S_F TS4S_BAD _ts4s_c
 # <<< trust-step4-authority-store

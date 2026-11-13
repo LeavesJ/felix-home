@@ -11,17 +11,27 @@ printf '\ntrust plane step 4, slice 1: how his statements are read, the decision
 # statement is given through the door as the founder would give it, and its number is taken from the door's kept:
 # line, never assumed.
 #
-# The source: main (M1, M2) with section 7's policy, and twenty branches: plain (ordinary), clean (cut from M1, merges
-# cleanly), clash (conflicts), same (the change main already holds) and empty (no change); dir, case, table, swap,
-# nl, hi and mv (founder paths: the row's path, its path in another case, the land table itself, a change that also
-# renames the project and brings a table with no row, a name with a newline, a name with a byte above 0x7e, and a
-# rename away from the row's path); h1, h2 (cut from h1) and h1b (h1's edit under another commit id); rel and auth;
-# anc and desc (cut from anc, changes docs/direction.md); and ov (cut from M1, merges cleanly, changes
-# docs/direction.md).
+# The source: main (M1, M2) with section 7's policy, and twenty-three branches: plain (ordinary), clean (cut from M1,
+# merges cleanly), clash (conflicts), same (the change main already holds) and empty (no change); dir, case, table,
+# swap, nl, hi and mv (founder paths: the row's path, its path in another case, the land table itself, a change
+# that also renames the project and brings a table with no row, a name with a newline, a name with a byte above
+# 0x7e, and a rename away from the row's path); fup, fsub and tcase (rev 3, case 15: a file .FELIX, a file under
+# .felix in place of it, and the land table's path in another case); h1, h2 (cut from h1) and h1b (h1's edit under
+# another commit id); rel and auth; anc and desc (cut from anc, changes docs/direction.md); and ov (cut from M1,
+# merges cleanly, changes docs/direction.md).
 #
 # Readings, where the spec leaves room:
 # - "The first such path" in a waits detail is the first in the order git lists the changed paths.
-# - Policy is read from B alone: swap's own .felix and table do not change which of its paths are the founder's.
+# - Policy is read from B alone, and since rev 3 .felix is itself the founder's: swap, which renames the project,
+#   waits for .felix, the first of its paths. fsub must take the file .felix away to put a file under it, so what
+#   it waits for is .felix too.
+# - Rev 3. Case 17's attributes file is the user's default one, $XDG_CONFIG_HOME/git/attributes, with HOME pointed
+#   at the same fixture directory; a control shows that plain git, there, merges the conflicting head by union.
+#   W10's store attributes: with info/attributes in the store, tick, decide, status and the door each print a
+#   line that starts felix: to stderr and exit 1. Case 18: the four names are set to values in the environment and
+#   the whole output of a tick, and of decide, is compared with the output without them, once with the word go
+#   and once under stop. D2: an override in effect is on a line that starts in-effect: with its number, and once
+#   main has moved under it, on a line that starts lapsed: , and on no in-effect: line.
 # - Renames off: mv deletes docs/direction.md and adds its bytes under another name; the deleted path is changed.
 # - A release that passed no hold is not leaned on: the detail stays -.
 # - When two holds cover a head, the statement number in its held detail is not asserted, only the decision.
@@ -53,7 +63,10 @@ _ts4_tree "$TS4K_S" "$TS4K_M2"; _ts4_stage "$TS4K_S" .felix "other$TS4_NL"; _ts4
 _ts4_seal "$TS4K_S" swap "$TS4K_M2" 'another project, and the direction'
 _ts4_ci "$TS4K_S" nl "$TS4K_M2" 'a name with a newline' "docs/a${TS4_NL}b"; TS4K_HN="$TS4_C"
 _ts4_ci "$TS4K_S" hi "$TS4K_M2" 'a name with a byte above 0x7e' "notes/caf$(printf '\303\251').txt"
-_ts4_tree "$TS4K_S" "$TS4K_M2"; _fx_git "$TS4K_S" update-index --force-remove -- docs/direction.md >/dev/null 2>&1; _ts4_stage "$TS4K_S" docs/elsewhere.md "where this goes$TS4_NL"; _ts4_seal "$TS4K_S" mv "$TS4K_M2" 'the direction, renamed'
+_ts4_tree "$TS4K_S" "$TS4K_M2"; _ts4_drop "$TS4K_S" docs/direction.md; _ts4_stage "$TS4K_S" docs/elsewhere.md "where this goes$TS4_NL"; _ts4_seal "$TS4K_S" mv "$TS4K_M2" 'the direction, renamed'
+_ts4_ci "$TS4K_S" fup "$TS4K_M2" 'a second policy root, in capitals' .FELIX
+_ts4_tree "$TS4K_S" "$TS4K_M2"; _ts4_drop "$TS4K_S" .felix; _ts4_stage "$TS4K_S" .felix/x "proj$TS4_NL"; _ts4_seal "$TS4K_S" fsub "$TS4K_M2" 'a file under the policy root'
+_ts4_ci "$TS4K_S" tcase "$TS4K_M2" 'the land table, in another case' PROJECTS/Proj/LAND.TSV
 TS4_BODY='the held edit'; _ts4_ci "$TS4K_S" h1 "$TS4K_M2" 'an edit he holds' notes/h1.txt; TS4K_H1="$TS4_C"
 _ts4_ci "$TS4K_S" h1b "$TS4K_M2" 'the same edit, committed again' notes/h1.txt; TS4K_H1B="$TS4_C"; TS4_BODY=""
 _ts4_ci "$TS4K_S" h2 "$TS4K_H1" 'work on top of the held edit' notes/h2.txt; TS4K_H2="$TS4_C"
@@ -70,13 +83,19 @@ _ts4k_decs() {   # BRANCH...: "branch: decision|detail; " for each, from the lin
     END { n = split(ENVIRON["BS"], b, " "); for (i = 1; i <= n; i++) { k = "\"" b[i] "\""; printf "%s: %s; ", b[i], ((k in d) ? d[k] : "no line") } }' "$TS4/o"
 }
 _ts4k_say() { _ts4_say "$TS4K_A" "$1"; TS4K_N="${TS4_KEPT:-none}"; }   # LINE: one statement through the door; TS4K_N is its number
-_ts4k_word() { _ts4_plain "$TS4K_A" "$1" "$1"; TS4K_N="${TS4_KEPT:-none}"; }   # stop|go: given and confirmed by the word
+_ts4k_word() {   # stop|go: stop, confirmed by the word; go, confirmed by the four characters its card brackets in the nonce (D6)
+  if [ "$1" = go ]; then _ts4_say "$TS4K_A" go; else _ts4_plain "$TS4K_A" stop stop; fi
+  TS4K_N="${TS4_KEPT:-none}"
+}
 _ts4k_dd() { _ts4_dd "$TS4K_A" "$1"; }   # H: decide H -> TS4_DEC
 
 # ------------------------------------------------------------------ controls ---
 is "ts4 reading (control): git's own merge onto main is a tree for clean, dir and ov, a conflict for clash, and main's own tree for same and empty" \
   "$(for _ts4k_i in clean dir ov clash same empty; do printf '%s ' "$(_ts4_kind "$TS4K_S" "$TS4K_M2" "refs/heads/$_ts4k_i")"; done)" \
   "tree tree tree conflict nothing nothing "
+is "ts4 reading (control): fsub's tree holds .felix/x and no file .felix, fup's holds .felix and .FELIX, and swap's .felix is another blob than main's" \
+  "$(_fx_git "$TS4K_S" ls-tree -r --name-only refs/heads/fsub 2>/dev/null | LC_ALL=C awk '$0 == ".felix" { f = 1 } $0 == ".felix/x" { x = 1 } END { print (x && !f ? "under" : "not under") }') $(_fx_git "$TS4K_S" ls-tree --name-only refs/heads/fup 2>/dev/null | LC_ALL=C awk '$0 == ".felix" || $0 == ".FELIX" { n++ } END { print n + 0 }') $(if [ "$(_fx_git "$TS4K_S" rev-parse -q --verify refs/heads/swap:.felix 2>/dev/null)" != "$(_fx_git "$TS4K_S" rev-parse -q --verify "$TS4K_M2:.felix" 2>/dev/null)" ]; then printf another; else printf 'the same'; fi)" \
+  "under 2 another"
 is "ts4 reading (control): nl's tree holds a name with a newline, hi's one with the bytes c3 a9, mv's has no docs/direction.md, and h1b's tree is h1's under another commit id" \
   "$(_fx_git "$TS4K_S" ls-tree -r -z --name-only "$TS4K_HN" 2>/dev/null | LC_ALL=C od -An -v -tx1 | LC_ALL=C awk '{ for (i = 1; i <= NF; i++) c[$i]++ } END { print c["0a"] + 0 }') $(_fx_git "$TS4K_S" ls-tree -r -z --name-only refs/heads/hi 2>/dev/null | LC_ALL=C tr '\0' '\n' | E="$(printf '\303\251')" LC_ALL=C awk 'index($0, ENVIRON["E"]) { n++ } END { print n + 0 }') $(_ts4_yn _fx_git "$TS4K_S" cat-file -e refs/heads/mv:docs/direction.md) $(if [ "$(_ts4_ctree "$TS4K_S" "$TS4K_H1")" = "$(_ts4_ctree "$TS4K_S" "$TS4K_H1B")" ] && [ "$TS4K_H1" != "$TS4K_H1B" ]; then printf 'one tree, two ids'; else printf differ; fi)" \
   "1 1 no one tree, two ids"
@@ -85,31 +104,60 @@ is "ts4 reading (control): nl's tree holds a name with a newline, hi's one with 
 _ts4_init "$TS4K_A" "$TS4_ME" "$TS4K_S"; _ts4k_say "start $TS4K_M2"; _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading K7: with nothing said but the start, an ordinary change and a clean merge are eligible, a head that does not merge conflicts, and a head whose merge is main's tree changes nothing" \
   "$(_ts4k_decs plain clean clash same empty)$(LC_ALL=C awk 'END { print $0 }' "$TS4/o")" \
-  "plain: eligible|-; clean: eligible|-; clash: conflict|conflicts with main; same: nothing|changes nothing; empty: nothing|changes nothing; tick: shadow, 20 candidates" "$(_ts4_why)"
+  "plain: eligible|-; clean: eligible|-; clash: conflict|conflicts with main; same: nothing|changes nothing; empty: nothing|changes nothing; tick: shadow, 23 candidates" "$(_ts4_why)"
 _ts4_is "ts4 reading W9: a change of the path a founder row names, of that path in another case, and of the land table itself waits for his authorization, naming the path shown escaped" \
   "$(_ts4k_decs dir case table)" "dir: waits|changes \"docs/direction.md\"$TS4K_W; case: waits|changes \"DOCS/Direction.MD\"$TS4K_W; table: waits|changes \"projects/proj/land.tsv\"$TS4K_W; " "$(_ts4_why)"
-_ts4_is "ts4 reading W9: policy is read from main alone: a candidate that renames the project and brings a table with no row still waits for the path main's table names" \
-  "$(_ts4k_decs swap)" "swap: waits|changes \"docs/direction.md\"$TS4K_W; " "$(_ts4_why)"
+_ts4_is "ts4 reading W9, case 15: a candidate that renames the project in .felix and brings a table with no row chose no policy of its own: it waits for .felix, the first of its paths" \
+  "$(_ts4k_decs swap)" "swap: waits|changes \".felix\"$TS4K_W; " "$(_ts4_why)"
+_ts4_is "ts4 reading case 15, W9: a candidate that adds .FELIX, one that puts a file under .felix, and one that adds the land table's path in another case each wait for his authorization" \
+  "$(_ts4k_decs fup fsub tcase)" "fup: waits|changes \".FELIX\"$TS4K_W; fsub: waits|changes \".felix\"$TS4K_W; tcase: waits|changes \"PROJECTS/Proj/LAND.TSV\"$TS4K_W; " "$(_ts4_why)"
 _ts4_is "ts4 reading W9: changed paths are read with renames off: a candidate that moves the founder's path to another name waits for the path it took away" \
   "$(_ts4k_decs mv)" "mv: waits|changes \"docs/direction.md\"$TS4K_W; " "$(_ts4_why)"
 _ts4_is "ts4 reading case 6, W9: a candidate that adds a file whose name holds a newline waits for his authorization, and the tick shows the name with \\x0a; so does one whose name holds a byte above 0x7e" \
   "$(_ts4k_decs nl hi)" "nl: waits|changes \"docs/a\\x0ab\"$TS4K_W; hi: waits|changes \"notes/caf\\xc3\\xa9.txt\"$TS4K_W; " "$(_ts4_why)"
 _ts4_is "ts4 reading K8: that first tick wrote one ledger row of seven fields for each candidate" \
-  "$(LC_ALL=C awk -F'\t' 'NF != 7 || $1 == "" { b++ } { h[$4]++ } END { n = 0; for (k in h) n++; print NR " rows, " n " heads, " b + 0 " bad" }' "$TS4K_A/ledger.tsv" 2>/dev/null)" "20 rows, 20 heads, 0 bad"
+  "$(LC_ALL=C awk -F'\t' 'NF != 7 || $1 == "" { b++ } { h[$4]++ } END { n = 0; for (k in h) n++; print NR " rows, " n " heads, " b + 0 " bad" }' "$TS4K_A/ledger.tsv" 2>/dev/null)" "23 rows, 23 heads, 0 bad"
 _ts4_is "ts4 reading K8: a row holds the standing, the decision, the head, main, the tree the merge made or - and the detail" \
   "$(_ts4_lrow "$TS4K_A" "$TS4K_HCL"); $(_ts4_lrow "$TS4K_A" "$TS4K_HX"); $(_ts4_lrow "$TS4K_A" "$TS4K_HD")" \
   "7:shadow|eligible|$TS4K_HCL|$TS4K_M2|$TS4K_TC|-; 7:shadow|conflict|$TS4K_HX|$TS4K_M2|-|conflicts with main; 7:shadow|waits|$TS4K_HD|$TS4K_M2|$TS4K_TD|changes \"docs/direction.md\"$TS4K_W"
 _ts4_a "$TS4K_A" tick; TS4K_V="tick: $(_ts4_ledger "$TS4K_A")"; _ts4k_dd "$TS4K_HP"
-_ts4_is "ts4 reading K8: a second tick with nothing changed adds no row, and decide adds none" "$TS4K_V; decide: $(_ts4_ledger "$TS4K_A"), ${TS4_DEC%%|*}" "tick: 20; decide: 20, eligible"
+_ts4_is "ts4 reading K8: a second tick with nothing changed adds no row, and decide adds none" "$TS4K_V; decide: $(_ts4_ledger "$TS4K_A"), ${TS4_DEC%%|*}" "tick: 23; decide: 23, eligible"
+
+# ------------------------------------------------------------------ what the caller brings: attributes and variables (W10, cases 17 and 18) ---
+mkdir -p "$TS4/x/uhome/.config/git"; printf '* merge=union\n' > "$TS4/x/uhome/.config/git/attributes"
+TS4K_V="$( export HOME="$TS4/x/uhome" XDG_CONFIG_HOME="$TS4/x/uhome/.config" GIT_CONFIG_NOSYSTEM=1; unset GIT_CONFIG_GLOBAL GIT_ATTR_SOURCE; _fx_git "$TS4K_S" merge-tree --write-tree "$TS4K_M2" "$TS4K_HX" >/dev/null 2>&1 && printf merges )"
+if [ "$TS4K_V" = merges ]; then
+  ok "ts4 reading case 17 (control): with * merge=union in the user's attributes file, plain git here merges the head that conflicts with main"
+  TS4_ENV=(HOME="$TS4/x/uhome" XDG_CONFIG_HOME="$TS4/x/uhome/.config"); _ts4_a "$TS4K_A" tick; TS4K_V="tick: $(_ts4_of "$TS4K_HX")"; _ts4k_dd "$TS4K_HX"; TS4_ENV=()
+  _ts4_is "ts4 reading case 17, W10: with * merge=union in the user's attributes file, a head that conflicts with main still reads conflict, in a tick and in decide" \
+    "$TS4K_V; decide: $TS4_DEC" "tick: conflict|conflicts with main; decide: conflict|conflicts with main" "$(_ts4_why)"
+else
+  skip "ts4 reading case 17 (control): with * merge=union in the user's attributes file, plain git here merges the head that conflicts with main" "plain git's merge here is not changed by that file, so nothing is staged"
+  skip "ts4 reading case 17, W10: with * merge=union in the user's attributes file, a head that conflicts with main still reads conflict, in a tick and in decide" "plain git's merge here is not changed by that file, so nothing is staged"
+fi
+[ ! -d "$TS4K_A/store.git" ] || { mkdir -p "$TS4K_A/store.git/info"; printf '* merge=union\n' > "$TS4K_A/store.git/info/attributes"; }
+TS4K_V=""
+for _ts4k_i in tick "decide $TS4K_HX" status door; do
+  case "$_ts4k_i" in door) _ts4_x "$TS4K_A" /dev/null door ;; *) _ts4_a "$TS4K_A" $_ts4k_i ;; esac
+  TS4K_V="$TS4K_V${_ts4k_i%% *}: exit $TS4_RC, felix: $(_ts4_yn test "$(_ts4_count 'felix: ' "$TS4/e")" -gt 0), candidate lines: $(_ts4_cands) | "
+done
+rm -f "$TS4K_A/store.git/info/attributes"; _ts4k_dd "$TS4K_HX"
+_ts4_is "ts4 reading W10: a store that holds info/attributes is refused by tick, decide, status and the door, each with a line that starts felix: and exit 1; with the file gone, decide reads the head again" \
+  "$TS4K_V then: $TS4_DEC" "tick: exit 1, felix: yes, candidate lines: 0 | decide: exit 1, felix: yes, candidate lines: 0 | status: exit 1, felix: yes, candidate lines: 0 | door: exit 1, felix: yes, candidate lines: 0 |  then: conflict|conflicts with main" "$(_ts4_why)"
+_ts4_a "$TS4K_A" tick; cp "$TS4/o" "$TS4/x/tick.plain" 2>/dev/null; _ts4_a "$TS4K_A" decide "$TS4K_HD"; cp "$TS4/o" "$TS4/x/decide.plain" 2>/dev/null
+TS4_ENV=(_FP_AT="$TS4K_HP" _FP_AT_UNREADABLE=1 _FP_AT_N=7 _FD_NOSTOP=1); _ts4_a "$TS4K_A" tick; cp "$TS4/o" "$TS4/x/tick.vars" 2>/dev/null; _ts4_a "$TS4K_A" decide "$TS4K_HD"; cp "$TS4/o" "$TS4/x/decide.vars" 2>/dev/null; TS4_ENV=()
+_ts4_is "ts4 reading case 18: with _FP_AT, _FP_AT_UNREADABLE, _FP_AT_N and _FD_NOSTOP set in the environment, a tick and decide print what they print without them" \
+  "tick: $(LC_ALL=C awk 'END { print NR }' "$TS4/x/tick.plain" 2>/dev/null) lines, $(if cmp -s "$TS4/x/tick.plain" "$TS4/x/tick.vars"; then printf same; else printf differs; fi); decide: $(tr '\t' '|' < "$TS4/x/decide.plain" 2>/dev/null | cut -d'|' -f2), $(if cmp -s "$TS4/x/decide.plain" "$TS4/x/decide.vars"; then printf same; else printf differs; fi)" \
+  "tick: 24 lines, same; decide: waits, same" "$(_ts4_why)"
 
 # ------------------------------------------------------------------ hold and release (K3, K4, case 4) ---
 _ts4k_say "hold $TS4K_H1"; TS4K_N1="$TS4K_N"; _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading K3: a hold of a commit holds that head and a head whose history holds it, each naming the statement and the commit held, and not the same edit under a new commit id" \
   "$(_ts4k_decs h1 h2 h1b)" "h1: held|statement $TS4K_N1 holds $TS4K_H1; h2: held|statement $TS4K_N1 holds $TS4K_H1; h1b: eligible|-; " "$(_ts4_why)"
-_ts4_is "ts4 reading K8: that tick added a row for each of the two heads whose decision changed, and for no other" "$(_ts4_ledger "$TS4K_A"); $(_ts4_lrow "$TS4K_A" "$TS4K_H2" | cut -d'|' -f2)" "22; held"
+_ts4_is "ts4 reading K8: that tick added a row for each of the two heads whose decision changed, and for no other" "$(_ts4_ledger "$TS4K_A"); $(_ts4_lrow "$TS4K_A" "$TS4K_H2" | cut -d'|' -f2)" "25; held"
 _ts4k_say "release $TS4K_H1"; TS4K_N2="$TS4K_N"; _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading K4: a release names one exact head: it passes the hold for that head, which is eligible and leans on the release, and the head built on it stays held" \
-  "$(_ts4k_decs h1 h2)rows: $(_ts4_ledger "$TS4K_A")" "h1: eligible|leans on statement $TS4K_N2; h2: held|statement $TS4K_N1 holds $TS4K_H1; rows: 23" "$(_ts4_why)"
+  "$(_ts4k_decs h1 h2)rows: $(_ts4_ledger "$TS4K_A")" "h1: eligible|leans on statement $TS4K_N2; h2: held|statement $TS4K_N1 holds $TS4K_H1; rows: 26" "$(_ts4_why)"
 _ts4k_say "hold $TS4K_H1"; _ts4k_dd "$TS4K_H1"
 _ts4_is "ts4 reading K4: a hold given after the release holds again" "$TS4_DEC" "held|statement $TS4K_N holds $TS4K_H1" "$(_ts4_why)"
 _ts4k_say "release $TS4K_HR"; _ts4k_dd "$TS4K_HR"; TS4K_V="$TS4_DEC"; _ts4k_say "hold $TS4K_HR"; _ts4k_dd "$TS4K_HR"
@@ -144,13 +192,19 @@ _ts4_is "ts4 reading K5: a hold given after the override holds the head, and a r
   "$TS4K_V; $TS4_DEC" "held|statement $TS4K_N1 holds $TS4K_HO; waits|changes \"docs/direction.md\"$TS4K_W" "$(_ts4_why)"
 _ts4k_say "override $TS4K_HO"; TS4K_NO="$TS4K_N"; _ts4k_dd "$TS4K_HO"
 _ts4_is "ts4 reading K5: given again, the override is in effect" "$TS4_DEC" "override|statement $TS4K_NO overrides the judge for tree $TS4K_TO" "$(_ts4_why)"
-_ts4k_word stop; TS4K_N1="$TS4K_N"; _ts4_a "$TS4K_A" tick; TS4K_V="said: $(_ts4_said "stopped by the founder at the door (statement $TS4K_N1)" "$TS4/o"); candidate lines: $(_ts4_cands)"; _ts4_a "$TS4K_A" status
+_ts4_plain "$TS4K_A"
+_ts4_is "ts4 reading D2: the door reads that override back on a line starting in-effect: , with its number, and on no line starting lapsed: " \
+  "in-effect: $(_ts4_numon 'in-effect: ' "${TS4K_NO:-none}" "$TS4K_O"); lapsed: $(_ts4_numon 'lapsed: ' "${TS4K_NO:-none}" "$TS4K_O")" "in-effect: yes; lapsed: no" "$(_ts4_dwhy)"
+_ts4k_word stop; TS4K_N1="$TS4K_N"; _ts4_a "$TS4K_A" tick; TS4K_V="said: $(_ts4_said "stopped by the founder at the door (statement $TS4K_N1)" "$TS4/o"); candidate lines: $(_ts4_cands)"; cp "$TS4/o" "$TS4/x/tick.plain" 2>/dev/null; _ts4_a "$TS4K_A" status
 _ts4_is "ts4 reading K2: with stop a tick prints the one line stopped by the founder at the door (statement N) and no candidate line, and status says the word is stop" "$TS4K_V; word: $(_ts4_sv word)" "said: yes; candidate lines: 0; word: stop" "$(_ts4_why)"
+TS4_ENV=(_FP_AT="$TS4K_HP" _FP_AT_UNREADABLE=1 _FP_AT_N=7 _FD_NOSTOP=1); _ts4_a "$TS4K_A" tick; TS4K_V="tick: $(_ts4_count 'stopped by the founder' "$TS4/o") stopped line(s), $(if cmp -s "$TS4/x/tick.plain" "$TS4/o"; then printf same; else printf differs; fi)"; _ts4k_dd "$TS4K_HP"; TS4_ENV=()
+_ts4_is "ts4 reading case 18, K2: under stop, with the same four names set in the environment, a tick still prints the stopped line alone and decide still says stopped" \
+  "$TS4K_V; decide: $TS4_DEC" "tick: 1 stopped line(s), same; decide: stopped|statement $TS4K_N1" "$(_ts4_why)"
 _ts4k_dd "$TS4K_HO"; TS4K_V="$TS4_DEC"; _ts4k_dd "$TS4K_HP"
 _ts4_is "ts4 reading K2, K7: decide says stopped and the statement, of an ordinary head and of an overridden one alike: an override does not pass over a stop" "$TS4K_V; $TS4_DEC" "stopped|statement $TS4K_N1; stopped|statement $TS4K_N1" "$(_ts4_why)"
 _ts4k_word go; _ts4k_dd "$TS4K_HP"; TS4K_V="$TS4_DEC"; _ts4k_word stop; _ts4k_dd "$TS4K_HP"; TS4K_V="$TS4K_V; $TS4_DEC"; TS4K_N1="$TS4K_N"; _ts4k_word go; _ts4_a "$TS4K_A" tick; TS4K_W2="$(_ts4_ledger "$TS4K_A")"; _ts4_a "$TS4K_A" status
 _ts4_is "ts4 reading K2: the later of stop and go decides: after go the head is eligible, after a second stop it is stopped by that statement, and after a second go a tick decides each candidate again" \
-  "$TS4K_V; $(_ts4k_decs plain ov)candidate lines: $(_ts4_cands); word: $(_ts4_sv word)" "eligible|-; stopped|statement $TS4K_N1; plain: eligible|-; ov: override|statement $TS4K_NO overrides the judge for tree $TS4K_TO; candidate lines: 20; word: go" "$(_ts4_why)"
+  "$TS4K_V; $(_ts4k_decs plain ov)candidate lines: $(_ts4_cands); word: $(_ts4_sv word)" "eligible|-; stopped|statement $TS4K_N1; plain: eligible|-; ov: override|statement $TS4K_NO overrides the judge for tree $TS4K_TO; candidate lines: 23; word: go" "$(_ts4_why)"
 
 # ------------------------------------------------------------------ main moves under an override (K6, K8, case 5) ---
 _ts4_tree "$TS4K_S" "$TS4K_M2"; _ts4_f "$TS4K_S" alpha 'hotel on main' 'delta on main'; _ts4_seal "$TS4K_S" main "$TS4K_M2" 'main moves under the override'; TS4K_M3="$TS4_C"
@@ -162,7 +216,10 @@ _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading case 5, K6: when main has moved so that the merge is another tree, the override is not in effect: the head waits, and the detail ends ; override N names another tree" \
   "main: $(_ts4_main "$TS4K_A"); $(_ts4k_decs ov)" "main: $TS4K_M3; ov: waits|changes \"docs/direction.md\"$TS4K_W; override $TS4K_NO names another tree; " "$(_ts4_why)"
 _ts4_is "ts4 reading K8: main having moved, that tick wrote a row for each candidate, with the new main" \
-  "$(( $(_ts4_ledger "$TS4K_A") - ${TS4K_W2:-0} )) more; $(_ts4_lrow "$TS4K_A" "$TS4K_HP")" "20 more; 7:shadow|eligible|$TS4K_HP|$TS4K_M3|$(_ts4_merge "$TS4K_S" "$TS4K_M3" "$TS4K_HP")|-"
+  "$(( $(_ts4_ledger "$TS4K_A") - ${TS4K_W2:-0} )) more; $(_ts4_lrow "$TS4K_A" "$TS4K_HP")" "23 more; 7:shadow|eligible|$TS4K_HP|$TS4K_M3|$(_ts4_merge "$TS4K_S" "$TS4K_M3" "$TS4K_HP")|-"
+_ts4_plain "$TS4K_A"
+_ts4_is "ts4 reading D2, K6: with main moved under it, the door reads the override back on a line starting lapsed: , with its number, and no longer on a line starting in-effect: " \
+  "lapsed: $(_ts4_numon 'lapsed: ' "${TS4K_NO:-none}" "$TS4K_O"); in-effect: $(_ts4_numon 'in-effect: ' "${TS4K_NO:-none}" "$TS4K_O")" "lapsed: yes; in-effect: no" "$(_ts4_dwhy)"
 _fx_git "$TS4K_S" update-ref refs/heads/main "$TS4K_M4" >/dev/null 2>&1; _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading K6: when main has moved so that the merge conflicts, the head conflicts, and the detail ends ; override N names another tree" \
   "$(_ts4k_decs ov)" "ov: conflict|conflicts with main; override $TS4K_NO names another tree; " "$(_ts4_why)"
@@ -174,13 +231,15 @@ _ts4_is "ts4 reading W9: when main's land table holds a row the schema refuses, 
   "main: $(_ts4_main "$TS4K_A"); $(_ts4k_decs h1b)" "main: $TS4K_M5; h1b: waits|$TS4K_U; " "$(_ts4_why)"
 _ts4k_say "authorize $TS4K_HP"; _ts4k_dd "$TS4K_HP"
 _ts4_is "ts4 reading W9, K7: under such a policy his authorization of a head is what makes it eligible" "$TS4_DEC" "eligible|leans on statement $TS4K_N" "$(_ts4_why)"
-_ts4_tree "$TS4K_S" "$TS4K_M5"; _fx_git "$TS4K_S" update-index --force-remove -- projects/proj/land.tsv >/dev/null 2>&1; _ts4_seal "$TS4K_S" main "$TS4K_M5" 'no land table'; TS4K_M6="$TS4_C"; _ts4_a "$TS4K_A" tick
+_ts4_tree "$TS4K_S" "$TS4K_M5"; _ts4_drop "$TS4K_S" projects/proj/land.tsv; _ts4_seal "$TS4K_S" main "$TS4K_M5" 'no land table'; TS4K_M6="$TS4_C"; _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading W9: when main has no land table, the policy cannot be read and an ordinary change waits, saying so" \
   "main: $(_ts4_main "$TS4K_A"); $(_ts4k_decs h1b)" "main: $TS4K_M6; h1b: waits|$TS4K_U; " "$(_ts4_why)"
-_ts4_tree "$TS4K_S" "$TS4K_M6"; _fx_git "$TS4K_S" update-index --force-remove -- .felix >/dev/null 2>&1
+_ts4_tree "$TS4K_S" "$TS4K_M6"; _ts4_drop "$TS4K_S" .felix
 _ts4_stage "$TS4K_S" projects/proj/land.tsv 'docs/direction\.md'"${TS4_TAB}founder$TS4_TAB-$TS4_TAB-$TS4_NL"; _ts4_seal "$TS4K_S" main "$TS4K_M6" 'a table again, and no .felix'; TS4K_M7="$TS4_C"; _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading W9: when main has no .felix, the policy cannot be read and an ordinary change waits, saying so" \
   "main: $(_ts4_main "$TS4K_A"); $(_ts4k_decs h1b)" "main: $TS4K_M7; h1b: waits|$TS4K_U; " "$(_ts4_why)"
+is "ts4 reading (control): main as it moved holds a table with a row of three cells, then no table, then a table and no .felix" \
+  "$(_fx_git "$TS4K_S" cat-file -p "$TS4K_M5:projects/proj/land.tsv" 2>/dev/null | LC_ALL=C awk -F'\t' 'NF == 3 { n++ } END { print n + 0 }') $(_ts4_yn _fx_git "$TS4K_S" cat-file -e "$TS4K_M6:projects/proj/land.tsv") $(_ts4_yn _fx_git "$TS4K_S" cat-file -e "$TS4K_M6:.felix") $(_ts4_yn _fx_git "$TS4K_S" cat-file -e "$TS4K_M7:projects/proj/land.tsv") $(_ts4_yn _fx_git "$TS4K_S" cat-file -e "$TS4K_M7:.felix")" "1 no yes yes no"
 _ts4_tree "$TS4K_S" "$TS4K_M7"; _ts4_stage "$TS4K_S" .felix "proj$TS4_NL"; _ts4_seal "$TS4K_S" main "$TS4K_M7" 'the policy, whole again'; TS4K_M8="$TS4_C"
 TS4K_V="$(_fx_git "$TS4K_S" for-each-ref 2>/dev/null)"; _ts4_a "$TS4K_A" tick
 _ts4_is "ts4 reading W9: with .felix and a table the schema takes back at main, the ordinary change is eligible again and the founder's path waits" \

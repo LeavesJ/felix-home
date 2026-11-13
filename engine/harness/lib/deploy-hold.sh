@@ -26,7 +26,7 @@
 # Sourced by felix and by tests/run, which is `set -u` and runs under bash 3.2, so: no [[ =~ ]],
 # no ${a[@]} of an empty array, no arithmetic on a number with a leading zero.
 
-_DH_TOKEN="felix-deploy-hold-wait"   # in the command line of whatever sleeps at the hold (DW3, DW6)
+_DH_WAITTAG="felix-deploy-hold-wait"   # in the command line of whatever sleeps at the hold (DW3, DW6)
 _DH_LEASE_TTL=1200                   # a lease older than this is not in force (DW1.3); a tick runs every 300 s
 
 _dh_dec() { case "${1:-}" in ""|*[!0123456789]*) return 1 ;; esac; [ "${#1}" -le 12 ]; }   # plain decimal, no overflow
@@ -126,7 +126,7 @@ _dh_root() { printf '%s' "${FELIX_MEMORY:-${HOME:-}/.felix/memory}"; }   # the m
 _dh_mark() {   # POLL
   _DH_MARK=""
   command -v perl >/dev/null 2>&1 || return 1
-  perl -e 'my $p = getppid(); while (getppid() == $p) { select(undef, undef, undef, 1) }' "$_DH_TOKEN" "$(_dh_root)" "$1" \
+  perl -e 'my $p = getppid(); while (getppid() == $p) { select(undef, undef, undef, 1) }' "$_DH_WAITTAG" "$(_dh_root)" "$1" \
     </dev/null >/dev/null 2>&1 &
   _DH_MARK="$!"
 }
@@ -186,7 +186,7 @@ _dh_unwaiting() {   # PIDS
   local tbl out
   tbl="$(ps -axo pid=,ppid=,command= 2>/dev/null)" || { printf '%s\n' "$1"; return 0; }
   [ -n "$tbl" ] || { printf '%s\n' "$1"; return 0; }
-  out="$(printf '%s\n' "$tbl" | LC_ALL=C PIDS="$1" NEEDLE="$_DH_TOKEN $(_dh_root) " awk '
+  out="$(printf '%s\n' "$tbl" | LC_ALL=C PIDS="$1" NEEDLE="$_DH_WAITTAG $(_dh_root) " awk '
     BEGIN { n = split(ENVIRON["PIDS"], P, "\n"); tok = ENVIRON["NEEDLE"] }
     $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ {
       c = $0; sub(/^[ \t]*[0-9]+[ \t]+[0-9]+[ \t]*/, "", c)

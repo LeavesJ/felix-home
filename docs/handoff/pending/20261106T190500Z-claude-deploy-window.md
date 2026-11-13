@@ -1,4 +1,4 @@
-### 2026-11-06: an owed engine deploy gets its window; new suites and gates wait for it (0.49.326)
+### 2026-11-06: an owed engine deploy gets its window; new suites and gates wait for it (0.49.341)
 
 **What failed.** `_gt_deploy` returns "deploy owed" whenever
 `pgrep -f 'engine/harness/tests/run|gate\.sh'` matches anything, and signals

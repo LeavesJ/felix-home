@@ -42,8 +42,8 @@ is "spec §2: --prs lists the pull requests with one gh pr list call" "$(_sp_prl
 _spo="$(LC_ALL=C grep '^pr list' "$SPX/main.gh.log" 2>/dev/null | head -1)"
 has "spec §3: the gh pr list call asks for open pull requests" "$_spo" "--state open"
 has "spec §3: and up to 1000 of them" "$_spo" "--limit 1000"
-_spo="$(LC_ALL=C grep '^api' "$SPX/main.gh.log" 2>/dev/null | LC_ALL=C grep 'settings/billing/actions' | head -1)"
-has "spec §4.4: the budget is one gh api GET of the governed account's Actions billing" "$_spo" "fixture/settings/billing/actions"
+_spo="$(LC_ALL=C grep '^api' "$SPX/main.gh.log" 2>/dev/null | LC_ALL=C grep 'settings/billing/usage' | head -1)"
+has "spec §4.4: the budget is one gh api GET of the governed account's Actions billing" "$_spo" "fixture/settings/billing/usage"
 _spo="$(LC_ALL=C awk -F'\t' -v s="$SPU/.state-caller" -v c="$SPU/.cache-caller" '
   $1 == "unset" || $2 == "unset" || $1 == s || $2 == c { b++ } END { print NR "|" b + 0 }' "$SPX/main.gh.env" 2>/dev/null)"
 case "$_spo" in 0\|*|"") bad "spec §2: gh runs with its state and cache directories in a scratch directory, not the caller's" "[$_spo]" ;;
@@ -90,7 +90,7 @@ has "spec §4.3: and gives the first line of paused" "$_spo" "held for a while"
 _sp_lacks "spec §4.3: and only the first line" "$_spo" "the second line of the reason"
 is "spec §4.4: the budget was read" "$(_sp_srcf "$T" budget 4)" "read"
 has "spec §4.4: it gives the minutes used" "$(_sp_srcf "$T" budget 8)" "123"
-has "spec §4.4: of the minutes included" "$(_sp_srcf "$T" budget 8)" "2000"
+has "spec §4.4, R13: and the net amount, with no included minutes to state" "$(_sp_srcf "$T" budget 8)" 'net $0.00'
 is "spec §2: origin/main is there: the origin row says read" "$(_sp_srcf "$T" origin 4)" "read"
 
 # ---- states, cases 1-10, 15, 16, 20-27 -------------------------------------

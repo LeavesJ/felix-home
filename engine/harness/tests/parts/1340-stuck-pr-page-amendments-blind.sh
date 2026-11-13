@@ -16,8 +16,16 @@ printf '\nthe stuck-PR page: amendments R1-R6, the default branch with no checko
 # being the repository from -R or --repo, else from the origin of the directory
 # it runs in, lowercased, with every byte but a letter or digit made _ (GitHub
 # folds case). It answers a GET of repos/<owner>/<name> with the default branch
-# in ctl/dflt.<key>, else main, and the billing GETs of users/ and orgs/ as
-# ctl/bill.users.* and ctl/bill.orgs.* say, else with minutes.
+# in ctl/dflt.<key>, else main. It answers the usage report's GETs of
+# users/<o>/settings/billing/usage?year=Y&month=M and orgs/<o>/... as
+# ctl/bill.users.* and ctl/bill.orgs.* say: .rc, .err and .out make a failed GET
+# (exit .rc, .err on stderr, .out on stdout); else .body is the answer; else one
+# item of 100 minutes. In .out and .body, @YM@ becomes the month asked as YYYY-MM
+# and @YO@ that month a year earlier. A GET of the retired settings/billing/actions
+# is answered 410, so asking it shows.
+# 2026-11-12: the R2 block (one billing call) was replaced by R13's, written blind
+# from amendment-r13-budget-usage-report.md (same specs/stuck-pr/ directory),
+# without reading lib/ or felix; R1's filter now names the usage report.
 SA="$TMP/stuck-pr-amend"; mkdir -p "$SA"; SA="$(cd "$SA" && pwd -P)"
 SAO="$SA/github.com/fixture/home.git"; SAH="$SA/home"; SA3O="$SA/github.com/fixture/three.git"; SA3="$SA/three"
 SAM="$SA/mem"; SAU="$SA/user"; SAB="$SA/bin"; SAK="$SA/ctl"; SAL="$SA/log"; SAX="$SA/out"; SAT="$SA/tmp"
@@ -28,17 +36,25 @@ _sa_put "$SAB/gh" <<'SASTUB'
 #!/bin/bash
 SA='@SA@'; K="$SA/ctl"
 printf '%s\n' "$*" >> "$SA/log/gh.log"
-jqx=""; repo=""; prev=""; bill=""; rget=""
+jqx=""; repo=""; prev=""; bill=""; rget=""; bq=""
 for a in "$@"; do
   case "$prev" in -q|--jq) jqx="$a" ;; -R|--repo) repo="$a" ;; esac
   case "$a" in --jq=*) jqx="${a#--jq=}" ;; --repo=*) repo="${a#--repo=}" ;; esac
   case "$a" in
-    *users/*/settings/billing/actions*) bill=users ;;
-    *orgs/*/settings/billing/actions*) bill=orgs ;;
+    *settings/billing/actions*) bill=retired ;;
+    *users/*/settings/billing/usage*) bill=users; case "$a" in *\?*) bq="${a#*\?}" ;; esac ;;
+    *orgs/*/settings/billing/usage*) bill=orgs; case "$a" in *\?*) bq="${a#*\?}" ;; esac ;;
     repos/*|/repos/*) rget="${a#/}"; rget="${rget#repos/}" ;;
   esac
   prev="$a"
 done
+# The usage report's items are dated from the year= and month= asked: @YM@ is that month as YYYY-MM, @YO@ the same month a year earlier.
+y=""; m=""
+case "&$bq&" in *"&year="*) y="${bq#*year=}"; y="${y%%&*}" ;; esac
+case "&$bq&" in *"&month="*) m="${bq#*month=}"; m="${m%%&*}" ;; esac
+case "$y" in ''|*[!0123456789]*) y="" ;; esac; case "$m" in ''|*[!0123456789]*) m="" ;; esac
+if [ -n "$y" ] && [ -n "$m" ]; then mm="$m"; [ "${#mm}" -lt 2 ] && mm="0$mm"; ym="$y-$mm"; yo="$((y - 1))-$mm"; else ym="0000-00"; yo="1999-01"; fi
+dated() { LC_ALL=C sed -e "s/@YM@/$ym/g" -e "s/@YO@/$yo/g" "$1"; }
 key() { printf '%s' "$1" | LC_ALL=C tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz' | LC_ALL=C tr -c 'abcdefghijklmnopqrstuvwxyz0123456789' '_'; }
 out() { if [ -n "$jqx" ] && command -v jq >/dev/null 2>&1; then jq -r "$jqx"; else cat; fi; }
 if [ "${1:-} ${2:-}" = "pr list" ]; then
@@ -52,12 +68,17 @@ if [ "${1:-} ${2:-}" = "pr list" ]; then
   out < "$K/prs.$k.json"; exit 0
 fi
 if [ "${1:-}" = api ]; then
+  if [ "$bill" = retired ]; then
+    printf '{"message":"This endpoint has been moved","documentation_url":"https://docs.github.com/rest","status":"410"}'
+    printf 'gh: This endpoint has been moved. (HTTP 410)\n' >&2; exit 1
+  fi
   if [ -n "$bill" ]; then
     if [ -f "$K/bill.$bill.rc" ]; then
-      [ -f "$K/bill.$bill.out" ] && cat "$K/bill.$bill.out"
+      [ -f "$K/bill.$bill.out" ] && dated "$K/bill.$bill.out"
       cat "$K/bill.$bill.err" >&2; exit "$(cat "$K/bill.$bill.rc")"
     fi
-    printf '{"total_minutes_used":77,"total_paid_minutes_used":0,"included_minutes":2000}\n' | out; exit 0
+    if [ -f "$K/bill.$bill.body" ]; then dated "$K/bill.$bill.body" | out; exit 0; fi
+    printf '{"usageItems":[{"date":"%s-03T00:00:00Z","product":"actions","sku":"Actions Linux","quantity":100.0,"unitType":"Minutes","pricePerUnit":0.006,"grossAmount":0.6,"discountAmount":0.6,"netAmount":0.0,"repositoryName":"home"}]}' "$ym" | out; exit 0
   fi
   if [ -n "$rget" ]; then
     k="$(key "$rget")"; d=main; [ -f "$K/dflt.$k" ] && d="$(cat "$K/dflt.$k")"
@@ -73,6 +94,16 @@ _sa_put "$SAB/launchctl" <<'SASTUB'
 printf '%s\n' "$*" >> '@SA@/log/launchctl.log'
 case "${1:-}" in print) exit 113 ;; esac
 exit 0
+SASTUB
+# date (A1): the real date, found before the stubs were first on PATH, unless ctl/date.at holds an epoch; then the
+# caller's arguments run against that instant (-r on BSD, -d @ on GNU).
+command -v date > "$SA/realdate"
+_sa_put "$SAB/date" <<'SASTUB'
+#!/bin/bash
+R="$(cat '@SA@/realdate')"
+[ -f '@SA@/ctl/date.at' ] || exec "$R" "$@"
+e="$(cat '@SA@/ctl/date.at')"
+if "$R" -u -r 0 >/dev/null 2>&1; then exec "$R" -r "$e" "$@"; else exec "$R" -d "@$e" "$@"; fi
 SASTUB
 
 # ---- the repositories ----------------------------------------------------------
@@ -133,6 +164,30 @@ _sa_cols()  { LC_ALL=C awk -F'\t' 'NF != 8 { print NR ": " NF " columns" }' "$1"
 # leading slash; and api calls holding a substring S.
 _sa_apiw() { LC_ALL=C awk -v w="$2" '$1 == "api" { for (i = 2; i <= NF; i++) if ($i == w || $i == "/" w) { n++; break } } END { print n + 0 }' "$1" 2>/dev/null; }
 _sa_apis() { LC_ALL=C awk -v s="$2" '$1 == "api" && index($0, s) { n++ } END { print n + 0 }' "$1" 2>/dev/null; }
+# The billing GETs of a gh log in the order asked, as users, orgs (the usage
+# report), retired (settings/billing/actions) or other; and the query string of
+# the first usage-report GET under users/ or orgs/.
+_sa_bills() { LC_ALL=C awk '$1 == "api" && index($0, "settings/billing/") { k = "other"
+  if (index($0, "settings/billing/actions")) k = "retired"; else if (index($0, "settings/billing/usage")) { if (index($0, "users/")) k = "users"; else if (index($0, "orgs/")) k = "orgs" }
+  s = s (n++ ? "," : "") k } END { printf "%s", s }' "$1" 2>/dev/null; }
+_sa_q() { LC_ALL=C awk -v k="$2/" '$1 == "api" { for (i = 2; i <= NF; i++) { w = $i; sub(/^\//, "", w)
+  if (index(w, k) == 1 && index(w, "/settings/billing/usage?")) { printf "%s", substr(w, index(w, "?") + 1); exit } } }' "$1" 2>/dev/null; }
+# A query's month as YYYY-MM, or unasked; the clock's month in UTC as the query
+# writes it; a query shown as SAC1 when it is the clock's month before or after the run.
+_sa_ym() { printf '%s\n' "$1" | LC_ALL=C awk '{ s = $0 } END { y = ""; m = ""; n = split(s, p, "&")
+  for (i = 1; i <= n; i++) { if (p[i] ~ /^year=[0123456789]+$/) y = substr(p[i], 6); if (p[i] ~ /^month=[0123456789]+$/) m = substr(p[i], 7) }
+  if (y == "" || m == "") printf "unasked"; else printf "%04d-%02d", y + 0, m + 0 }'; }
+_sa_clock() { local d; d="$(date -u +%Y-%m)"; printf 'year=%s&month=%s' "${d%-*}" "$(( 10#${d#*-} ))"; }
+_sa_qn() { if [ -z "$1" ]; then printf 'unasked'; elif [ "$1" = "$SAC1" ] || [ "$1" = "$SAC2" ]; then printf '%s' "$SAC1"; else printf '%s' "$1"; fi; }
+# The billing answers per case: _sa_body KIND JSON; _sa_fail KIND RC ERR [OUT] (ERR as printf %b);
+# _sa_it DATE PRODUCT SKU QUANTITY UNIT NET is one item, its fields in the order GitHub gave them.
+_sa_body() { printf '%s' "$2" > "$SAK/bill.$1.body"; }
+_sa_fail() { printf '%s\n' "$2" > "$SAK/bill.$1.rc"; printf '%b' "$3" > "$SAK/bill.$1.err"; rm -f "$SAK/bill.$1.out"; [ -z "${4:-}" ] || printf '%s' "$4" > "$SAK/bill.$1.out"; }
+_sa_it() { printf '{"date":"%sT00:00:00Z","product":"%s","sku":"%s","quantity":%s,"unitType":"%s","pricePerUnit":0.006,"grossAmount":1.0,"discountAmount":0.5,"netAmount":%s,"repositoryName":"home"}' "$1" "$2" "$3" "$4" "$5" "$6"; }
+# One run of the page for R13: T is its page, SAYM the month its users/ GET asked, SAD the budget detail.
+SAALL=""; SARCS=""
+_sa_brun() { local n="$1"; shift; SAC1="$(_sa_clock)"; _sa_land --prs --tsv "$@"; _sa_keep "$n"; SAC2="$(_sa_clock)"; T="$SAX/$n"
+  SAYM="$(_sa_ym "$(_sa_q "$T.gh" users)")"; SAD="$(_sa_srcf "$T" budget 8)"; SAALL="$SAALL|$SAD"; SARCS="$SARCS$(cat "$T.rc")"; }
 # The age in "origin/main last moved <age> ago", and that age in whole hours:
 # the first number and the unit after it (s, m, h, d, w, mo, y, or the words).
 _sa_moved() { printf '%s' "$1" | LC_ALL=C awk '{ i = index($0, "origin/main last moved "); if (!i) exit
@@ -156,6 +211,9 @@ is "the amendments fixture: no checkout of fixture/two exists under the fixture 
 is "the amendments fixture: the gh stub answers -R Fixture/Home as fixture/home, and repos/fixture/two with trunk (fixture control)" \
    "$( cd "$SA" && PATH="$SAB:$PATH" gh pr list -R Fixture/Home --state open 2>&1 | LC_ALL=C grep -o '"number":601,' )|$( cd "$SA" && PATH="$SAB:$PATH" gh api repos/fixture/two 2>&1 | LC_ALL=C grep -o '"default_branch":"[a-z]*"' )" \
    '"number":601,|"default_branch":"trunk"'
+is "the amendments fixture: the gh stub dates usage items from the month it is asked, and answers the retired billing address 410 (fixture control)" \
+   "$( cd "$SA" && PATH="$SAB:$PATH" gh api '/users/fixture/settings/billing/usage?year=2026&month=3' 2>&1 | LC_ALL=C grep -o '"date":"2026-03-03' )|$( cd "$SA" && PATH="$SAB:$PATH" gh api users/fixture/settings/billing/actions >/dev/null 2>"$SAX/retired.err"; echo "$?" )|$(LC_ALL=C grep -c 'HTTP 410' "$SAX/retired.err")" \
+   '"date":"2026-03-03|1|1'
 
 # ---- R3: the origin row names the default branch and where it came from ----------
 _sa_land --prs --tsv; _sa_keep r3head.tsv
@@ -193,46 +251,163 @@ is "R3: a repository with neither origin/HEAD nor origin/main: the page exits 0 
 has "R3: and its origin row says default branch not read (control)" "$(_sa_srcf "$T" origin 8)" "default branch not read"
 is "R3: and its pull request was not decided: #901 is unknown (control)" "$(_sa_state "$T" 901)" unknown
 
-# ---- R2: one billing call --------------------------------------------------------
-B=users/fixture/settings/billing/actions; BO=orgs/fixture/settings/billing/actions
+# ---- R13: the budget row reads GitHub's usage report ------------------------------
+# Blind, 2026-11-12, from amendment-r13-budget-usage-report.md alone. The stub
+# dates items from the query asked, so no case races the end of a month; every
+# month expected below is the one the gh log shows was asked. Sums stay away
+# from an exact half.
+SAU1=users/fixture/settings/billing/usage; SAO1=orgs/fixture/settings/billing/usage
 rm -f "$SAK"/bill.*
-_sa_land --prs --tsv; _sa_keep r2ok.tsv
-is "R2: the billing GET answers: the gh log holds exactly one billing GET" "$(_sa_apis "$SAX/r2ok.tsv.gh" settings/billing/actions)" 1
-is "R2: and it is the users/ GET" "$(_sa_apis "$SAX/r2ok.tsv.gh" "$B")" 1
-is "R2: and no orgs/ GET follows" "$(_sa_apis "$SAX/r2ok.tsv.gh" "$BO")" 0
-is "R2: and the budget row says read (control)" "$(_sa_srcf "$SAX/r2ok.tsv" budget 4)" read
-_sa_lacks "R2: and says nothing of the user scope" "$(_sa_srcf "$SAX/r2ok.tsv" budget 8)" "user scope"
-printf '1\n' > "$SAK/bill.users.rc"; printf 'gh: Not Found (HTTP 404)\n' > "$SAK/bill.users.err"
-printf '{"message":"Not Found","documentation_url":"https://docs.github.com/rest","status":"404"}\n' > "$SAK/bill.users.out"
-cp "$SAK/bill.users.rc" "$SAK/bill.orgs.rc"; cp "$SAK/bill.users.err" "$SAK/bill.orgs.err"; cp "$SAK/bill.users.out" "$SAK/bill.orgs.out"
-_sa_land --prs --tsv; _sa_keep r2404.tsv
-is "R2: users/ answers 404: the page exits 0" "$(cat "$SAX/r2404.tsv.rc")" 0
-is "R2: after a 404 the gh log holds one users/ GET" "$(_sa_apis "$SAX/r2404.tsv.gh" "$B")" 1
-is "R2: and then one orgs/ GET" "$(_sa_apis "$SAX/r2404.tsv.gh" "$BO")" 1
-is "R2: and no more billing GETs than those two" "$(_sa_apis "$SAX/r2404.tsv.gh" settings/billing/actions)" 2
-is "R2: both answering 404: the budget row says unread" "$(_sa_srcf "$SAX/r2404.tsv" budget 4)" unread
-has "R2: and adds the scope hint after the 404" "$(_sa_srcf "$SAX/r2404.tsv" budget 8)" "the token may lack the user scope"
+# Minutes over two SKUs in minutes (one product and unit in another case, its fields in another order); storage's net
+# counted and its quantity not; another product left out. 1430.0 + 120.4 = 1550.4; 2.874... + 0.25 + 1.2 = 4.324.
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 1430.0 Minutes 2.8740000000000006),$(_sa_it @YM@-04 actions 'Actions storage' 500.0 GigabyteHours 0.25),$(_sa_it @YM@-02 copilot 'Copilot Business' 900.0 Minutes 19.0),{\"netAmount\":1.2,\"repositoryName\":\"home\",\"unitType\":\"minutes\",\"quantity\":120.4,\"sku\":\"Actions macOS\",\"product\":\"Actions\",\"date\":\"@YM@-05T00:00:00Z\"}]}"
+_sa_brun r13sum.tsv
+is "R13: the budget row's report answers: the page exits 0" "$(cat "$T.rc")" 0
+is "R13: the page asks the users/ usage report for the clock's year and month in UTC, the month without a leading zero" "$(_sa_qn "$(_sa_q "$T.gh" users)")" "$SAC1"
+is "R13: and that GET is of users/<owner>/settings/billing/usage?year=Y&month=M, nothing more in the path" "$(_sa_apiw "$T.gh" "$SAU1?$(_sa_qn "$(_sa_q "$T.gh" users)")")" 1
+is "R13: an answered users/ GET is the only billing GET: no orgs/ GET and never the retired settings/billing/actions" "$(_sa_bills "$T.gh")" users
+is "R13: an answered report makes the budget row read" "$(_sa_srcf "$T" budget 4)" read
+has "R13: minutes are summed over every SKU in minutes, unit and product compared without case, storage's quantity left out" "$SAD" "1550 Actions minutes used in $SAYM"
+has "R13: net is summed over the counted items, storage's included, another product's not" "$SAD" ", net \$4.32"
+is "R13: the whole detail of a read report" "$SAD" "1550 Actions minutes used in $SAYM, net \$4.32"
+_sa_lacks "R13: the row says nothing of another product" "$SAD" "opilot"
+# An answer spread over several lines with spaces, its numbers in exponent form: 1.2e3 + 30.0 = 1230; 9.6e-05 + 1.5 = 1.500096.
+printf '{\n  "usageItems" : [\n    {\n      "product" : "actions",\n      "date" : "@YM@-07T00:00:00Z",\n      "unitType" : "Minutes",\n      "quantity" : 1.2e3,\n      "netAmount" : 9.6e-05\n    },\n    {\n      "date" : "@YM@-08T00:00:00Z", "product" : "actions", "sku" : "Actions Linux", "unitType" : "Minutes",\n      "quantity" : 30.0, "netAmount" : 1.5\n    }\n  ]\n}\n' > "$SAK/bill.users.body"
+_sa_brun r13lines.tsv
+is "R13: a report spread over several lines, with numbers holding an exponent, is read" "$(_sa_srcf "$T" budget 4)" read
+is "R13: and summed as JSON: the whole detail" "$SAD" "1230 Actions minutes used in $SAYM, net \$1.50"
+# Actions items dated outside the asked month, two of them, and another product's outside it too, which is not counted among them.
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-09 actions 'Actions Linux' 60.0 Minutes 0.36),$(_sa_it @YO@-09 actions 'Actions Linux' 77.0 Minutes 3.0),$(_sa_it @YO@-28 actions 'Actions storage' 5.0 GigabyteHours 0.01),$(_sa_it @YO@-01 copilot 'Copilot Business' 10.0 Minutes 1.0)]}"
+_sa_brun r13out.tsv
+is "R13: Actions items dated outside the asked month are not counted and are told by number at the end of the detail" "$SAD" "60 Actions minutes used in $SAYM, net \$0.36; Actions items dated outside $SAYM, not counted: 2"
+_sa_body users '{"usageItems":[]}'
+_sa_brun r13empty.tsv
+is "R13: an empty usageItems list is read" "$(_sa_srcf "$T" budget 4)" read
+is "R13: and reads zero minutes and no net" "$SAD" "0 Actions minutes used in $SAYM, net \$0.00"
+_sa_body users '{"total_minutes_used":77,"total_paid_minutes_used":0,"included_minutes":2000}'
+_sa_brun r13nokey.tsv
+is "R13: an answer with no usageItems key leaves the budget row unread" "$(_sa_srcf "$T" budget 4)" unread
+has "R13: and says the usage report holds no usageItems" "$SAD" "the usage report holds no usageItems"
+is "R13: A3: no usageItems key: the detail is exactly that the report holds no usageItems list" "$SAD" "the usage report holds no usageItems list"
+_sa_body users "{\"usageItems\":[{\"date\":\"@YM@-03T00:00:00Z\",\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":\"1430\",\"unitType\":\"Minutes\",\"netAmount\":1.0}]}"
+_sa_brun r13nan.tsv
+is "R13: a counted item in minutes whose quantity is not a number leaves the budget row unread" "$(_sa_srcf "$T" budget 4)" unread
+has "R13: and says an Actions item's quantity or netAmount is not a number" "$SAD" "the usage report holds an Actions item whose quantity or netAmount is not a number"
+rm -f "$SAK"/bill.*
+# The failed GETs: section 3's table, a row a case, and a failed GET whose stdout holds a report that would sum.
+_sa_fail users 1 'gh: This endpoint has been moved. (HTTP 410)\n' '{"message":"This endpoint has been moved","status":"410"}'
+_sa_brun r13gone.tsv
+is "R13: a 410 on the users/ GET: unread" "$(_sa_srcf "$T" budget 4)" unread
+is "R13: and no orgs/ GET follows a 410" "$(_sa_bills "$T.gh")" users
+is "R13: and the detail says GitHub moved the endpoint and no scope brings it back" "$SAD" "gh: This endpoint has been moved. (HTTP 410); GitHub has moved this endpoint, so the fix is to Felix's reader and no token scope brings it back"
+_sa_fail users 1 'gh: Not Found (HTTP 404)\n' '{"message":"Not Found","documentation_url":"https://docs.github.com/rest","status":"404"}'
+_sa_fail orgs 1 'gh: Not Found (HTTP 404)\n' '{"message":"Not Found","documentation_url":"https://docs.github.com/rest","status":"404"}'
+_sa_brun r13nf.tsv
+is "R13: a 404 on users/ is followed by one orgs/ GET, and nothing else of billing" "$(_sa_bills "$T.gh")" users,orgs
+is "R13: the orgs/ GET asks the same year and month, the clock's in UTC" "$(_sa_qn "$(_sa_q "$T.gh" orgs)")" "$SAC1"
+is "R13: and it is a GET of orgs/<owner>/settings/billing/usage?year=Y&month=M" "$(_sa_apiw "$T.gh" "$SAO1?$(_sa_qn "$(_sa_q "$T.gh" users)")")" 1
+is "R13: 404 on both: unread, and the detail says what a 404 means and names no scope" "$(_sa_srcf "$T" budget 4)|$SAD" "unread|gh: Not Found (HTTP 404); GitHub answers 404 for an account that does not exist and for one whose billing this login may not read"
+_sa_fail users 1 'gh: Not Found (HTTP 404)\ngh: This API operation needs the "user" scope. To request it, run:  gh auth refresh -h github.com -s user\n'
+_sa_brun r13scope.tsv
+is "R13: a scope gh names on the users/ GET is given, and wins over the 404 clause" "$SAD" "gh: Not Found (HTTP 404); gh names a scope the token lacks (user), and widening the token is the founder's"
+_sa_fail orgs 1 'gh: Not Found (HTTP 404)\ngh: This API operation needs the "admin:org" scope. To request it, run:  gh auth refresh -h github.com -s admin:org\n'
+_sa_brun r13scopes.tsv
+is "R13: two GETs naming different scopes give both, in the order asked" "$SAD" "gh: Not Found (HTTP 404); gh names a scope the token lacks (user, admin:org), and widening the token is the founder's"
+_sa_fail users 1 'gh: Not Found (HTTP 404)\n'; _sa_fail orgs 1 'gh: HTTP 502: Bad Gateway\n'
+_sa_brun r13bad.tsv
+is "R13: a 404 then a 502 on orgs/: the organisation report's error follows, and no clause" "$(_sa_srcf "$T" budget 4)|$SAD" "unread|gh: Not Found (HTTP 404); organisation report: gh: HTTP 502: Bad Gateway"
 rm -f "$SAK"/bill.orgs.*
-_sa_land --prs --tsv; _sa_keep r2org.tsv
-is "R2: users/ 404 then orgs/ answering: two billing GETs, users/ then orgs/" \
-   "$(_sa_apis "$SAX/r2org.tsv.gh" "$B")$(_sa_apis "$SAX/r2org.tsv.gh" "$BO")" 11
-is "R2: and the budget row says read" "$(_sa_srcf "$SAX/r2org.tsv" budget 4)" read
+_sa_body orgs "{\"usageItems\":[$(_sa_it @YM@-06 actions 'Actions Linux' 200.0 Minutes 1.11)]}"
+_sa_brun r13org.tsv
+is "R13: a 404 on users/ then an answered orgs/ report: read" "$(_sa_srcf "$T" budget 4)" read
+is "R13: and the detail is the organisation report's, in the month asked" "$SAD" "200 Actions minutes used in $(_sa_ym "$(_sa_q "$T.gh" orgs)"), net \$1.11"
 rm -f "$SAK"/bill.*
-printf '1\n' > "$SAK/bill.users.rc"; printf 'gh: HTTP 502: Bad Gateway (https://api.github.com/%s)\n' "$B" > "$SAK/bill.users.err"
-_sa_land --prs --tsv; _sa_keep r2502.tsv
-is "R2: users/ answers 502: the page exits 0" "$(cat "$SAX/r2502.tsv.rc")" 0
-is "R2: after a 502 the gh log holds exactly one billing GET" "$(_sa_apis "$SAX/r2502.tsv.gh" settings/billing/actions)" 1
-is "R2: and no orgs/ GET" "$(_sa_apis "$SAX/r2502.tsv.gh" "$BO")" 0
-is "R2: the budget row says unread (control)" "$(_sa_srcf "$SAX/r2502.tsv" budget 4)" unread
-has "R2: and gives gh's first error line (control)" "$(_sa_srcf "$SAX/r2502.tsv" budget 8)" "502"
-_sa_lacks "R2: and never the scope hint after a 502" "$(_sa_srcf "$SAX/r2502.tsv" budget 8)" "user scope"
-printf 'error connecting to api.github.com\n' > "$SAK/bill.users.err"
-_sa_land --prs --tsv; _sa_keep r2net.tsv
-is "R2: a network error: one billing GET and no orgs/ GET" \
-   "$(_sa_apis "$SAX/r2net.tsv.gh" settings/billing/actions)$(_sa_apis "$SAX/r2net.tsv.gh" "$BO")" 10
-is "R2: the budget row says unread (control)" "$(_sa_srcf "$SAX/r2net.tsv" budget 4)" unread
-_sa_lacks "R2: and never the scope hint after a network error" "$(_sa_srcf "$SAX/r2net.tsv" budget 8)" "user scope"
+_sa_fail users 1 'error connecting to api.github.com\n' "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 1430.0 Minutes 2.5)]}"
+_sa_brun r13net.tsv
+is "R13: a failed GET whose stdout holds a report that would sum stays unread" "$(_sa_srcf "$T" budget 4)" unread
+is "R13: a network error: one billing GET, and the detail is gh's first error line alone" "$(_sa_bills "$T.gh")|$SAD" "users|error connecting to api.github.com"
 rm -f "$SAK"/bill.*
+# ---- R13, amended after review (A1-A6 and the three named gaps), blind 2026-11-12
+# A1: date first on PATH stands the clock at 2026-03-15T12:00:00Z. A date written 2026-3- is an actions item dated outside 2026-03.
+printf '1773576000\n' > "$SAK/date.at"
+is "the amendments fixture: the date stub answers the fixed instant when told to, for the caller's own format (fixture control)" "$(PATH="$SAB:$PATH" date -u +%Y-%m-%dT%H)" 2026-03-15T12
+_sa_body users "{\"usageItems\":[$(_sa_it 2026-03-04 actions 'Actions Linux' 100.0 Minutes 0.40),$(_sa_it 2026-3-05 actions 'Actions Linux' 50.0 Minutes 0.20)]}"
+_sa_brun r13march.tsv
+rm -f "$SAK/date.at"
+is "the amendments fixture: with its control removed the date stub answers the real clock (fixture control)" "$(PATH="$SAB:$PATH" date -u +%Y-%m)" "$(date -u +%Y-%m)"
+is "R13: A1: a clock in March asks the users/ report for month=3, no leading zero" "$(_sa_q "$T.gh" users)" "year=2026&month=3"
+is "R13: A1: and counts only dates starting 2026-03-, zero-padded" "$(_sa_srcf "$T" budget 4)|$SAD" "read|100 Actions minutes used in 2026-03, net \$0.40; Actions items dated outside 2026-03, not counted: 1"
+SAUN="unread|"
+# A2: an answer that ends early, its second item (which would add a lot) left open; and text after the object closes.
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10),{\"date\":\"@YM@-04T00:00:00Z\",\"product\":\"actions\",\"unitType\":\"Minutes\",\"quantity\":99999.0,\"netAmount\":999.0"
+_sa_brun r13short.tsv
+is "R13: A2: an answer that ends early is unread: the usage report is not complete JSON" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report is not complete JSON"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10)]} {\"usageItems\":[]}"
+_sa_brun r13tail.tsv
+is "R13: A2: text after the object closes is unread: the usage report is not complete JSON" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report is not complete JSON"
+# A3: usageItems that is not a list.
+_sa_body users '{"usageItems":null}'
+_sa_brun r13null.tsv
+is "R13: A3: usageItems null is unread: no usageItems list" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds no usageItems list"
+_sa_body users "{\"usageItems\":{\"a\":$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10)}}"
+_sa_brun r13obj.tsv
+is "R13: A3: usageItems an object is unread: no usageItems list" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds no usageItems list"
+# A4: an actions item with no date, and one whose date is a number, beside one that would count.
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10),{\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":5.0,\"unitType\":\"Minutes\",\"netAmount\":0.05}]}"
+_sa_brun r13nodate.tsv
+is "R13: A4: an actions item with no date is unread: an Actions item with no date" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds an Actions item with no date"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10),{\"date\":20261103,\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":5.0,\"unitType\":\"Minutes\",\"netAmount\":0.05}]}"
+_sa_brun r13numdate.tsv
+is "R13: A4: an actions item whose date is a number is unread: an Actions item with no date" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds an Actions item with no date"
+rm -f "$SAK"/bill.*
+# A5: a first error line of 161 characters whose code sits past character 120. How the cut line is shown is section 4.4's,
+# not restated in the amendment, so the detail is held to start with the line's first 120 characters and end with the clause.
+SALONG="gh: GitHub answered the request for this account's usage report with an error, and this line runs on past the cut of one hundred and twenty characters"
+_sa_fail users 1 "$SALONG (HTTP 404)\n"; _sa_fail orgs 1 "$SALONG (HTTP 404)\n"
+_sa_brun r13long404.tsv
+is "R13: A5: a 404 past character 120 of the first error line still brings the orgs/ GET" "$(_sa_bills "$T.gh")" users,orgs
+has "R13: A5: and the detail shows the line from its start" "$SAD" "${SALONG:0:120}"
+is "R13: A5: and, both failing so, ends with the 404 clause" "$(_sa_srcf "$T" budget 4)|${SAD##*; }" "unread|GitHub answers 404 for an account that does not exist and for one whose billing this login may not read"
+rm -f "$SAK"/bill.*
+_sa_fail users 1 "$SALONG (HTTP 410)\n"
+_sa_brun r13long410.tsv
+is "R13: A5: a 410 past character 120 brings no orgs/ GET and ends with the moved clause" "$(_sa_bills "$T.gh")|${SAD##*; }" "users|GitHub has moved this endpoint, so the fix is to Felix's reader and no token scope brings it back"
+rm -f "$SAK"/bill.*
+# The three named gaps: a scope line whose name is no scope name; a 404 then a 410; a netAmount that is not a number.
+_sa_fail users 1 'gh: Not Found (HTTP 404)\ngh: This API operation needs the "read user" scope. To request it, run:  gh auth refresh -h github.com -s read user\n'
+_sa_fail orgs 1 'gh: Not Found (HTTP 404)\ngh: This API operation needs the "user;x" scope. To request it, run:  gh auth refresh -h github.com -s user;x\n'
+_sa_brun r13badscope.tsv
+is "R13: a scope line naming no scope name (a space, a semicolon) names no scope: the 404 clause is given" "$SAD" "gh: Not Found (HTTP 404); GitHub answers 404 for an account that does not exist and for one whose billing this login may not read"
+_sa_fail users 1 'gh: Not Found (HTTP 404)\n'; _sa_fail orgs 1 'gh: This endpoint has been moved. (HTTP 410)\n'
+_sa_brun r13nf410.tsv
+is "R13: a 404 then a 410 on orgs/: both lines, then the moved clause" "$SAD" "gh: Not Found (HTTP 404); organisation report: gh: This endpoint has been moved. (HTTP 410); GitHub has moved this endpoint, so the fix is to Felix's reader and no token scope brings it back"
+rm -f "$SAK"/bill.*
+SANAN="the usage report holds an Actions item whose quantity or netAmount is not a number"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes '"2.5"')]}"
+_sa_brun r13netstr.tsv
+is "R13: a counted item whose netAmount is a string is unread, quantity or netAmount not a number" "$(_sa_srcf "$T" budget 4)|$SAD" "$SAUN$SANAN"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions storage' 1.0 GigabyteHours null)]}"
+_sa_brun r13netnull.tsv
+is "R13: a counted storage item whose netAmount is null is unread, quantity or netAmount not a number" "$(_sa_srcf "$T" budget 4)|$SAD" "$SAUN$SANAN"
+_sa_body users "{\"usageItems\":[{\"date\":\"@YM@-03T00:00:00Z\",\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":10.0,\"unitType\":\"Minutes\"}]}"
+_sa_brun r13netnone.tsv
+is "R13: a counted item with no netAmount is unread, quantity or netAmount not a number" "$(_sa_srcf "$T" budget 4)|$SAD" "$SAUN$SANAN"
+rm -f "$SAK"/bill.*
+# A6: an owner holding & is no account name. The repository's origin names github.com/fix&ture/home.
+SAAMP="$SA/amprepo"; mkdir -p "$SAAMP"; _fx_git "$SAAMP" init -q >/dev/null 2>&1
+_fx_git "$SAAMP" symbolic-ref HEAD refs/heads/main >/dev/null 2>&1
+printf 'amp\n' > "$SAAMP/README.md"; _sa_commit "$SAAMP" base
+_fx_git "$SAAMP" remote add origin "$SA/github.com/fix&ture/home.git" >/dev/null 2>&1
+_fx_git "$SAAMP" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
+_fx_git "$SAAMP" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main >/dev/null 2>&1
+_sa_prs fix_ture_home "$(_sa_pr 811 main)"
+_sa_brun r13amp.tsv --repo "$SAAMP"
+is "the amendments fixture: the page reads the owner fix&ture into its slug: a row names fix&ture/home (fixture control)" "$([ "$(LC_ALL=C grep -c -F 'fix&ture/home' "$T")" -gt 0 ] && echo yes)" yes
+is "R13: A6: an owner that is not an account name: no billing GET" "$(_sa_bills "$T.gh")" ""
+is "R13: A6: and the row is unread: the owner in the slug is not an account name" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the owner in the slug is not an account name"
+is "R13: the page exits 0 whatever the budget's reading, in every case above" "$(printf '%s' "$SARCS" | LC_ALL=C tr -d 0)" ""
+_sa_lacks "R13: no budget detail above holds the word included" "$SAALL" included
+_sa_lacks "R13: no budget detail above says the token may lack the user scope" "$SAALL" "the token may lack the user scope"
 
 # ---- R1, R6: the queue over a project with no checkout and a repository named twice
 _sa_land --queue --tsv; _sa_keep q.tsv
@@ -243,7 +418,7 @@ is "R1: two has no checkout: the gh log holds exactly one GET of repos/fixture/t
 is "R1: and the home's project, whose checkout is the home, asks gh for no default branch" "$(_sa_apiw "$Q.gh" repos/fixture/home)" 0
 is "R1: and zeta, read under felix, asks for none either" "$(_sa_apis "$Q.gh" "epos/Fixture/Home")" 0
 is "R1, §2: gh is asked nothing but pr list, a GET of repos/<owner>/<name> and the billing GETs" \
-   "$(LC_ALL=C awk '!(index($0, "pr list") == 1 || ($1 == "api" && (index($0, "repos/") || index($0, "settings/billing/actions"))))' "$Q.gh" | head -3)" ""
+   "$(LC_ALL=C awk '!(index($0, "pr list") == 1 || ($1 == "api" && (index($0, "repos/") || index($0, "settings/billing/usage"))))' "$Q.gh" | head -3)" ""
 is "R1: two's default branch is trunk, from gh: #701 into trunk, founder, is listed once" "$(_sa_nrow "$Q" 701)" 1
 is "R1: under fixture/two (control)" "$(_sa_f "$Q" 701 2)" fixture/two
 is "R1: and #702 into main, founder by label, is stacked, so not in --queue" "$(_sa_nrow "$Q" 702)" 0

@@ -97,7 +97,7 @@ has "spec §4.2: its detail says the default branch was not read" "$(_sp_f "$SPX
 
 # ---- §4.4: the budget unread ------------------------------------------------------
 _sp_logs0; _sp_prs fixture_home
-_spl="HTTP 404: Not Found (https://api.github.com/users/fixture/settings/billing/actions): the token lacks the user scope"
+_spl="HTTP 404: Not Found (https://api.github.com/users/fixture/settings/billing/usage): the login may not read it"
 while [ "${#_spl}" -lt 120 ]; do _spl="$_spl."; done
 printf '1\n' > "$SPK/api.rc"; printf '%sZZZZZZZZZZZZZZZZZZZZ\nsecond line of the error\n' "$_spl" > "$SPK/api.err"
 _sp_land "$SPH" --prs --tsv; _sp_keep budget.tsv

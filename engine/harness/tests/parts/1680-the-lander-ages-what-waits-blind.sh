@@ -180,7 +180,7 @@ for a in "$@"; do
   case "$prev" in -q|--jq) jqx="$a" ;; -R|--repo) repo="$a" ;; esac
   case "$a" in --jq=*) jqx="${a#--jq=}" ;; --repo=*) repo="${a#--repo=}" ;; esac
   case "$a" in
-    *settings/billing/actions*) bill=1 ;;
+    *settings/billing/usage*) bill=1; bq="$a" ;;
     user|/user) user=1 ;;
     repos/acme/app|/repos/acme/app|repos/acme/lib|/repos/acme/lib) dflt="${a#/}" ;;
   esac
@@ -199,7 +199,7 @@ case "${1:-} ${2:-}" in
     out < "$K/prs.$key.json"; exit 0 ;;
 esac
 if [ "${1:-}" = api ]; then
-  if [ "$bill" = 1 ]; then printf '{"total_minutes_used":5,"total_paid_minutes_used":0,"included_minutes":2000}\n' | out; exit 0; fi
+  if [ "$bill" = 1 ]; then by="${bq##*year=}"; by="${by%%&*}"; bm="${bq##*month=}"; bm="${bm%%&*}"; [ "${#bm}" -eq 1 ] && bm="0$bm"; printf '{"usageItems":[{"date":"%s-%s-01T00:00:00Z","product":"actions","sku":"Actions Linux","quantity":5.0,"unitType":"Minutes","pricePerUnit":0.006,"grossAmount":0.0,"discountAmount":0.0,"netAmount":0.0,"repositoryName":"home"}]}\n' "$by" "$bm" | out; exit 0; fi
   if [ "$user" = 1 ]; then
     if [ -f "$K/user.rc" ]; then cat "$K/user.err" >&2; exit "$(cat "$K/user.rc")"; fi
     cat "$K/user.json"; exit 0

@@ -96,6 +96,9 @@ rest are limits below.
 - The Mac-wide suite slots (`$TMPDIR/felix-suite-slots`) are unchanged. The
   dynamic load governor (design `docs/2026-11-06-load-governor-design.md`, slice
   1) can fold the hold in as a land-class rule; its two call sites are
-  `_dh_door` (which calls `_dh_wait`) in `tests/run`, kept to two lines there
-  because part 1610 caps the driver's lines and comment runs, and `_dh_wait` in
-  `cmd_gate`.
+  `_dh_door` (which calls `_dh_wait`) in `tests/run`, one line there, and
+  `_dh_wait` in `cmd_gate`. The driver is at exactly 500 lines, the cap of part
+  1040, with main at 500 before this change: the door line and part 2480's line
+  were paid for by joining two pairs of adjacent lines (the manifest and record
+  assignments, and `_rcp_red=""` with the `if` after it), so the next part
+  anyone adds must free a line again.

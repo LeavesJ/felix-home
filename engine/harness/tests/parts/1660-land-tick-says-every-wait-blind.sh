@@ -222,13 +222,13 @@ L60V2="$(_l3_mainv)"
 printf 'extra\n' > "$LGV/$L60V2/harness/l60-extra.txt"
 is "the land fixture: the home is at origin's main, which declares 9.65.0, and main's check rejects that entry with its extra file (fixture control)" \
    "$(git -C "$LGH" rev-parse HEAD 2>&1)|$(_la_accepts)" "$(git -C "$LGO" rev-parse main 2>&1)|1"
-_lg_reset; : > "$LGK/install.taint"; _lg_land --tick; L60D="$(_lg_f deployed-unverified "" 7)"
-is "A50 (B20): an entry at main's version that existed before the install and still differs after it: one deployed-unverified row beginning diff:, saying felix install does not replace it, naming the entry, and paused holds the same reason" \
-   "$(_lg_n deployed-unverified)|$(_l60_begins "$L60D" 'diff:')|$(_l60_has "$L60D" 'does not replace')|$(_l60_entry "$L60D" "$L60V2")|$(_l60_same "$(cat "$LAND/paused" 2>/dev/null)" "$L60D")" \
+_lg_reset; : > "$LGK/install.taint"; _lg_land --tick; L60D="$(_lg_f deploy-failed "" 7)"
+is "A50 (B20): an entry at main's version that existed before the install and still differs after it: one deploy-failed row beginning diff:, saying felix install does not replace it, naming the entry, and paused holds the same reason" \
+   "$(_lg_n deploy-failed)|$(_l60_begins "$L60D" 'diff:')|$(_l60_has "$L60D" 'does not replace')|$(_l60_entry "$L60D" "$L60V2")|$(_l60_same "$(cat "$LAND/paused" 2>/dev/null)" "$L60D")" \
    "1|yes|yes|yes|yes"
 rm -rf "$LGV/$L60V2"; _lg_reset; : > "$LGK/install.taint"; _lg_land --tick
 is "A51 (B20): with no entry before the install, the diff: row does not say does not replace" \
-   "$(_lg_n deployed-unverified)|$(_l60_lacks "$(_lg_f deployed-unverified "" 7)" 'does not replace')" "1|yes"
+   "$(_lg_n deploy-failed)|$(_l60_lacks "$(_lg_f deploy-failed "" 7)" 'does not replace')" "1|yes"
 _lg_cache "$L60V2"
 printf 'extra\n' > "$LGV/$L60V2/harness/l60-extra.txt"; _l60_inst; _la_tramp; L60D="$(_lg_f deploy-owed "" 7)"
 is "A52 (B21): the trampoline's differs row says differs and that felix install does not replace an entry that exists, names the entry, and no longer says deployed from the home" \

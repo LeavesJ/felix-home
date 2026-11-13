@@ -238,7 +238,7 @@ _fn_sentence() {   # KIND
     founder)             printf '%s' 'A green pull request changes a direction document and waits for your yes.' ;;
     deployed)            printf '%s' 'The engine on main was installed and passed its deploy checks.' ;;
     stuck)               printf '%s' 'A tick has held the lock for more than 45 minutes.' ;;
-    deployed-unverified) printf '%s' 'A deploy of main stopped at a failed step or check, and landing is paused.' ;;
+    deploy-failed|deployed-unverified) printf '%s' 'A deploy of main stopped at a failed step or check, and landing is paused.' ;;
     timeout)             printf '%s' 'A tick ran past its time limit and was stopped.' ;;
     unresolved)          printf '%s' 'The tick resolved no project, so nothing lands.' ;;
     fetch)               printf '%s' 'The home could not fetch its origin, so nothing lands.' ;;

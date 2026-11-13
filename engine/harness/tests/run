@@ -19,8 +19,7 @@ case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
   *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
 esac
-# hooks/session-start reads a payload from stdin unless it is a terminal, and about thirty calls here run it without piping
-# one in, so an inherited pipe left open would hang the first. The suite reads nothing from its stdin: nothing is inherited.
+# hooks/session-start reads a payload from stdin unless it is a terminal, and about thirty calls here run it without piping one in, so an inherited pipe left open would hang the first. The suite reads nothing from its stdin: nothing is inherited.
 exec </dev/null
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
@@ -34,8 +33,7 @@ fi
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict: why, and why in a file, at the end of part 0001.
 FELIX_TEST_RAN=""
-# Each name is also offered to the origin guard (_og_tick, part 0003) once its state exists, so the helper block part 0770
-# lifts out of this file (this line to skip(), below) stays silent under set -u.
+# Each name is also offered to the origin guard (_og_tick, part 0003) once its state exists, so the helper block part 0770 lifts out of this file (this line to skip(), below) stays silent under set -u.
 _ran() { [ -n "$FELIX_TEST_RAN" ] || return 0; [ -z "${_og_on:-}" ] || _og_tick "$1"; printf '%s\n' "$1" >> "$FELIX_TEST_RAN"; return 0; }
 # The ran file as count<TAB>name rows sorted by name, the manifest's shape, each name kept byte for byte: cutting the count off
 # by assigning to awk's $1 folded the blanks inside a name until 2026-10-01, and red read such a name as never reached (part 0770).
@@ -429,6 +427,8 @@ fi
 . "$HERE/parts/2300-checked-not-verified-blind.sh"
 . "$HERE/parts/2300-evidence-readers-agree-blind.sh"
 . "$HERE/parts/2301-checked-not-verified-round3-blind.sh"
+. "$HERE/parts/2320-not-green-deploy-failed-blind.sh"
+. "$HERE/parts/2321-not-green-deploy-failed-round2-blind.sh"
 . "$HERE/parts/2400-situations-table-blind.sh"
 . "$HERE/parts/2410-situations-recorded-blind.sh"
 . "$HERE/parts/2420-situations-change-blind.sh"

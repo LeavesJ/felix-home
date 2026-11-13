@@ -19,7 +19,7 @@ _blk() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib
            felix_merge_blockers "$FROOT/projects/widget" HEAD~1 "$REPO" "$FROOT" ); }
 
 printf 'plain notes\n' > "$REPO/README.md"; _stage
-has "an unverified tree blocks the merge" "$(_blk)" "unverified"
+has "a not-green tree blocks the merge" "$(_blk)" "not-green"
 
 # A malformed probe row reaches the merge boundary as a blocker. cmd_probes
 # --gate already refuses one; a boundary that let the same row through would
@@ -35,7 +35,7 @@ is "the widget's probe table is exactly as this section found it" \
 # already learned. Stamp one for the wrong tree and it must still block.
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "not-this-tree" >/dev/null 2>&1 )
-has "a receipt for another tree still blocks" "$(_blk)" "unverified"
+has "a receipt for another tree still blocks" "$(_blk)" "not-green"
 
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
@@ -45,7 +45,7 @@ is "a green receipt for this exact tree clears every blocker" "$(_blk)" ""
 # And a red receipt for the right tree is not a pass either.
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 1 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
-has "a red receipt for this tree blocks" "$(_blk)" "unverified"
+has "a red receipt for this tree blocks" "$(_blk)" "not-green"
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
 _cm_stamp
@@ -223,7 +223,7 @@ _mlacks "nor say that none of it is a founder decision"       "$out" "none of it
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 1 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
 out="$( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 )"
-has "a red gate beside the stale receipt is listed too"             "$out" "unverified"
+has "a red gate beside the stale receipt is listed too"             "$out" "not-green"
 has "and the commission is still named as the founder's"            "$out" "waits for the founder"
 has "while the red gate is handed back as work Felix owes"          "$out" "work Felix owes"
 _mlacks "without claiming that none of it is a founder decision"    "$out" "none of it is a founder decision"
@@ -270,9 +270,9 @@ is "the widget's risk table is exactly as this section found it, and it has no g
 _mbody() { sed -n '/^felix_merge_blockers()/,/^}/p; /^_felix_merge_blockers_at()/,/^}/p' "$FROOT/harness/lib/escape.sh"
            grep "printf 'policy" "$FROOT/harness/lib/policy.sh"; }
 _mkinds="$(_mbody \
-             | grep -o "printf '[a-z]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
+             | grep -o "printf '[a-z-]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
 is "felix_merge_blockers emits exactly the kinds cmd_merge places" \
-   "$_mkinds" "commission escape evidence obligations policy probes unknown unverified "
+   "$_mkinds" "commission escape evidence not-green obligations policy probes unknown "
 _mcsubj="$(_mbody \
              | grep -o "printf 'commission\\\\t[a-z]*" | sed "s/.*\\\\t//" | LC_ALL=C sort -u | tr '\n' ' ')"
 is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsubj" "engine receipt table "
@@ -282,7 +282,7 @@ printf 'felix_merge_blockers() { cat "%s"; }\n' "$TMP/mblk.tsv" >> "$FROOT/harne
 _mclose() { printf "$1" > "$TMP/mblk.tsv"; ( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 ); }
 printf 'ordinary\n' > "$REPO/README.md"; _stage
 
-for _mk in 'unverified\ttree\tno green receipt for this exact tree; run felix gate' \
+for _mk in 'not-green\ttree\tno green receipt for this exact tree; run felix gate' \
            'evidence\tunit\tcode changes need a test' \
            'probes\tmarker\tempty: nothing read' \
            'obligations\tfixture\tRELEASE_BLOCKING deterministic: not discharged' \
@@ -444,7 +444,7 @@ printf 'notes\n' > "$REPO/README.md"; _stage
 before="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 ( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" >/dev/null 2>&1 )
 after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
-is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
+is "a not-green tree is Felix's work, not an interruption" "$after" "$before"
 _reset
 
 

@@ -542,7 +542,7 @@
 1	2470 rf9 with probes.tsv made unreadable, --change exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty
 1	A1 (B1): a reviewer's SDK session filed after the person's question leaves ask9 its person's session as owner, question, not blocked, and the question it ended on
 1	A1 (B1): a self-governed felix merge whose felix is not the installed entry runs main's felix from a copy under TMPDIR, in the same directory, with its own arguments and FELIX_MERGE_HANDED=1; the status and output are the copy's, and gh is not called
-1	A1 (B1, B2): an unverified refusal (exit 3, one blocker line of kind unverified) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written
+1	A1 (B1, B2): a not-green refusal (exit 3, one blocker line of kind not-green) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written
 1	A1 (B16, control): --install from the home exits 0, says land on green is installed for lgh, writes felix.land.lgh's plist and its trampoline, and logs one launchctl bootstrap
 1	A1 (decoys: all) (fixture control): each decoy names the decoy commit
 1	A1 (decoys: all): and what it prints names the commit refs/remotes/origin/main names
@@ -649,7 +649,7 @@
 1	A11 (decoys: refs/tags/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds
 1	A11: a loaded job whose heartbeat is an hour old reads not-ticking, for 60 minutes, ending with the ledger's newest row
 1	A11: a tick that deploys, and verifies, merges nothing though a green candidate waits
-1	A11: a tick whose deploy ends deployed-unverified merges nothing
+1	A11: a tick whose deploy ends deploy-failed merges nothing
 1	A11: the next tick merges it
 1	A11: with the engine just deployed
 1	A12 (1, decoys: refs/heads/origin/jr12) (fixture control): there is no refs/remotes/origin/jr12, and git's own origin/jr12 names the decoy
@@ -679,7 +679,7 @@
 1	A12 (4, control): with --base refs/remotes/origin/main, the dry run passes the judge as before
 1	A12 (4, control): with the default base and the cache entry main's engine, the dry run passes the judge as before
 1	A12 (4, control): with the default base and the cache entry one comment off, the dry run refuses for the judge as before
-1	A12 (B1, B3): a refusal with an evidence blocker beside the unverified one is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
+1	A12 (B1, B3): a refusal with an evidence blocker beside the not-green one is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
 1	A12 (B18, control): the same install with the stub launchctl first on PATH succeeds as A1 does
 1	A12 (B4): the candidate's dry run prints main's verdict sentence once and never its own, byte-identical to main once, the judged-by line naming the entry, and nothing names the copy
 1	A12 (B7): on the page ask9 and asr9 are in group question, blk9 in blocked, and the blocked summary counts 1
@@ -725,7 +725,7 @@
 1	A17 (B6; control): refused for an execute escape, the handed-off run and the in-place run each exit 3 not merging and leave the same escalated and refused rows, at least one of each
 1	A17 (B8): and the pull request #95 has owner unknown and holds unknown:live
 1	A17 (B8; restated for wave-1-combine.md C1): the tick's hourly paused row past its hour, for the reason the --pause gave, is the same event: one more paused row and banner, but no gh call and no second record
-1	A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deployed-unverified
+1	A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deploy-failed
 1	A17: a heartbeat that reads soon is unknown: it holds no time this check can read
 1	A17: and main's own engine is accepted
 1	A17: and nothing is paused
@@ -803,7 +803,7 @@
 1	A1: with origin/main's version unreadable: two runs write one deploy-owed row
 1	A2 (B1): a reviewer whose result was written, filed after the person's question, leaves asr9 its person's session as owner and question
 1	A2 (B16, control): --install from a worktree of the home exits 0 and installs felix.land.lgh, as from the home
-1	A2 (B2): that detail still begins with the blocker, unverified (leading blanks aside), and still ends with a space and [main <sha of refs/remotes/origin/main>]
+1	A2 (B2): that detail still begins with the blocker, not-green (leading blanks aside), and still ends with a space and [main <sha of refs/remotes/origin/main>]
 1	A2 (B2): the copy holds exactly the paths main tracks under engine/, byte for byte and with their modes, zz-only-main.txt and tests/keep.txt among them and the entry's zz.log not
 1	A2 (decoys: all) (fixture control): each decoy names the decoy commit
 1	A2 (decoys: all): and what it prints names the commit refs/remotes/origin/main names
@@ -882,7 +882,7 @@
 1	A20 (B8; control): FELIX_KERNEL set, and an entry one comment off main, are refused before any hand-off, as today
 1	A20 (B9): a receipt-clause refusal whose receipts the tick holds no record of is unknown, not unchanged: a tick runs felix merge once, and the tick after, with nothing changed, does not
 1	A20: (control) with no land/verifying and main's entry in place, a green pull request merges and nothing is installed
-1	A20: (setup) an owed deploy whose felix gate --quick fails ends deployed-unverified, after one install
+1	A20: (setup) an owed deploy whose felix gate --quick fails ends deploy-failed, after one install
 1	A20: a leftover land/verifying makes the next tick redo the deploy: one install, one deployed row
 1	A20: a leftover land/verifying with a suite running: one deploy-owed row, nothing installed, nothing merged
 1	A20: a verify that writes deployed removes land/verifying
@@ -945,37 +945,37 @@
 1	A24: an edited engine file under assume-unchanged: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A24: an edited engine file under assume-unchanged: nothing is installed into the cache, and nothing merges
 1	A24: an edited engine file under assume-unchanged: the deploy-owed row names the path
-1	A24: an edited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an edited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A24: an edited engine file under skip-worktree: and writes paused
 1	A24: an edited engine file under skip-worktree: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A24: an edited engine file under skip-worktree: nothing is installed into the cache, and nothing merges
 1	A24: an edited engine file under skip-worktree: the deploy-owed row names the path
-1	A24: an edited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an edited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A24: an edited projects/lgh/ file under assume-unchanged: and writes paused
 1	A24: an edited projects/lgh/ file under assume-unchanged: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A24: an edited projects/lgh/ file under assume-unchanged: nothing is installed into the cache, and nothing merges
 1	A24: an edited projects/lgh/ file under assume-unchanged: the deploy-owed row names the path
-1	A24: an edited projects/lgh/ file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an edited projects/lgh/ file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A24: an ignored file under engine/, with an untracked .gitignore beside it: and writes paused
 1	A24: an ignored file under engine/, with an untracked .gitignore beside it: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A24: an ignored file under engine/, with an untracked .gitignore beside it: nothing is installed into the cache, and nothing merges
 1	A24: an ignored file under engine/, with an untracked .gitignore beside it: the deploy-owed row names the path
-1	A24: an ignored file under engine/, with an untracked .gitignore beside it: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an ignored file under engine/, with an untracked .gitignore beside it: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A24: an unedited engine file under assume-unchanged: and writes paused
 1	A24: an unedited engine file under assume-unchanged: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A24: an unedited engine file under assume-unchanged: nothing is installed into the cache, and nothing merges
 1	A24: an unedited engine file under assume-unchanged: the deploy-owed row names the path
-1	A24: an unedited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an unedited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A24: an unedited engine file under skip-worktree: and writes paused
 1	A24: an unedited engine file under skip-worktree: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A24: an unedited engine file under skip-worktree: nothing is installed into the cache, and nothing merges
 1	A24: an unedited engine file under skip-worktree: the deploy-owed row names the path
-1	A24: an unedited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an unedited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A24: an untracked file under engine/: and writes paused
 1	A24: an untracked file under engine/: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A24: an untracked file under engine/: nothing is installed into the cache, and nothing merges
 1	A24: an untracked file under engine/: the deploy-owed row names the path
-1	A24: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A24: with an untracked .gitignore under the home's engine/ that makes main's check accept a stray, the trampoline runs no felix land --tick
 1	A24: with an untracked file under the home's engine/, the trampoline runs no felix land --tick
 1	A25 (B10): a stale token for another host (ghe.example.invalid) beside a working github.com one does not stop the tick: 42 lands, no gh row
@@ -1005,7 +1005,7 @@
 1	A26: an untracked file under engine/: the deploy-owed row names the path
 1	A26: an untracked file under engine/: the deployed row removes land/verifying
 1	A26: an untracked file under engine/: the stopped deploy leaves land/verifying, written before A24's checks
-1	A26: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A26: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A26: skip-worktree on projects/lgh/gate.sh: (control) the tick after it lands the waiting pull request and installs nothing more
 1	A26: skip-worktree on projects/lgh/gate.sh: after --resume, the next tick re-runs the deploy: one install, session-start, gate --quick in the home, one deployed row
 1	A26: skip-worktree on projects/lgh/gate.sh: and merges nothing in that tick
@@ -1015,7 +1015,7 @@
 1	A26: skip-worktree on projects/lgh/gate.sh: the deploy-owed row names the path
 1	A26: skip-worktree on projects/lgh/gate.sh: the deployed row removes land/verifying
 1	A26: skip-worktree on projects/lgh/gate.sh: the stopped deploy leaves land/verifying, written before A24's checks
-1	A26: skip-worktree on projects/lgh/gate.sh: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A26: skip-worktree on projects/lgh/gate.sh: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A27 (B10): a stale active github.com account stops the tick: one gh row, no gh pr list, nothing merged
 1	A27 (B10; restated for wave-1-combine.md C1): the paused scenario writes the same ledger fields 2-7, the --pause's one row ending ; by session -, one banner and exit 0 for --pause and --tick, with a local origin, with gh api user failing, and with the dispatch hanging
 1	A27 (B12, control): a custom-title equal to the chip's title in a file's head starts it: no row, the run exiting 0
@@ -1025,7 +1025,7 @@
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: nothing is installed into the cache, and nothing merges
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: the deploy-owed row names the path
-1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A28 (B10): no account at all stops the tick: one gh row, nothing merged
 1	A28 (B11, R7): --install calls no gh; the trampoline with a home that does not exist exits 1, writes one deploy-owed row, dispatches @fixture Felix land: deploy-owed once with the deploy-owed sentence, and records it dispatched
 1	A28 (B12, control): the same title in a file's tail starts it: no row
@@ -1037,7 +1037,7 @@
 1	A28: the same untracked file under engine/: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A28: the same untracked file under engine/: nothing is installed into the cache, and nothing merges
 1	A28: the same untracked file under engine/: the deploy-owed row names the path
-1	A28: the same untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A28: the same untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deploy-failed row
 1	A29 (B11): the gh row's detail begins gh auth status and names github.com
 1	A29 (B11, R7): with plugin.json unopenable the trampoline dispatches @fixture Felix land: unreadable with the unreadable sentence and runs no git
 1	A29 (B12): the same title only between a file's head and tail starts nothing: the chip stays chip-unstarted
@@ -1045,11 +1045,11 @@
 1	A29: after a paused tick, with the pause then removed, the land row reads running
 1	A29: and pauses nothing
 1	A29: and the deploy pauses nothing
-1	A29: and writes no deploy-owed, deployed or deployed-unverified row
+1	A29: and writes no deploy-owed, deployed or deploy-failed row
 1	A29: with git archive failing (exit 128) having written nothing, main's check exits 2, never 0
 1	A29: with git archive failing (exit 128) having written the first 1024 bytes of the archive, main's check exits 2, never 0
 1	A29: with git archive writing past the end-of-archive marker after its reader stops, main's check exits 0 for main's entry, on each of three runs
-1	A29: with the stub, a deploy's verify accepts the entry just installed: one deployed row, no deployed-unverified row
+1	A29: with the stub, a deploy's verify accepts the entry just installed: one deployed row, no deploy-failed row
 1	A29: with the stub, a tick finds main's entry accepted and lands green 42
 1	A29: with the stub, an entry that differs from main still exits 1: a reader that stops early never turns a difference into a pass
 1	A2: a home ahead of origin/main also writes paused
@@ -1062,7 +1062,7 @@
 1	A2: both inventory runs over ch exit 0, and each lists a chip (control)
 1	A2: every felix status this part ran prints the ten rows in order, and no row breaks D16's shape (1100's awk)
 1	A2: the home is at origin/main after it
-1	A3 (B1, B2): a refusal holding a blocker of another kind (evidence) beside unverified says (final until the head or main moves)
+1	A3 (B1, B2): a refusal holding a blocker of another kind (evidence) beside not-green says (final until the head or main moves)
 1	A3 (B1, control): ctl9, the person's desktop session alone, has that session as owner and holds question
 1	A3 (B14): --install from another governed checkout exits 1, prints nothing on stdout, refuses on stderr naming other and lgh and saying land on green lands the home's own pull requests only, and writes no plist, no trampoline, no land directory and calls no launchctl
 1	A3 (B2): no byte of the copy changes for eol=crlf in .git/info/attributes, core.autocrlf in the checkout, or core.autocrlf in a global config, each alone, and each is undone after
@@ -1228,6 +1228,8 @@
 1	A31: recovery: the readable row's detail names FELIX_HOME_DIR
 1	A31: recovery: the unreadable row is as it was, the ledger only appended to
 1	A31: recovery: with the ledger's newest row an unreadable one, a run whose read succeeds writes one readable row after it, leaves it as it was, sends nothing, and goes on
+1	A31: recovery: with the newest row of kind deploy-failed and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind deploy-failed, its detail holding unreadable, and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on
 1	A31: recovery: with the newest row of kind deploy-owed and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
 1	A31: recovery: with the newest row of kind deploy-owed, its detail holding unreadable, and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on
 1	A31: recovery: with the newest row of kind deployed and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
@@ -1473,7 +1475,7 @@
 1	A5 agreement, felix next (dangling link): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
 1	A5 agreement, felix next (directory): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
 1	A5 agreement, felix next (link to a directory): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
-1	A50 (B20): an entry at main's version that existed before the install and still differs after it: one deployed-unverified row beginning diff:, saying felix install does not replace it, naming the entry, and paused holds the same reason
+1	A50 (B20): an entry at main's version that existed before the install and still differs after it: one deploy-failed row beginning diff:, saying felix install does not replace it, naming the entry, and paused holds the same reason
 1	A50: a local felix@felix true wins over the project's false: clear
 1	A51 (B20): with no entry before the install, the diff: row does not say does not replace
 1	A51: a local disableAllHooks true beside the project's felix@felix false reads off
@@ -1516,17 +1518,17 @@
 1	A6 next (link to a directory): prints a row saying an evidence row cannot be judged, naming evidence.tsv
 1	A60 (B22-B25, G8): the brakes' rows (paused, resumed, installed and uninstalled are there) are each seven fields with - for the pull request
 1	A60: a project.json with no gate key reads gate value no-gate: the Stop hook checks no stop here
-1	A61 (B28): a refusal whose one blocker is unverified tests (C9: gh run list failed) writes one refused row for 65 saying it is tried again an hour after this row, not when a receipt is written
+1	A61 (B28): a refusal whose one blocker is not-green tests (C9: gh run list failed) writes one refused row for 65 saying it is tried again an hour after this row, not when a receipt is written
 1	A61: an empty gate reads no-gate too
 1	A62 (B28) [control]: with b65's current gate receipt untouched, two more ticks inside the hour do not run felix merge again: M65 is 1, one refused row
 1	A62: a project with no project.json reads no-gate, saying the file does not exist
 1	A63 (B28, B5, B7): once that row is an hour old, with no receipt rewritten and GitHub answering again, the next tick runs felix merge once more and lands 65: M65 is 2, one landed row, one Felix: landed #65
 1	A63: a project.json that is a directory leaves the gate row unknown: whether a gate is declared is not known
-1	A64 (B28): unverified tree followed by unverified tests is hourly too: the row says tried again an hour after this row, not when a receipt is written
+1	A64 (B28): not-green tree followed by not-green tests is hourly too: the row says tried again an hour after this row, not when a receipt is written
 1	A64 (control): a gated project with no receipt still reads gate value none-run
-1	A65 (B28) [control]: unverified tests beside an evidence blocker is final: the row says final until the head or main moves
+1	A65 (B28) [control]: not-green tests beside an evidence blocker is final: the row says final until the head or main moves
 1	A65: session start in a project with no gate says no gate, stops unchecked on its one line, after Felix: ng
-1	A66 (B28) [control]: unverified tree alone stays a receipt refusal: the row says tried again when a new gate or commission receipt is written
+1	A66 (B28) [control]: not-green tree alone stays a receipt refusal: the row says tried again when a new gate or commission receipt is written
 1	A66 (control): and its context keeps Gate: none declared, naming where to set one
 1	A67 (B29): when land/paused cannot be removed, --resume exits non-zero, says why, leaves the job paused, and writes no resumed row and no Felix: resumed notification
 1	A67 (control): session start in a gated project says nothing of no gate on its line
@@ -1554,7 +1556,7 @@
 1	A7 brief (dangling link): given an issue that names src/thing.js, prints the what a fix must prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
 1	A7 brief (directory): given an issue that names src/thing.js, prints the what a fix must prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
 1	A7 brief (link to a directory): given an issue that names src/thing.js, prints the what a fix must prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
-1	A70 (B30, B20) [control]: main's entry plus one file, the install tainted: main's check rejects the entry, and one deployed-unverified row begins diff:, names the entry, and paused holds it
+1	A70 (B30, B20) [control]: main's entry plus one file, the install tainted: main's check rejects the entry, and one deploy-failed row begins diff:, names the entry, and paused holds it
 1	A71 (B30): that row names the way out: move the entry aside, then felix install --no-bump
 1	A72 (B30, B21) [control]: the trampoline, main's entry holding one extra file: one deploy-owed row saying differs and does not replace, naming the entry
 1	A73 (B30): that row names the way out, aside and felix install --no-bump, and holds no semicolon-space
@@ -1562,7 +1564,7 @@
 1	A75 (B30): and it names that entry and the way out, aside and felix install --no-bump, and no longer says felix install on main, in any case
 1	A76 (B30) [control]: gate.sh --quick, the entry for main's 0.0.1 holding commands/extra.md: installed fails
 1	A77 (B30): and the gate names that entry and the way out, aside and felix install --no-bump, and no longer says felix install on main, in any case
-1	A78 (B31) [control]: a deploy whose session-start prints a line and whose pre-tool refuses a pattern kill is deployed: one deployed row, no deployed-unverified row, no pause
+1	A78 (B31) [control]: a deploy whose session-start prints a line and whose pre-tool refuses a pattern kill is deployed: one deployed row, no deploy-failed row, no pause
 1	A79 (B31): that verify ran pre-tool on a Bash payload of killall felix-verify-probe, the home its working directory or the payload's
 1	A7: and writes no paused file
 1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A1
@@ -1588,9 +1590,9 @@
 1	A8 (decoys: refs/tags/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares
 1	A8 (fixture control): refs/remotes/origin/main declares 1.0.0, the decoy 6.6.6, and the cache holds an entry for each
 1	A80 (B31): the deployed row names pre-tool beside session-start
-1	A81 (B31): a session-start that exits 0 and prints nothing is deployed-unverified naming session-start: one such row, no deployed row, and paused holds the same reason
-1	A82 (B31): a pre-tool that exits 0 on a pattern kill is deployed-unverified naming pre-tool: one such row, no deployed row, and paused holds the same reason
-1	A83 (B31): a main whose engine holds no pre-tool is deployed-unverified naming pre-tool: one such row, no deployed row, and paused holds the same reason
+1	A81 (B31): a session-start that exits 0 and prints nothing is deploy-failed naming session-start: one such row, no deployed row, and paused holds the same reason
+1	A82 (B31): a pre-tool that exits 0 on a pattern kill is deploy-failed naming pre-tool: one such row, no deployed row, and paused holds the same reason
+1	A83 (B31): a main whose engine holds no pre-tool is deploy-failed naming pre-tool: one such row, no deployed row, and paused holds the same reason
 1	A84 (G8) [control]: every row this part's commands wrote is one row of seven tab-separated fields
 1	A8: no plist, print 113 and a ledger whose newest row is a pause read not-installed, quoting that row: nothing lands here until felix land --install
 1	A8: with a local branch named origin/main, felix merge is main's entry's, and nothing at 9.8.0 runs
@@ -2631,8 +2633,8 @@
 1	G3 (review 1): the tick fetches before it reads origin/main's version: a main pushed from elsewhere is deployed
 1	G3, G7.2 (review 1): a deploy owed and stopped at a home off main merges nothing in that tick
 1	G3, G7.3 (review 1): an unpushed engine commit in the home is never installed as main's
-1	G3, G7.4 (review 1): a deploy whose gate check fails is not completed: deployed-unverified, and nothing merges in that tick
-1	G3, G7.4 (review 1): a deploy whose hook check fails is not completed: deployed-unverified, and nothing merges in that tick
+1	G3, G7.4 (review 1): a deploy whose gate check fails is not completed: deploy-failed, and nothing merges in that tick
+1	G3, G7.4 (review 1): a deploy whose hook check fails is not completed: deploy-failed, and nothing merges in that tick
 1	G3, G7: with main's version missing from the cache and a suite running, the tick exits 0
 1	G3: a cache entry that diff -rq finds different from origin/main's engine/harness owes a deploy, and nothing merges
 1	G3: the version read is origin/main's: a newer one there is deployed
@@ -2686,9 +2688,9 @@
 1	G6: the tick writes no label, comment, review or merge through gh
 1	G6: with FELIX_ALLOW_RED, FELIX_KERNEL and FELIX_KERNEL_CACHE unset though the caller exported them
 1	G6: with no such line, the detail is the output's last line
-1	G7: a deployed-unverified for felix gate --quick also writes paused with the same reason
-1	G7: a deployed-unverified for the diff of the cache entry against the home also writes paused with the same reason
-1	G7: a deployed-unverified for the session-start hook also writes paused with the same reason
+1	G7: a deploy-failed for felix gate --quick also writes paused with the same reason
+1	G7: a deploy-failed for the diff of the cache entry against the home also writes paused with the same reason
+1	G7: a deploy-failed for the session-start hook also writes paused with the same reason
 1	G7: a dirty home also writes paused with the same reason
 1	G7: a home off main also writes paused with the same reason
 1	G7: a landing that changes no engine/ path deploys nothing
@@ -2713,9 +2715,9 @@
 1	G7: the running suite is looked for with pgrep -f
 1	G7: the verify runs felix gate --quick in the home
 1	G7: the verify runs the home's hooks/session-start
-1	G7: when felix gate --quick fails, the tick writes one deployed-unverified row and no deployed row
-1	G7: when the diff of the cache entry against the home fails, the tick writes one deployed-unverified row and no deployed row
-1	G7: when the session-start hook fails, the tick writes one deployed-unverified row and no deployed row
+1	G7: when felix gate --quick fails, the tick writes one deploy-failed row and no deployed row
+1	G7: when the diff of the cache entry against the home fails, the tick writes one deploy-failed row and no deployed row
+1	G7: when the session-start hook fails, the tick writes one deploy-failed row and no deployed row
 1	G7: with a deploy owed and the home off main, the tick exits 0 with one deploy-owed row
 1	G7: with the home holding a tracked change, one deploy-owed row
 1	G8: a detail holding a newline and a tab is written as one row of seven fields
@@ -2731,10 +2733,10 @@
 1	G8: and wall seconds as a number
 1	G8: every ledger line is one row of seven tab-separated fields
 1	G8: one notification per row
+1	G8: the deploy-failed row for felix gate --quick is sent as a notification
+1	G8: the deploy-failed row for the diff of the cache entry against the home is sent as a notification
+1	G8: the deploy-failed row for the session-start hook is sent as a notification
 1	G8: the deployed row is sent titled Felix: deployed
-1	G8: the deployed-unverified row for felix gate --quick is sent as a notification
-1	G8: the deployed-unverified row for the diff of the cache entry against the home is sent as a notification
-1	G8: the deployed-unverified row for the session-start hook is sent as a notification
 1	G8: the landed row carries the head SHA
 1	G8: the landed row is sent titled Felix: landed #42
 1	G8: the ledger row is written before its notification
@@ -4616,7 +4618,7 @@
 1	a criss-cross fold has two merge-bases, one before main's fold and one after it
 1	a current graph is said to be current
 1	a current graph still names the command that asks it
-1	a current receipt raises no unverified line at the merge boundary
+1	a current receipt raises no not-green line at the merge boundary
 1	a current section the marker does not name is refused
 1	a current well-formed receipt still reads valid
 1	a dash for evidence is no evidence
@@ -5206,6 +5208,8 @@
 1	a non-empty devlog written before the catch does not
 1	a non-executable lookalike is ignored
 1	a normal run that passes leaves a receipt naming mode normal and its counts, six passed and one skipped
+1	a not-green tree blocks the merge
+1	a not-green tree is Felix's work, not an interruption
 1	a note carrying a tab and a newline still leaves one line of six fields
 1	a note given twice, by flag and by words, refuses
 1	a note reaches the file
@@ -6897,8 +6901,6 @@
 1	an untracked file the repo does not ignore is still a drift
 1	an untracked pipe, which git does not see, leaves the tree id known (T4)
 1	an unverified change blocks completion
-1	an unverified tree blocks the merge
-1	an unverified tree is Felix's work, not an interruption
 1	an unverified tree is the first thing to do
 1	an unwritable state directory still exits 0
 1	an upper-case hash, a bad stamp or an empty grantor is no grant
@@ -7027,7 +7029,7 @@
 1	and a project with none does not claim it
 1	and a project's commission policy version is the same with and without a land.tsv beside its tables, or writing one would stale its receipt
 1	and a real attempt still writes its row when the session exported FELIX_MERGE_DRY_RUN=1, or a session could silence the report by its environment
-1	and a real attempt there still refuses on the unverified tree and adds no would-refuse row, or every current branch would be reported behind
+1	and a real attempt there still refuses on the not-green tree and adds no would-refuse row, or every current branch would be reported behind
 1	and a real one still routes
 1	and a real run is not compared with a manifest that is not there
 1	and a receipt over it is indeterminate, not commissioned
@@ -8093,7 +8095,7 @@
 1	and prints byte for byte what it prints when grep -c works, the stance section included
 1	and prints byte for byte what it prints when they can, the stance section included
 2	and prints byte for byte what it prints when tr works
-1	and prints byte for byte what the dry run printed, its unverified blocker included, or reporting would change what blocks
+1	and prints byte for byte what the dry run printed, its not-green blocker included, or reporting would change what blocks
 1	and prints exactly ten rows: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud, lane
 1	and prints exactly the copy's driver, parts and lib files, line for line, in whatever order
 1	and prints neither undeclared none, the detected surfaces, the paragraph beneath them nor the adopt line
@@ -8487,7 +8489,7 @@
 1	and still mounts a plugin server it matches by :name: (ctx)
 1	and still names its commit
 1	and still names its play in the session ledger
-1	and still names the unverified tree, or reporting displaced the blocker that stops it
+1	and still names the not-green tree, or reporting displaced the blocker that stops it
 1	and still no candidate command has run
 1	and still no new file beside it
 1	and still offers the handoff
@@ -8791,6 +8793,7 @@
 1	and the no-op revoke leaves the grant file's mode at 644
 1	and the no-op revoke through the link leaves its target byte-identical
 1	and the no-remote refusal row carries the branch and the session
+1	and the not-green tree blocker names no commission run
 1	and the note it was given
 1	and the number it reports is the number it stored
 1	and the obligations fixture blocker names no commission run
@@ -9050,7 +9053,6 @@
 1	and the unended tidy grant before it is still granted
 1	and the unknown count reads ?, with every other count in its own place
 1	and the unmount above is the only other proposal
-1	and the unverified tree blocker names no commission run
 1	and the unwritten remainder is named as unwritten
 1	and the validator refuses a three-cell row in a land table as cells, exit 1, or schema-check would pass a row the reader splits wrong
 1	and the values are the ones the four functions compute
@@ -10128,6 +10130,8 @@
 1	cnv A46 (C18, round 3, not blind): proves fails, and prove, proving, verify and words that only hold the letters pass
 1	cnv A47 (C18, round 3, not blind): a Markdown heading is read, since a person reads it, and a shell # line is not
 1	cnv A48 (C18, round 3, not blind): a directory inside a work tree that git tracks nothing of is read whole, and its line is named
+1	cnv A49 (C18, round 4, not blind): the old ledger kind in green-tick.sh and notify.sh, the old blocker kind's printf in escape.sh and the wide clause in green-install.sh each fail now, in the file that used to allow them
+1	cnv A49b (C18, round 5, not blind): the old name between two blanks on another line of green-tick.sh fails; only the quiet check's own line is allowed
 1	cnv A5 (C3): harness/felix holds the moved-checkout lines [The checkout moved while this ran, so what was checked is not what] and [would be merged. Nothing was merged.], and not [so what was verified is not what]
 1	cnv A6 (C4): felix classify on a green tier that owes no evidence prints [Reversible, and no evidence is owed. Eligible for auto-merge once] and [every required check passes.], and not nothing is unproven
 1	cnv A7 (C5): felix classify on a green tier that owes evidence prints [Reversible, but <why>. Not auto-merge eligible: a green], [tier means no risky path was touched, not that the change was tested.] and [Run felix evidence.], and not proven
@@ -10153,6 +10157,8 @@
 1	cnv3 A25 (C18): the check over a fixture holding a printed line with Proves, and lines with proves, unproven and Verified, fails and names those four lines
 1	cnv3 A26 (C18): the check over a fixture holding what a fix must prove, the fix will have to prove, nothing proving it, --verify and the other verify forms passes
 1	cnv3 A27 (C18): # comments with Proves, each allowed name, and never verified in harness/lib/verify.sh pass; never verified in another file fails
+1	cnv3 A27b (C18, round 5, not blind): the old ledger kind in green-tick.sh and notify.sh, the old blocker kind's printf in escape.sh and the wide clause in green-install.sh each fail, and the three allowed forms, each in its own file, pass
+1	cnv3 A27c (C18, round 5, not blind): the quiet check's line fails in any file but green-tick.sh, and another line holding the old name between two blanks fails in green-tick.sh
 1	cnv3 A28 (C18): inside a git work tree the check reads only tracked files and skips harness/tests/: an untracked proves line passes, then fails once tracked
 1	cnv3 A29 (C18, control): the engine's own lines holding what a fix must prove, the fix will have to prove and with nothing proving it are found, at least four, and pass the check
 1	cnv3 A3 (C8): a red gate receipt for this exact tree gives status failed, evidence_quality low, under schema felix.receipt/2
@@ -12928,6 +12934,120 @@
 1	never retires what no route ever named
 1	never the transcript in the envelope
 1	new refuses a flag as a project name
+1	ngd A1 (K1): with no gate receipt, a red receipt and a stale one, felix_merge_blockers prints a not-green tree line
+1	ngd A10 (K3): no line of the block of either run begins with unverified once blanks are skipped
+1	ngd A11 (K3, K11) [control]: a dry and a real run with no receipt exit 3, print the judge's line laid out '  %-11s %-22s %s', the same block, and close it as work Felix owes, not the founder's
+1	ngd A12 (K3): with the tests:reused receipt the dry run's block holds the not-green tests line, laid out as before
+1	ngd A13 (K3, K11) [control]: and there a dry and a real run exit 3 and print the judge's line, the same block, closed as work Felix owes
+1	ngd A14 (K4): a real felix merge refused for K1, and for K2, writes the refused say row <branch>: not-green: <subject>: <reason>
+1	ngd A15 (K4): and no refused row beginning <branch>: unverified:
+1	ngd A16 (K4, K11) [control]: each real run writes one refused row, <branch>: <the kind its block printed>: <subject>: <reason>, in its session, and a dry run writes none
+1	ngd A17 (K5): status 3 and blocks of not-green lines: tree alone or with commission receipt is receipt; a tests line, alone or after tree, is hourly
+1	ngd A18 (K5): blocks that mix the two names are classed the same: hourly with a tests line of either name, receipt without
+1	ngd A19 (K5) [control]: a block an older engine wrote, unverified in place of not-green, keeps its class: receipt, receipt, hourly, hourly
+1	ngd A2 (K1): and in none of the three a line of kind unverified
+1	ngd A20 (K5, K11) [control]: status 3 with any other line (evidence beside either name, escape, commission table) or no block is final; commission receipt alone is receipt; any other status is hourly
+1	ngd A21 (K9): _fn_sentence deploy-failed prints exactly the deploy sentence and returns 0
+1	ngd A22 (K9) [control]: _fn_sentence deployed-unverified prints exactly the same sentence and returns 0, so an old event is still sent
+1	ngd A23 (K9, K11) [control]: the sentences parts 1720 and 2120 pin are unchanged, every other notified kind still has one, and a kind with none returns 1 and prints nothing
+1	ngd A24 (K9): the comment dispatched for a deploy-failed event begins @<owner> Felix land: deploy-failed and holds the sentence below it, before the details line; recorded dispatched
+1	ngd A25 (K9) [control]: and one for a deployed-unverified event recorded before the deploy is dispatched the same way under its own kind
+1	ngd A26 (K12) [control]: the check fails on each removed entry in the file that allowed it (escape.sh unverified\t, green-tick.sh and notify.sh deployed-unverified, green-install.sh == "unverified"), on _gt_unverified, and on a Markdown heading
+1	ngd A27 (K12) [control]: and passes on each new entry in its own file, a comment, a file under harness/tests/ and a file git does not track
+1	ngd A28 (K12) [control]: a new entry outside its own file fails, read in a directory git tracks nothing of, which is read whole
+1	ngd A29 (K12): _gt_unverified appears in no tracked file of the engine outside harness/tests/, comments skipped as C18 skips them
+1	ngd A3 (K1, K11) [control]: each of the three prints one line, a tree line of either name with a reason, and a current green receipt prints none
+1	ngd A30 (K12): deployed-unverified appears there only as the case label deployed-unverified) in harness/lib/notify.sh
+1	ngd A31 (K12): unverified followed by a tab, or by backslash and t, appears there nowhere
+1	ngd A32 (K12): the old blocker name appears there as a word only as $1 == "unverified" in harness/lib/green-install.sh, as the quiet check's text in harness/lib/green-tick.sh, beside the subagent-unverified kind this change leaves
+1	ngd A32b (K12, review round 1, control): the scan of the engine under test read at least fifty files and its awk ended with status 0, so a scan that read nothing cannot pass
+1	ngd A33 (K12): the function's new name: a file of harness/lib defines _gt_deploy_failed
+1	ngd A34 (K5, K6) [fixture control]: the home is on main at origin's main, main's check accepts its entry, and b77 is on its branch at 77's head
+1	ngd A35 (K5): end to end, a refusal whose one blocker is not-green tree is a receipt refusal: its refused row says tried again when a receipt is written, not final
+1	ngd A36 (K5): and one whose one blocker is not-green tests is hourly
+1	ngd A37 (K5, K11) [control]: an unverified tree refusal an older engine printed is a receipt refusal end to end, each case ran felix merge once and wrote one refused row
+1	ngd A38 (K6) [fixture control]: a seeded row is the ledger's one row, of seven fields, its head and worktree in the form the tick writes
+1	ngd A39 (K6) [control]: a final refused row whose detail begins unverified, on 77's head and main, is held as one that begins not-green: no tick runs felix merge
+1	ngd A4 (K1, K3) [control]: the no-receipt line's reason is the one K3's example line shows
+1	ngd A40 (K6) [control]: and each is lifted the same: once 77's head moves, the next tick runs felix merge once
+1	ngd A41 (K6) [control]: the hold reads the clause, not the kind: a receipt-clause row of either kind whose receipts the tick has no record of is run once
+1	ngd A42 (K7) [fixture control]: with the home's main tracking no upstream, git pull --ff-only in the home fails
+1	ngd A43 (K7): when the pull fails, the tick writes one deploy-failed row whose detail begins pull:
+1	ngd A44 (K7): and no row of kind deployed-unverified
+1	ngd A45 (K7, K8, K11) [control]: when the pull fails, the tick exits 0 with one failed-deploy row of either name and no deployed row, - for its pull request, head and worktree, whole seconds of wall time, its detail as before, paused holding its reason, one banner and one attempt under its kind
+1	ngd A46 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified
+1	ngd A47 (K7): when the install fails, the tick writes one deploy-failed row whose detail begins install:
+1	ngd A48 (K7): and no row of kind deployed-unverified
+1	ngd A49 (K7, K8, K11) [control]: when the install fails, the tick exits 0 with one failed-deploy row of either name and no deployed row, - for its pull request, head and worktree, whole seconds of wall time, its detail as before, paused holding its reason, one banner and one attempt under its kind
+1	ngd A5 (K2): a current green receipt reporting tests:reused, with the gate workflow failed on the head, prints a not-green tests line
+1	ngd A50 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified
+1	ngd A51 (K7): when the comparison of the cache entry with main's engine fails, the tick writes one deploy-failed row whose detail begins diff:
+1	ngd A52 (K7): and no row of kind deployed-unverified
+1	ngd A53 (K7, K8, K11) [control]: when the comparison of the cache entry with main's engine fails, the tick exits 0 with one failed-deploy row of either name and no deployed row, - for its pull request, head and worktree, whole seconds of wall time, its detail as before, paused holding its reason, one banner and one attempt under its kind
+1	ngd A54 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified
+1	ngd A55 (K7): when the hook check fails, the tick writes one deploy-failed row whose detail names session-start
+1	ngd A56 (K7): and no row of kind deployed-unverified
+1	ngd A57 (K7, K8, K11) [control]: when the hook check fails, the tick exits 0 with one failed-deploy row of either name and no deployed row, - for its pull request, head and worktree, whole seconds of wall time, its detail as before, paused holding its reason, one banner and one attempt under its kind
+1	ngd A58 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified
+1	ngd A59 (K7): when felix gate --quick fails, the tick writes one deploy-failed row whose detail begins gate:
+1	ngd A6 (K2): and no line of kind unverified
+1	ngd A60 (K7): and no row of kind deployed-unverified
+1	ngd A61 (K7, K8, K11) [control]: when felix gate --quick fails, the tick exits 0 with one failed-deploy row of either name and no deployed row, - for its pull request, head and worktree, whole seconds of wall time, its detail as before, paused holding its reason, one banner and one attempt under its kind
+1	ngd A62 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified
+1	ngd A63 (K7, K11) [control]: the tick after a failed deploy writes the paused row, holding the reason the paused file holds
+1	ngd A64 (K7, K8, K11) [control]: a deploy whose steps and checks pass still writes deployed, no failed-deploy row and no paused file, sent titled Felix: deployed
+1	ngd A65 (K7, K8, K11) [control]: one owed while a suite runs still writes deploy-owed saying so, no failed-deploy row, sent titled Felix: deploy-owed
+1	ngd A66 (K10) [control]: --status --tsv lists a ledger holding a deployed-unverified row byte for byte as the same ledger under deploy-failed, the newest row as recorded
+1	ngd A67 (K10) [control]: plain --status shows each kind as recorded, the detail at the same column
+1	ngd A68 (K10) [control]: felix land --prs names the newest row, kind as recorded, with the same detail, for either kind
+1	ngd A69 (K10) [control]: a ledger holding both kinds lists its newest row as recorded whichever kind it is and whichever came first, in both forms of --status and in --prs
+1	ngd A7 (K2, K11) [control]: it prints one line, a tests line of either name whose reason begins as K2 quotes it; with the workflow passed on the head, or tests:ok, no tests line
+1	ngd A70 (K10) [control]: the session-start list of waiting pull requests is the same beside a row of either kind, and names #77
+1	ngd A71 (K7) [fixture control]: the part leaves the home on main at origin's main, tracking it, with no tracked change, and main's check accepting its entry
+1	ngd A8 (K3): the kinds felix_merge_blockers can print are commission, escape, evidence, obligations, policy, probes, unknown and not-green
+1	ngd A9 (K3): felix merge --dry-run with no receipt prints the block line K3 gives, laid out as before
+1	ngd2 A1 (K1) [pin]: with no receipt, and with a red receipt for this exact tree, the tree line's reason is whole: no green receipt for this exact tree; run felix gate
+1	ngd2 A10 (K9) [pin]: deployed's sentence is unchanged
+1	ngd2 A11 (K9) [pin]: stuck's sentence is unchanged
+1	ngd2 A12 (K9) [pin]: timeout's sentence is unchanged
+1	ngd2 A13 (K9) [pin]: unresolved's sentence is unchanged
+1	ngd2 A14 (K9) [pin]: fetch's sentence is unchanged
+1	ngd2 A15 (K8) [pin]: each kind on _gt_say's list other than the renamed one raises one banner titled Felix: <kind> when a row of it is written
+1	ngd2 A16 (K8) [pin]: resumed, installed and uninstalled start no notifier attempt
+1	ngd2 A17 (K8, K11) [pin]: each of the others starts one attempt, as before
+1	ngd2 A18 (K8) [pin]: a kind not on the list (skip, session, landing, no-such-kind) raises neither a banner nor an attempt
+1	ngd2 A19 (K8): a deploy-failed row raises the banner titled Felix: deploy-failed and starts an attempt
+1	ngd2 A2 (K1) [pin]: stale because the tree changed, the reason is felix_verify_current's second field whole
+1	ngd2 A20 (K8, K12): the old ledger kind is no longer on the list, so a row of it raises neither
+1	ngd2 A21 (K10) [pin]: the dispatched comment's count line names a failed deployed-unverified record as recorded, as it names a deploy-failed one
+1	ngd2 A22 (K10) [pin]: and a dispatched record of either name after a failed one ends the count, the details line following the sentence
+1	ngd2 A23 (K10) [pin]: the session-start alert line names a no-alert-workflow deployed-unverified record as recorded, and is otherwise the deploy-failed one's
+1	ngd2 A24 (K6, K14) [fixture control]: main's check accepts its entry; an unverified tree refusal of 78 runs felix merge once and writes the refused row this part seeds, and a retry record on its head and main
+1	ngd2 A25 (K14): a receipt refusal recorded under unverified before the deploy, refused again on the same head as not-green for the same blocker and clause, raises no banner and starts no attempt; its row is still written
+1	ngd2 A26 (K14): the same holds for a final refusal and for an hourly (tests) one
+1	ngd2 A27 (K14) [pin]: a previous row of the new name, identical but for main, keeps a final refusal quiet as before
+1	ngd2 A28 (K14, K5): and a receipt and an hourly refusal of the new name, identical but for main, stay quiet
+1	ngd2 A29 (K14) [pin]: a refusal whose blocker differs from the previous row's (old name, new name) is announced: one banner, one attempt
+1	ngd2 A3 (K1) [pin]: stale because a fact it rests on moved, the reason is that second field whole, the text after its ; included
+1	ngd2 A30 (K14) [pin]: one whose previous row records another head (old name, new name) is announced
+1	ngd2 A31 (K14) [pin]: one whose clause differs (final, hourly before receipt; receipt before final; new name hourly before final) is announced
+1	ngd2 A32 (K14) [pin]: a previous row of another kind is read as before: an identical evidence refusal stays quiet, a probes one is not read as not-green, and a skip row is no refusal
+1	ngd2 A33 (K14, L7) [pin]: the notifier's own check is not widened: a not-green event after a dispatched unverified one is attempted again, the same event is not
+1	ngd2 A34 (K6) [pin]: an hourly row under an hour old is held and one two hours old is run again, whether its detail begins unverified or not-green
+1	ngd2 A35 (K6) [pin]: a receipt row whose retry record matches is held, and is run again once a gate receipt is written, under either name
+1	ngd2 A36 (K6) [pin]: a final row is held on its head and main, and run again once the head or main differs, under either name
+1	ngd2 A37 (K10) [pin]: felix status's alerts row names a failed or dispatched deployed-unverified record as recorded, and is otherwise the deploy-failed one's
+1	ngd2 A38 (K7) [pin]: a failed pull's detail is pull: git pull --ff-only failed: and git's first line, whole
+1	ngd2 A39 (K7) [fixture control]: with the cache unwritable the install prints two lines or more, its last not its first
+1	ngd2 A4 (K1): each of the four (none, red, tree changed, fact moved) is a not-green tree line
+1	ngd2 A40 (K7) [pin]: a failed install's detail is install: felix install --no-bump failed: and the install's last line, whole
+1	ngd2 A41 (K7) [pin]: a failed felix gate --quick's detail is gate: felix gate --quick exited <rc> in the home, its own status
+1	ngd2 A42 (K7) [fixture control]: the part leaves the home on main at origin's main, tracking it, with no tracked change, main's check accepting its entry, and b78 gone
+1	ngd2 A5 (K2) [pin]: a red receipt, a fact-moved stale one and a tree-changed stale one, each reporting tests:reused with the gate workflow failed on the head, print one tree line and no tests line
+1	ngd2 A6 (K2) [pin]: and felix merge refuses each with status 3 and makes no gh call
+1	ngd2 A7 (K2) [control]: a current green receipt reporting tests:reused, the workflow failed on the head, prints the tests line, and felix merge asks gh
+1	ngd2 A8 (K2): the one line of the red and the two stale tests:reused receipts is a not-green tree line
+1	ngd2 A9 (K9) [pin]: founder's sentence is unchanged
 1	nine fields per log row
 1	no allow row claims a surface that no longer names it
 1	no awk in either library uses a gawk-only function or match's third argument
@@ -15262,6 +15382,7 @@
 1	the no-origin fixture's receipt records no origin/main (control)
 1	the north-star row is accepted: ADVISORY, always applies, grounded on http_route and ceiling_site
 1	the north-star row's own columns follow, in the ledger's order
+1	the not-green tree blocker is work Felix owes
 1	the obligations fixture blocker is work Felix owes
 1	the obligations row is done on day one, its seeded row dormant in a project with no hooks
 1	the oddy rows are exactly three
@@ -15585,7 +15706,6 @@
 1	the uncommitted-change fixture's HEAD is origin/main's commit, and x.sh differs only in the working tree
 1	the unmeasurable list takes the hook-only zero
 1	the unrunob fixture's obligation fails from the engine
-1	the unverified tree blocker is work Felix owes
 1	the variable an ask is told to set is set, whatever the caller named it
 1	the verdict-function lint names an unpinned cut after a pipe, sed in $( ), grep before <<<, awk with a regex, awk after an assignment, grep after if !, grep after while, cut inside { }, and tr in a one-line function, by file and line
 1	the verify step takes the implicated set from the scope step's output, and reads no file for it
@@ -15754,7 +15874,7 @@
 1	trust-step3: S1 (the home's uncommitted edit) (fixture control): R stays on main with risk.tsv's exfil row removed and uncommitted, and the worktree's branch adds danger/x
 1	trust-step3: S1 (the home's uncommitted edit): the candidate in a worktree of R adds danger/x while the home's risk.tsv lacks the exfil row uncommitted, and is refused with an escape line naming exfil (and danger/x)
 1	trust-step3: S1 (the workflow C9 reads) (fixture control): the stub answers gate.yml's newest run on the head as failure and lint.yml's as success, and the candidate's project.json edit removes no line and puts lint.yml on the line before the last key
-1	trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure
+1	trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with a not-green line for tests saying its run concluded failure
 1	trust-step3: S1.10 (an empty base, control): felix_merge_blockers called with an empty base prints the obligations row for fx and no policy row, as before this slice
 1	trust-step3: S1.10 (no base) (fixture control): with BASE, the directly called judge prints an obligations row for fx over this candidate
 1	trust-step3: S1.10 (no base): with a base that names no commit, felix_merge_blockers prints an unknown row and the obligations row for fx, as before this slice
@@ -15772,7 +15892,7 @@
 1	trust-step3: S1.8 (a product's home, linked): a candidate in the product Q that deletes MARKER, while its home HR's projects/ts3p is a link to a loosened copy outside the home, is refused with an obligations line for fx (P is HR's origin/main)
 1	trust-step3: S1.8 (a product's home, linked, control): with HR's committed projects/ts3p back, an unrelated candidate in Q passes the dry run
 1	trust-step3: S1.9 (a home behind BASE) (fixture control): origin/main's risk.tsv has one row more than the home's working tree, the home's HEAD is the commit before origin/main, and the worktree's branch only adds NOTES.md
-1	trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with an unverified line whose subject is home
+1	trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with a not-green line whose subject is home
 1	trust-step3: S1.9 (a home behind BASE, control): with the home brought to origin/main and the receipts recorded again, the same candidate passes the dry run
 1	trust-step3: S2 (a probe) (fixture control): over the candidate's tree its own tools/probe-fx lists a member, the witness exits 0, and P's tools/probe-fx lists nothing
 1	trust-step3: S2 (a probe): a candidate whose rewritten tools/probe-fx would pass, with P's probe and witness blocking over its tree, is refused with a probes line naming fxprobe

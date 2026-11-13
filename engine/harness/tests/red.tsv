@@ -9,57 +9,56 @@
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
 base	origin/main	212830c42a1f862c57814cda0c2119b5fc3d4d5b	0.49.338
-run	55	17098	47
-DW1: a fresh hold (LEASE and SINCE now) is in force: felix gate waits	1
-DW1: in force, felix gate waits: FELIX_HOLD_PASSED set but empty does not skip it	1
-DW1: in force, felix gate waits: SINCE 150 s ago under FELIX_DEPLOY_HOLD_LIMIT=200	1
-DW1: in force, felix gate waits: a FELIX_DEPLOY_HOLD_LIMIT of 0 is read as 3600	1
-DW1: in force, felix gate waits: a LEASE 30 s in the future (within now + 60)	1
-DW1: in force, felix gate waits: one project's file garbled and another's in force (lease 1100 s old): any one in force holds the machine	1
-DW2.1: a fresh lease of main's version keeps SINCE and moves LEASE to now	1
-DW2.1: a hold for another version does not keep SINCE: SINCE now, VERSION main's	1
-DW2.1: a stale lease (1300 s) does not keep SINCE: SINCE is now	1
-DW2.1: past the limit the tick keeps refreshing LEASE with SINCE unchanged	1
-DW2.1: the tick asserts the hold: one line of three fields, LEASE now, SINCE = LEASE, VERSION main's	1
-DW2.3: a deploy that ends unverified clears the hold	1
-DW2.3: a hold in force is cleared by the deployed row	1
-DW2.3: after felix land --pause, the tick clears the hold	1
-DW2.3: the tick pausing (the home off main) clears the hold	1
-DW2.3: with no deploy owed the tick clears a hold in force	1
-DW2.4: and the row says the hold has lapsed	1
-DW2.4: its detail holds new suites and gates wait	1
-DW2: the file is written whole, a new file renamed over the old (its inode changes)	1
-DW3: matched does not name a waiter or an ancestor of one	3
-DW3: the tick reads the table once with ps -axo pid=,ppid=,command=	1
-DW3: when every pid pgrep lists is a waiter or an ancestor of one, nothing runs and the tick deploys	1
-DW4 rev 2: and its part runs, with FELIX_HOLD_PASSED=1 in its environment	1
-DW4: a door that goes on exports FELIX_HOLD_PASSED=1 to the project's gate	1
-DW4: a full tests/run under a hold waits: its waiting line, no mktemp made, nothing on stdout	1
-DW4: felix gate with arguments (--quick) waits too	1
-DW4: tests/run --record-assertions waits, before it makes anything	1
-DW4: tests/run --reuse waits, before it makes anything	1
-DW4: tests/run -j 2 waits, before it makes anything	1
-DW4: the tick's own felix gate --quick runs with FELIX_HOLD_PASSED=1	1
-DW4: then its gate runs, with FELIX_HOLD_PASSED=1 exported	1
-DW4: while it waits, felix gate's stdout is empty	1
-DW4: while it waits, the project's gate has not run	1
-DW5: a file still there but no longer in force (a stale lease) ends the wait as the hold lapsed	1
-DW5: and the waiting line says at most 2 s	1
-DW5: bounded: with FELIX_DEPLOY_HOLD_LIMIT=2 and the hold still in force, it goes ahead saying the limit was reached	1
-DW5: once the file is gone it goes ahead within a few polls, saying went ahead after N s: the hold ended	1
-DW5: the first stderr line begins felix gate: waiting for the engine deploy	1
-DW5: the waiting line holds at most <LIMIT> s, 3600 by default	1
-DW5: the waiting line holds the hold's VERSION	1
-DW5: the waiting line names FELIX_DEPLOY_HOLD=off as the way past	1
-DW5: with FELIX_DEPLOY_HOLD_SAY=1 it says a still-waiting line holding the seconds waited	1
-DW6: a waiting felix gate has exactly one marker child, felix-deploy-hold-wait <its memory root> <its poll>	1
-DW6: a waiting tests/run keeps its command line (it matches the tick's pattern) and has one marker child for its root and poll	1
-end to end: a new full suite does not run: its waiting line on stderr, no mktemp, nothing on stdout	1
-end to end: and drops the waiter's wrapper, still there and an ancestor of a waiter	1
-end to end: and its suite runs, FELIX_HOLD_PASSED=1 inherited by its part	1
-end to end: and the hold is asserted, in force by DW1 (LEASE now, VERSION main's)	1
-end to end: it refreshes LEASE and keeps SINCE	1
-end to end: the waiter goes ahead, saying went ahead after N s: the hold ended	1
-end to end: the waiter says it is still waiting	1
-end to end: the waiting door keeps its command line and has one marker child for the tick's root	1
-ts3f: A14: within a few seconds of the judge KILLed, no run tree is under TMPDIR, no unit sleeps on, and no felix-instrument* name under /tmp or /var/tmp holds this run's token	1
+run	52	17036	47
+R13: 404 on both: unread, and the detail says what a 404 means and names no scope	1
+R13: A1: a clock in March asks the users/ report for month=3, no leading zero	1
+R13: A1: and counts only dates starting 2026-03-, zero-padded	1
+R13: A2: an answer that ends early is unread: the usage report is not complete JSON	1
+R13: A2: text after the object closes is unread: the usage report is not complete JSON	1
+R13: A3: no usageItems key: the detail is exactly that the report holds no usageItems list	1
+R13: A3: usageItems an object is unread: no usageItems list	1
+R13: A3: usageItems null is unread: no usageItems list	1
+R13: A4: an actions item whose date is a number is unread: an Actions item with no date	1
+R13: A4: an actions item with no date is unread: an Actions item with no date	1
+R13: A5: a 404 past character 120 of the first error line still brings the orgs/ GET	1
+R13: A5: a 410 past character 120 brings no orgs/ GET and ends with the moved clause	1
+R13: A5: and the detail shows the line from its start	1
+R13: A5: and, both failing so, ends with the 404 clause	1
+R13: A6: an owner that is not an account name: no billing GET	1
+R13: A6: and the row is unread: the owner in the slug is not an account name	1
+R13: Actions items dated outside the asked month are not counted and are told by number at the end of the detail	1
+R13: a 404 on users/ is followed by one orgs/ GET, and nothing else of billing	1
+R13: a 404 on users/ then an answered orgs/ report: read	1
+R13: a 404 then a 410 on orgs/: both lines, then the moved clause	1
+R13: a 404 then a 502 on orgs/: the organisation report's error follows, and no clause	1
+R13: a counted item whose netAmount is a string is unread, quantity or netAmount not a number	1
+R13: a counted item with no netAmount is unread, quantity or netAmount not a number	1
+R13: a counted storage item whose netAmount is null is unread, quantity or netAmount not a number	1
+R13: a network error: one billing GET, and the detail is gh's first error line alone	1
+R13: a report spread over several lines, with numbers holding an exponent, is read	1
+R13: a scope gh names on the users/ GET is given, and wins over the 404 clause	1
+R13: a scope line naming no scope name (a space, a semicolon) names no scope: the 404 clause is given	1
+R13: an answered report makes the budget row read	1
+R13: an answered users/ GET is the only billing GET: no orgs/ GET and never the retired settings/billing/actions	1
+R13: an empty usageItems list is read	1
+R13: and it is a GET of orgs/<owner>/settings/billing/usage?year=Y&month=M	1
+R13: and no orgs/ GET follows a 410	1
+R13: and reads zero minutes and no net	1
+R13: and says an Actions item's quantity or netAmount is not a number	1
+R13: and says the usage report holds no usageItems	1
+R13: and summed as JSON: the whole detail	1
+R13: and that GET is of users/<owner>/settings/billing/usage?year=Y&month=M, nothing more in the path	1
+R13: and the detail is the organisation report's, in the month asked	1
+R13: and the detail says GitHub moved the endpoint and no scope brings it back	1
+R13: minutes are summed over every SKU in minutes, unit and product compared without case, storage's quantity left out	1
+R13: net is summed over the counted items, storage's included, another product's not	1
+R13: the orgs/ GET asks the same year and month, the clock's in UTC	1
+R13: the page asks the users/ usage report for the clock's year and month in UTC, the month without a leading zero	1
+R13: the whole detail of a read report	1
+R13: two GETs naming different scopes give both, in the order asked	1
+R8: gh's error line holding ESC shows it as ?	1
+spec §4.4, R13: and the net amount, with no included minutes to state	1
+spec §4.4: and gives gh's first error line	1
+spec §4.4: it gives the minutes used	1
+spec §4.4: the budget is one gh api GET of the governed account's Actions billing	1
+spec §4.4: the budget was read	1

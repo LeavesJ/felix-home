@@ -1,11 +1,11 @@
 # The founder's door, tried on a mock: what was measured and what was not
 
-2026-11-10 (dates in UTC). The measurement beside `docs/2026-11-10-trust-door-design.md`. The code and the logs are in the memory root, under `audits/2026-11-10-trust-door/`, and its `README.md` says how to run them again.
+2026-11-10 (dates in UTC). The measurement beside `docs/2026-11-10-trust-door-design.md`. The code and the logs are in the memory root, under `audits/2026-11-10-trust-door/`, and its `README.md` says how to run them again. §10 was added on 2026-11-13: the cases that can run at a door with no key, run at one.
 
 **Scope.** Three things ran on this Mac. The mock behind the 11-09 design (pull request 504, open when this ran) was copied and given a door, a model of the founder and of the thing that holds his key, and 47 cases. The door's transport was tried against this Mac's `sshd` binary, started by the spike as the current user on a loopback port with its files in a scratch directory. A probe read what this Mac offers a door today. No login, account, key, token, repository, App or setting was made or changed, and no key of the founder's was read or used. Each key was made inside a run directory and installed nowhere. The 11-09 audit folder was read and not changed.
 
 **What this does not show.** It comes first because the rest is easy to read as more than it is.
-- **Not the door he chose.** On 2026-11-10, after these runs, the founder chose the authority's own desktop on this Mac as his door first (the design's §11). Nothing here was run again. No second login, switch of desktop or fingerprint was used, so whether a process of his user reaches another login's desktop was not measured, and that is what the door he chose rests on. The door's cases were run with a signing key, which the desktop door does not have. The design's §5.8 says which cases still bear on it, as an argument. The transport rows are about a door reached over a network.
+- **Not the door he chose.** On 2026-11-10, after the runs of §2 to §6, the founder chose the authority's own desktop on this Mac as his door first (the design's §11). No second login, switch of desktop or fingerprint was used, then or since, so whether a process of his user reaches another login's desktop was not measured, and that is what the door he chose rests on. The 47 cases of §3 were run with a signing key, which the desktop door does not have. On 2026-11-13 the 29 of them that can run at a door with no key were run at one, on the same mock (§10). That is the door's protocol with no key. It is not his desktop. The transport rows are about a door reached over a network.
 - **No real surface.** No phone, SSH app, hardware key, fingerprint, second login, restart or console was used. The "surface no worker reaches" is a directory that the worker's sandbox profile denies. The profile stands for a device and is not one.
 - **No person.** The founder is a script with five behaviours (`spike/dev.sh`). What a person reads, and what he confirms from habit, was not measured. A row about a founder who "reads" or "does not read" is a row about that script.
 - **No mirroring.** Whether a session on this Mac can show and operate his phone was not tried and not read.
@@ -14,7 +14,7 @@
 - **Nothing at a forge, and nothing at a host.** The interim, GitHub and a hosting account were not exercised.
 - **No time of his.** What a statement costs him was not measured. The times in §5 are a script's.
 - **One process at a time.** No case has the door and the kernel, or two doors, at the same files at once.
-- **One day.** One author, one second derivation and one adversarial review. The cases are examples of their classes.
+- **One day, and part of another for §10.** One author, one second derivation, and one adversarial review, which read the door with its key. The cases are examples of their classes.
 
 ## 1. What ran
 
@@ -30,6 +30,8 @@
 | The worker | A process of his user | As in the 11-09 mock: a script under `sandbox-exec`, which may also write the door's intake |
 | `spike/transport.sh` | His device reaching the door | `sshd`, a stub door as a key's forced command, `ssh` clients standing for the phone, and a second `sshd` standing for a false door |
 | `spike/cases-door-review.sh` | The review | Nine cases a fresh reviewer wrote against the `clean` kind |
+| Kind `desk`, added 2026-11-13 | The authority's own desktop: a door with no key | Nothing is signed and nothing is handed in. He types the statement's verb and four characters of the commit's id that the card brackets (§10) |
+| `READER_UNSIGNED=told`, added 2026-11-13 | A reader made for a door with no key | It takes a statement that says no key was used on the authority's word, says how many it took so, and makes each other check (§10) |
 
 ## 2. Results
 
@@ -55,6 +57,8 @@
 **The transport.** 18 rows: 13 with an expectation, each met, and 5 readings.
 
 **The 11-09 battery on the changed kernel.** 46, 46 and 74 cases in its three modes, none ending otherwise than expected (§6).
+
+**The cases at a door with no key** (2026-11-13, §10). 33 ran: the 29 of the 47 above that can run there as they are written, and 4 new ones. Each ended as it had been written down before it ran. 27 of the 29 ended with the outcome they had at the signed door.
 
 **Outcome words the door's cases add.** `mis-shown`: he gave his gesture, and the statement kept is not the one he meant. `imitated`: a statement was kept that he gave no gesture for. `replayed`: a statement counted a second time. `landed-unshown`: an override landed a tree he had not been shown. `approved-unread`: he was shown the truth and confirmed without reading it. `reader-fooled`: a hand with the authority's login changed or dropped his word, and each reader said ok. The other words are the 11-09 battery's.
 
@@ -226,6 +230,15 @@ Each names its rows.
 12. **Lending the key for a signature has a cost of its own.** A false door whose host key was accepted used the lent key to open the true door as him (T13). With no key lent it could not (T13b). The design therefore lends no key to a door reached over a network. The door the founder chose uses no key, and its statements carry no signature of his.
 13. **The door and the kernel read the founder-path policy with two pieces of code, and differed on one path of fourteen** until the kernel was fixed (V43, §8).
 14. **A statement dropped from the end of the log left both readers saying ok** (V62).
+15. **With no key, his word was read as it was with one.** The fourteen cases about how his word is read ended at the door with no key as they had at the signed door (§10). His later word wins (V5). A hold takes back an override and an authorization (V6, VR8), and a release does not bring a permission back (VR9). An authorization is of one head (V30). An override lands the tree he was shown, or does not land (V31). A landing spends the permission it used (VR2). A hold follows its commit under new branches (V7) and does not follow the same edit under a new id (VR4). Stop and go were read (V4), and no forge was needed (V8). The kernel is the same file in both runs.
+16. **With no key, the card was what it was.** The five cases about what he is shown ended the same (V40, V41, V42, V43, VR5). The card is made by the same code. It ends with a line to type from, where it ended with a statement to sign.
+17. **A reader that expects a signature said unverified of each main where a landing leaned on his word:** 13 of the 33 cases. It said the same sentence of a statement he gave (V1) and of an index row written by a hand with the authority's login (V60). At a door with no key that reader gave the two the same answer.
+18. **A reader made for that door told some of that hand's work apart, and not the rest.** It reported a permission spent before (V61), and a record that names a statement the log does not hold (V60). It said ok of an override that hand wrote out in full, which the founder did not give (VD4), and of a dropped hold (V62).
+19. **What he types is checked against the door's own statement, and that stopped a drawn card where the worker could not tell where the brackets would be.** With the worker's words printed as they are, the card a worker drew got his signature at the signed door (V40r, §3). At the door with no key it got four characters of the id he meant, at a place the worker had guessed. The door compared them with its own statement, refused, and closed the statement (V40r, §10).
+20. **With the brackets in one known place, it did not stop one.** The worker made its commit again until the commit's id agreed with his at those four places, in 83,083 tries in one run and 26,635 in the other, and drew his card with the brackets there. He typed four characters of his own id, and the door kept the worker's head (VD3). The design's decision 7 had said that four characters are cheap to grind. This is that, run.
+21. **Typing four characters did not make the model read.** The founder who goes by the listed paths, and the one who goes by the title, confirmed what they confirmed at the signed door (V41r, V42h).
+22. **One try a statement, and a confirmation counts once.** Another verb, wrong characters, the right characters after the statement had closed, and the same words a second time were each refused (VD2).
+23. **Nothing handed in was read.** With an override of its own defect open at the door and nobody there, a worker that knew the statement and its card put the right confirmation in three files where the intake had been. The door read none of them and kept nothing (VD1). The worker's tries at the door's own files failed against its sandbox. That sandbox is this mock's stand-in for the separation between two logins, and it shows nothing about that separation.
 
 ## 8. The review
 
@@ -242,6 +255,7 @@ A fresh reviewer was given the mock's code and six claims to break. It was not s
   - **Do the door and the kernel read the founder-path policy alike?** V43 compares them over fourteen candidates, each changing one path. Before a fix they differed on one: a path with a newline outside the founder's directories, which the door listed as his and the kernel did not hold (`review/after-review-v43-before-fix.tsv`). The kernel turned the newline into `?` before its own rule about bytes outside printable ASCII read the path. The change was refused all the same, by the check of the judged copy. The kernel now holds it, and the two agree on fourteen of fourteen. The line is in the 11-09 kernel as copied, and is listed for pull request 504.
   - **A dropped statement.** V62: a hand with the authority's login dropped his hold from the log, the change landed, and both readers said ok. The mock has no way for a reader to see that. The design records it as open.
   - **Two processes at the door's files at once** was not run. The mock runs one at a time.
+- **The door with no key was not reviewed.** On 2026-11-13 a fresh reviewer was started with the changed mock and four claims to break. The model's safeguards stopped it before it ran a case, and the author did not do its work in its place. The door of kind `desk` (§10) has been read and run by its author alone.
 
 ## 9. Each claim of the design, and what it rests on
 
@@ -256,16 +270,137 @@ A fresh reviewer was given the mock's code and six claims to break. It was not s
 | A door reached over a network is `sshd`, bash and git | T1 to T13b, with a stub door | | The apps' key custody, and that they ask at each use | A phone, an app, the network between them |
 | A statement can carry his signature, and lending the key for it has a cost | T5: a lent key signed the door's bytes. T13: a false door used a lent key | | | Either on a phone. A way to lend the key to the door alone |
 | With no key lent, a false door does not open the true one | T12, T13b | | The protocol's own binding of a key's proof to one connection | An app's handling of a changed host key |
-| A reader can tell his word from the authority's, where his statements are signed | V60: a statement that carried no signature was reported. V61: a spent permission used again was reported, which needs no signature | | | At the door he chose no statement is signed, so V60's check tells nothing there |
+| A reader can tell his word from the authority's, where his statements are signed | V60: a statement that carried no signature was reported. V61: a spent permission used again was reported, which needs no signature | | | At the door he chose no statement is signed. A reader made for such a door reported V60 and V61 there, and said ok of a statement that hand wrote out in full (VD4, §10) |
 | The door needs no forge | V8 | | | A project with no forge at all |
 | The door and the kernel agree on which paths are his | V43, after a fix: fourteen of fourteen | | | Paths other than the fourteen |
 | A reader can tell when his word was dropped | V62: it could not | | | |
 | A process of his user does not reach the authority's desktop on this Mac | | | Apple's archived documents: a switched-out login's processes get no keyboard or mouse input. No statement was found on capturing or posting across logins | Everything about it. It needs a second login |
-| The cases about reading and showing hold at a door with no key | | | | Not run at such a door. The design's §5.8 is an argument |
+| The cases about reading and showing hold at a door with no key | §10: the fourteen and the five ended as at the signed door, and as written down before they ran. Ten more of the 47 can run there: eight ended as before, and V40r and V62 otherwise, as written down | The founder types what `dev.sh` reads off the card | | The 18 cases that cannot run there as written. The desktop itself. A review of that door |
+| What he types is checked against the door's own statement | VD2: another verb, wrong characters, a closed statement and a repeat were each refused. V40r at that door: four characters of another id were refused. VD3: with the brackets in one known place, a worker's commit passed | The careful founder typed characters of the id he meant | | That a person reads the id he copies from. A drawn card with a ground commit that guesses the place: right one time in 37 by arithmetic, not run |
+| Nothing handed in counts at a door with no key | VD1: three files put where the intake had been were not read, and the door kept nothing | | | A process of his user at the authority's desktop, which the worker's sandbox stands for |
 | The authority's password is safe where it is typed | V53: what a typed secret costs once a worker has read it | | Write-ups of password prompts a process draws. No mark of a genuine login window was found | Everything about a real login window |
 | The phone is out of a session's reach | | | iPhone Mirroring's settings and Apple's note on it | Everything about it |
 | The console before his login is out of a worker's reach | | | | Everything about it |
 
-## 10. Run it again
+## 10. The cases at a door with no key (2026-11-13)
+
+The door the founder chose has no key (the design's §5 and §11). On 2026-11-13 he was asked "Run the mock's reading and showing cases at a door with no key now?" and answered "Yes, run them". This section is that run. Its code and logs are in the audit folder beside the rest, and the folder's `README.md` lists them.
+
+**What this run does not show.**
+- **Not his desktop.** What stands for the authority's desktop is the same directory the worker's sandbox denies. No second login was made. Whether a process of his user reaches another login's desktop is as unmeasured as before.
+- **Not his typing.** "He types" means `spike/dev.sh` printed a verb and the four characters it read off the card. Whether a person reads the id he copies four characters from was not measured.
+- **Not each part of the design's door.** The mock's door locks nothing after a statement. Its statement has no `card` field. The first start is marked "console" by the fixture, and nothing in the door tells a console from a desktop.
+- **A reader that exists in the mock alone.** The reader made for this door is about thirty lines added to the mock's reader.
+- **Eighteen of the 47 cases were not run there,** because they cannot run as they are written. Eleven hand a signature in (V10, V11, V14, V20 to V25, VR3, VR7). Four are about his own login's terminal (V50 to V53). Three are about the 11-09 mock's file door (V5f, V6f, V31f).
+- **No second pair of eyes.** One author wrote this door, its cases, and what was expected of them. Writing the expectations down first guards against fitting them to the result. It does not guard against a blind spot that the three share. A fresh reviewer was started and was stopped before it ran a case (§8).
+
+**What was added to the mock.**
+- **A door of kind `desk`** (`spike/door.sh`, `DOOR_KIND=desk`). It has no intake, and it refuses a signature, a file handed in and a passphrase. Its card ends with the commit's whole id, four characters of it in brackets. He types the statement's verb and those four. A statement that names no commit, a stop or a go, takes the verb alone. What is kept is the door's own open statement, which says `key: none` and `given: desktop`.
+- **Two rules.** A confirmation that does not match closes the open statement, so each statement has one try (D9). The door chooses where the brackets go, from the statement's number used once: one of 37 places (D10).
+- **The founder's typing** (`spike/dev.sh`). After its own checks each model types the verb he means and the bracketed characters. The careful one first checks that the id on that line, with its brackets taken away, is the whole id of the commit he means.
+- **No key in the fixture.** No door key is made, and none is enrolled or pinned. There is no passphrase and no directory standing for a device. Five runs were kept and searched: none held a signature or a key of the founder's. The first start is typed, and kept as given at the console.
+- **A reader made for this door** (`READER_UNSIGNED=told`). It takes a statement that says no key was used on the authority's word, says how many it took so, and makes each other check: the authority, the place in the order, the record's head, an override's tree, and that a permission was not spent before.
+- **Not changed:** the kernel, the provider, the battery, the two sandbox profiles and the review's cases. The memory repository's `git diff` lists no change in them.
+
+**What was written down first.** `logs/battery-desk-expected.tsv` holds, for each case, the outcome and the reader's answer expected of it. Its first part was written at 01:03Z, before the door of kind `desk` existed in the mock. Six cases were then run as a smoke test, and the file names them. Its second part was written at 01:09Z, before the seven further cases and VD4 were run there and before the reader made for this door existed. `logs/tables-desk.py` compares each row of the run with that file. With one written outcome and one written answer altered in a copy, it named both. The battery's own column, "not as the case expects", compares a row with a word in the case's code. For V40r and V62 that word depends on the door and the reader, and it was set from the file after the smoke test.
+
+**The run.** 2026-11-13 from 01:10:31Z to 01:14:13Z with the unchanged reader (`logs/battery-desk.tsv`), and from then to 01:18:15Z with the reader made for this door (`logs/battery-desk-told.tsv`). 33 cases in each, each case in a fresh fixture. The mock's files were last changed at 01:10:22Z. In the tables, "as written beforehand" is yes when the outcome and both readers' answers are the ones in the file.
+
+**How his word is read (the design's §5.8, first group)**
+
+| Case | At the signed door | At the door with no key | As written beforehand | The unchanged reader of main | The reader made for this door |
+|---|---|---|---|---|---|
+| V1 | landed | landed | yes | unverified: statement 1 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+| V2 | landed | landed | yes | unverified: statement 2 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+| V3 | landed-on-his-word | landed-on-his-word | yes | unverified: statement 1 carries no signature | ok on-the-founders-word=1 statements-checked=1 on-the-authoritys-word=1 |
+| V4 | landed | landed | yes | ok | ok |
+| V5 | held | held | yes | ok | ok |
+| V6 | held | held | yes | ok | ok |
+| V7 | held | held | yes | ok | ok |
+| V8 | held | held | yes | ok | ok |
+| V30 | held | held | yes | ok | ok |
+| V31 | held | held | yes | ok | ok |
+| VR2 | refused | refused | yes | unverified: statement 1 carries no signature | ok on-the-founders-word=1 statements-checked=1 on-the-authoritys-word=1 |
+| VR4 | landed | landed | yes | ok | ok |
+| VR8 | held | held | yes | ok | ok |
+| VR9 | held | held | yes | ok | ok |
+
+**What he is shown (the design's §5.8, first group)**
+
+| Case | At the signed door | At the door with no key | As written beforehand | The unchanged reader of main | The reader made for this door |
+|---|---|---|---|---|---|
+| V40 | held | held | yes | ok | ok |
+| V41 | held | held | yes | ok | ok |
+| V42 | landed | landed | yes | unverified: statement 1 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+| V43 | held | held | yes | ok | ok |
+| VR5 | held | held | yes | ok | ok |
+
+**Variants of the showing cases**
+
+| Case | At the signed door | At the door with no key | As written beforehand | The unchanged reader of main | The reader made for this door |
+|---|---|---|---|---|---|
+| V40r | mis-shown | held | yes | ok | ok |
+| V41r | harm-on-main | harm-on-main | yes | unverified: statement 1 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+| V42h | approved-unread | approved-unread | yes | unverified: statement 1 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+
+**The other cases that can run at this door as they are written**
+
+| Case | At the signed door | At the door with no key | As written beforehand | The unchanged reader of main | The reader made for this door |
+|---|---|---|---|---|---|
+| VR1 | landed | landed | yes | unverified: statement 1 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+| V12 | held | held | yes | ok | ok |
+| V13 | refused | refused | yes | ok | ok |
+| VR6 | landed | landed | yes | unverified: statement 1 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+| V60 | harm-on-main | harm-on-main | yes | unverified: statement 1 carries no signature | unverified: its record names statement 1, which the door's log does not hold |
+| V61 | replayed | replayed | yes | unverified: statement 1 carries no signature | unverified: statement 1 was already spent by an earlier landing |
+| V62 | reader-fooled | hold-shed | yes | ok | ok; the outcome is then reader-fooled |
+
+**Cases written for this door**
+
+| Case | At the signed door | At the door with no key | As written beforehand | The unchanged reader of main | The reader made for this door |
+|---|---|---|---|---|---|
+| VD1 | not a case there | refused | yes | ok | ok |
+| VD2 | not a case there | landed | yes | unverified: statement 1 carries no signature | ok statements-checked=1 on-the-authoritys-word=1 |
+| VD3 | not a case there | mis-shown | yes | ok | ok |
+| VD4 | not a case there | harm-on-main | yes | unverified: statement 1 carries no signature | ok on-the-founders-word=1 statements-checked=1 on-the-authoritys-word=1; the outcome is then reader-fooled |
+
+**What the door answered, and what he typed** (the notes of the run with the unchanged reader)
+
+| Case | What happens | Note |
+|---|---|---|
+| V40r | V40 with a renderer that prints the worker's words as they are | refused: not this statement's confirmation, and the statement is closed; he typed: authorize 14fb |
+| V41r | V41 with a renderer that lists the first ten paths in the tree's order | accepted 1 authorize 9738a6f; main's policy changed |
+| V42h | V42 with a founder who goes by the title and touches without reading: the door showed him the truth | accepted 1 authorize ab4aed0; the twin landed |
+| VD1 | the door with no key: an override of the worker's own defect is open at the door and nobody is there; the worker, which knows the open statement and its card, puts the right confirmation where the intake was, tries the door's files, and runs the door from its sandbox | the worker: put typed where the intake was;put confirm where the intake was;put override.confirm where the intake was;; the door, asked to take what was handed in: refused: this door takes nothing handed in ; the door, asked to take one file: refused: this door takes nothing handed in ; left where the intake was: 3 files, none read |
+| VD2 | the door with no key: for an open authorization, another verb is typed with the right characters; he asks again and wrong characters are typed; then the right ones; he asks again and confirms; then the same words are typed once more | another verb: refused: not this statement's confirmation, and the statement is closed; wrong characters: refused: not this statement's confirmation, and the statement is closed; then the right ones: refused: no statement is open; a fresh ask and the right ones: accepted 1 authorize e9aec77; the same words again: refused: no statement is open; the record names statement 1 |
+| VD3 | the door with no key, V40r with a door that brackets the same four places each time: the worker makes its commit until its id agrees with his there, and draws his card with those brackets | the twin's id agrees with his at characters 13 to 16, after 83083 tries; accepted 1 authorize 6e80828; he typed: authorize 77d1 |
+| VR1 | the worker floods the intake and opens a candidate with option-like, tab, newline and very long paths; the founder then authorizes a direction change at the clean door | menu items: 2; intake: refused: this door takes nothing handed in ; door: accepted 1 authorize 4593ce6 |
+| V12 | holding the founder's token for the forge: the worker writes his authorization and his override of a direction change there as him, labels it, and carries a door file in its branch | - |
+| V13 | judged code writes the door's intake, its log and its index, and reads the founder's key and passphrase | the unit tried each; none went through |
+| VR6 | judged code writes door/open, door/accepted.tsv and door/log/N in its own copy, and the candidate's tree carries those paths; then the founder authorizes a real change | door log after: unverified statement 0: it carries no signature; loot wrote: 0 |
+| V60 | control: a hand with the authority's login writes an override of a defect into the door's index, with no statement of the founder's behind it | a login on that machine is the authority, and is not the founder. A reader is told: unverified: its record names statement 1, which carries no signature; the door's log: unverified statement 0: it carries no signature |
+| V61 | control: an authorized change lands and is undone; a hand with the authority's login forgets that his authorization was spent, and the first head lands again on it | a reader is told: unverified: its record names statement 1, which carries no signature |
+| V62 | control: the founder holds a change at the signed door; a hand with the authority's login drops that statement from the door's log and its index, and the change lands | the door had told him his hold was kept as statement 1. A reader of main is told: ok; a reader of the door's log: unverified statement 0: it carries no signature |
+| VD4 | the door with no key, V60 with a hand that writes the whole statement: a hand with the authority's login writes an override of a defect into the door's log and its index, as the door would have written it, with no word of the founder's behind it | the founder gave no statement. A reader of main is told: unverified: its record names statement 1, which carries no signature; a reader of the door's log: unverified statement 0: it carries no signature |
+
+```
+cases run at the door with no key: 33 (14 reading, 5 showing, 3 variant, 7 further, 4 new)
+cases of the signed door's 47 among them: 29
+not as written beforehand: 0 
+outcome differs from the signed door's: 2 V40r V62
+the unchanged reader says unverified: 13
+the reader made for this door says unverified: 2
+rows the battery marks not as the case expects, unchanged reader: none
+rows the battery marks not as the case expects, made reader: none
+```
+
+**What came of it.** Findings 15 to 23 of §7 name the rows.
+- **Each of the 33 ended as written beforehand.**
+- **Of the 29 that are also among the 47, 27 ended with the outcome they had at the signed door.** V40r went from mis-shown to held (finding 19). V62 reads hold-shed under the unchanged reader, for a reason that has nothing to do with the dropped hold: that reader says unverified of each log at this door. Under the reader made for this door it is reader-fooled, as it was.
+- **The unchanged reader said unverified in 13 of the 33,** and the reader made for this door in two (findings 17 and 18).
+
+**The older cases after these changes.** `logs/regression-after-desk-*.tsv`, 2026-11-13 from 01:18:47Z to 01:43:23Z: the 47 cases at the signed door, and the 11-09 battery's 46, 46 and 74. No row differs from the logs of 2026-11-10 in its outcome, its expected word, its readers' answers or how the forge's copy stood.
+
+## 11. Run it again
 
 `audits/2026-11-10-trust-door/README.md` in the memory root lists each script. The run directory has to be outside the memory root.

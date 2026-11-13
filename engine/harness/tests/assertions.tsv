@@ -3426,10 +3426,65 @@
 1	R12: no run of this part left a process in its process group, stopped or running, after the 30 s it was given (the interrupt cases judge theirs in their own assertions)
 2	R12: the group check names a process left in the run's group after the leader exited, and ends it (control)
 1	R12: the timing perl reports a killed process gone, a living one left, a process with the case's id in its command line left, and none once both are killed (control)
+1	R13: 404 on both: unread, and the detail says what a 404 means and names no scope
+1	R13: A1: a clock in March asks the users/ report for month=3, no leading zero
+1	R13: A1: and counts only dates starting 2026-03-, zero-padded
+1	R13: A2: an answer that ends early is unread: the usage report is not complete JSON
+1	R13: A2: text after the object closes is unread: the usage report is not complete JSON
+1	R13: A3: no usageItems key: the detail is exactly that the report holds no usageItems list
+1	R13: A3: usageItems an object is unread: no usageItems list
+1	R13: A3: usageItems null is unread: no usageItems list
+1	R13: A4: an actions item whose date is a number is unread: an Actions item with no date
+1	R13: A4: an actions item with no date is unread: an Actions item with no date
+1	R13: A5: a 404 past character 120 of the first error line still brings the orgs/ GET
+1	R13: A5: a 410 past character 120 brings no orgs/ GET and ends with the moved clause
+1	R13: A5: and the detail shows the line from its start
+1	R13: A5: and, both failing so, ends with the 404 clause
+1	R13: A6: an owner that is not an account name: no billing GET
+1	R13: A6: and the row is unread: the owner in the slug is not an account name
+1	R13: Actions items dated outside the asked month are not counted and are told by number at the end of the detail
 1	R13: USR1, which the parent does not trap, sent while two units that ignore TERM run (W is 2): the EXIT trap's ending completes: a status that is not 0, no reached, nothing of the run left, stopped or running, no slot held, the slot files kept, no receipt
+1	R13: a 404 on users/ is followed by one orgs/ GET, and nothing else of billing
+1	R13: a 404 on users/ then an answered orgs/ report: read
+1	R13: a 404 then a 410 on orgs/: both lines, then the moved clause
+1	R13: a 404 then a 502 on orgs/: the organisation report's error follows, and no clause
+1	R13: a 410 on the users/ GET: unread
+1	R13: a counted item in minutes whose quantity is not a number leaves the budget row unread
+1	R13: a counted item whose netAmount is a string is unread, quantity or netAmount not a number
+1	R13: a counted item with no netAmount is unread, quantity or netAmount not a number
+1	R13: a counted storage item whose netAmount is null is unread, quantity or netAmount not a number
+1	R13: a failed GET whose stdout holds a report that would sum stays unread
+1	R13: a network error: one billing GET, and the detail is gh's first error line alone
+1	R13: a report spread over several lines, with numbers holding an exponent, is read
+1	R13: a scope gh names on the users/ GET is given, and wins over the 404 clause
+1	R13: a scope line naming no scope name (a space, a semicolon) names no scope: the 404 clause is given
+1	R13: an answer with no usageItems key leaves the budget row unread
+1	R13: an answered report makes the budget row read
+1	R13: an answered users/ GET is the only billing GET: no orgs/ GET and never the retired settings/billing/actions
+1	R13: an empty usageItems list is read
+1	R13: and it is a GET of orgs/<owner>/settings/billing/usage?year=Y&month=M
+1	R13: and no orgs/ GET follows a 410
+1	R13: and reads zero minutes and no net
+1	R13: and says an Actions item's quantity or netAmount is not a number
+1	R13: and says the usage report holds no usageItems
+1	R13: and summed as JSON: the whole detail
+1	R13: and that GET is of users/<owner>/settings/billing/usage?year=Y&month=M, nothing more in the path
+1	R13: and the detail is the organisation report's, in the month asked
+1	R13: and the detail says GitHub moved the endpoint and no scope brings it back
 1	R13: from a parent started with HUP ignored the three parts ran as units under -j 3 and read what a -j 1 run reads, the run passed with exit 0 (not the runner's 124) and left nothing in its group
 1	R13: from a parent started with TERM ignored the three parts ran as units under -j 3 and read what a -j 1 run reads, the run passed with exit 0 (not the runner's 124) and left nothing in its group
+1	R13: minutes are summed over every SKU in minutes, unit and product compared without case, storage's quantity left out
+1	R13: net is summed over the counted items, storage's included, another product's not
+1	R13: no budget detail above holds the word included
+1	R13: no budget detail above says the token may lack the user scope
+1	R13: the budget row's report answers: the page exits 0
+1	R13: the orgs/ GET asks the same year and month, the clock's in UTC
+1	R13: the page asks the users/ usage report for the clock's year and month in UTC, the month without a leading zero
+1	R13: the page exits 0 whatever the budget's reading, in every case above
+1	R13: the row says nothing of another product
 1	R13: the same with INT, sent to a parent started with INT at its default, and two units that end at once when signalled (W is 2): exit 130, with the same afterwards
+1	R13: the whole detail of a read report
+1	R13: two GETs naming different scopes give both, in the order asked
 1	R13: with FELIX_TEST_SLOT_NOTE=2 (W is 2, so the ending outlasts what a 2 s read -t left it) and a unit that ignores TERM, TERM to the parent once the unit is up: exit 143, no reached, nothing of the run left, stopped or running, no slot held, the slot files kept, no receipt
 1	R14: a ps that shows planted process P's start one second later from the ending's second listing on: once the parent has exited with 143, P still runs, is not stopped, got exactly one TERM, and nothing else of the run is left, stopped or running (a stopper that signals by pid alone STOPs and KILLs it)
 1	R15: a holder killed with kill -9 while its unit runs a member (its pid is line 2 of the slot file): within 60 s the unit is gone, the run fails naming it (part ended without its mark), the other unit passes, exit 1, no receipt, no slot held, and nothing of the run is left
@@ -3506,30 +3561,9 @@
 1	R29: and under -j 1 the same: exit 0, the part's mktemp -d status 0, and the directory it made is below that directory
 1	R29: under a TMPDIR relative to the directory the run started in and a GNU-style mktemp first on PATH, a part's bare mktemp -d from its working directory lands below that directory, run under -j 2: the run passes and the part's status is 0
 1	R2: a graph that is current starts nothing
-1	R2: a network error: one billing GET and no orgs/ GET
-1	R2: after a 404 the gh log holds one users/ GET
-1	R2: after a 502 the gh log holds exactly one billing GET
-1	R2: and adds the scope hint after the 404
-1	R2: and gives gh's first error line (control)
-1	R2: and it is the users/ GET
 1	R2: and its ledger rollup runs as before
-1	R2: and never the scope hint after a 502
-1	R2: and never the scope hint after a network error
-1	R2: and no more billing GETs than those two
-1	R2: and no orgs/ GET
-1	R2: and no orgs/ GET follows
-1	R2: and says nothing of the user scope
-1	R2: and the budget row says read
-1	R2: and the budget row says read (control)
-1	R2: and then one orgs/ GET
-1	R2: both answering 404: the budget row says unread
-1	R2: the billing GET answers: the gh log holds exactly one billing GET
-2	R2: the budget row says unread (control)
 1	R2: the hook returns while that refresh waits, within 8 seconds, exits 0 and prints nothing
 1	R2: the rollup runs whether or not a refresh starts
-1	R2: users/ 404 then orgs/ answering: two billing GETs, users/ then orgs/
-1	R2: users/ answers 404: the page exits 0
-1	R2: users/ answers 502: the page exits 0
 1	R2: with lib/graph.sh gone the session still ends with exit 0, and its rollup runs
 1	R2: with lib/own.sh failing to load the session still ends with exit 0, and its rollup runs
 1	R2: with the ending's listing number 1 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
@@ -14299,13 +14333,13 @@
 1	spec §4.3: the ledger refused #169's head on the current origin/main (control for what follows): #169 needs session
 1	spec §4.3: the project's memory directory at mode 000, land/ and its ledger inside: the ledger row says unread, not none
 1	spec §4.3: without its [main] part
+1	spec §4.4, R13: and the net amount, with no included minutes to state
 1	spec §4.4: a failing billing GET: the budget row says unread
 1	spec §4.4: and gives gh's first error line
 1	spec §4.4: and the budget row says unread, gh not asked
 1	spec §4.4: cut at 120 characters
 1	spec §4.4: it gives the minutes used
 1	spec §4.4: its first line only
-1	spec §4.4: of the minutes included
 1	spec §4.4: the budget is one gh api GET of the governed account's Actions billing
 1	spec §4.4: the budget was read
 1	spec §4.5: a backslash is not the rule path-bytes
@@ -14742,7 +14776,11 @@
 1	the amendments fixture: origin/HEAD now names trunk (fixture control)
 1	the amendments fixture: origin/main's reflog last moved nine days ago (fixture control)
 1	the amendments fixture: tabrepo's origin URL holds a tab, and origin/HEAD names main (fixture control)
+1	the amendments fixture: the date stub answers the fixed instant when told to, for the caller's own format (fixture control)
 1	the amendments fixture: the gh stub answers -R Fixture/Home as fixture/home, and repos/fixture/two with trunk (fixture control)
+1	the amendments fixture: the gh stub dates usage items from the month it is asked, and answers the retired billing address 410 (fixture control)
+1	the amendments fixture: the page reads the owner fix&ture into its slug: a row names fix&ture/home (fixture control)
+1	the amendments fixture: with its control removed the date stub answers the real clock (fixture control)
 1	the arithmetic, block and byte fixtures' runs reach, against their own working trees, every name their manifests list and as often
 1	the attribution fixtures have disjoint histories
 1	the audit runs above are wired to the read-only checks: an engine that writes under HOME and calls claude, run through the same wrapper, shows in that HOME and in the stub log

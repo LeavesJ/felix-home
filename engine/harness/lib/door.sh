@@ -339,18 +339,19 @@ EOF
     "$_FA_ID" "$n" "${_DL_TIP:--}" "$verb" "$h" "$t" "${_FA_MAIN:--}" "$cardid" "$given" "$result" "$witness" "$nonce" "$at")"
   _fdoor_p 'statement: the statement this door will keep, given with no key:\n%s\n' "$stmt"
   _fdoor_p 'card: the authority'"'"'s own facts:\n%s\n' "$card"
-  # D6. Two pairs, each placed by this statement's nonce.
+  # D6. Two pairs, each placed by this statement's nonce. The confirm line is one line and the last before
+  # the door reads: what to type is said on the line before it, under a label of its own.
   case "$verb" in
     stop)  want=stop; _fdoor_p 'confirm: to give it, type: stop\n' ;;
     reach) want="reach $result"; _fdoor_p 'confirm: to give it, type: reach %s\n' "$result" ;;
     go)    i=$(( 0x${nonce:8:4} % 15 )); j=$(( 16 + 0x${nonce:12:4} % 15 ))
            want="go ${nonce:i:2}${nonce:j:2}"
-           _fdoor_p 'confirm: nonce %s[%s]%s[%s]%s\n' "${nonce:0:i}" "${nonce:i:2}" "${nonce:i+2:j-i-2}" "${nonce:j:2}" "${nonce:j+2}"
-           _fdoor_p 'confirm: to give it, type go and the four characters in brackets\n' ;;
+           _fdoor_p 'type: to give it, go, a space and the four characters the next line brackets\n'
+           _fdoor_p 'confirm: nonce %s[%s]%s[%s]%s\n' "${nonce:0:i}" "${nonce:i:2}" "${nonce:i+2:j-i-2}" "${nonce:j:2}" "${nonce:j+2}" ;;
     *)     i=$(( 0x${nonce:0:4} % 19 )); j=$(( 20 + 0x${nonce:4:4} % 19 ))
            want="$verb ${h:i:2}${h:j:2}"
-           _fdoor_p 'confirm: %s[%s]%s[%s]%s\n' "${h:0:i}" "${h:i:2}" "${h:i+2:j-i-2}" "${h:j:2}" "${h:j+2}"
-           _fdoor_p 'confirm: to give it, type its verb and the four characters in brackets\n' ;;
+           _fdoor_p 'type: to give it, its verb, a space and the four characters the next line brackets\n'
+           _fdoor_p 'confirm: %s[%s]%s[%s]%s\n' "${h:0:i}" "${h:i:2}" "${h:i+2:j-i-2}" "${h:j:2}" "${h:j+2}" ;;
   esac
   # D6. One try, and a closed statement leaves a row.
   IFS= read -r -t "$ttl" line || {

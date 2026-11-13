@@ -95,6 +95,16 @@ printf '%s\n' "$*" >> '@SA@/log/launchctl.log'
 case "${1:-}" in print) exit 113 ;; esac
 exit 0
 SASTUB
+# date (A1): the real date, found before the stubs were first on PATH, unless ctl/date.at holds an epoch; then the
+# caller's arguments run against that instant (-r on BSD, -d @ on GNU).
+command -v date > "$SA/realdate"
+_sa_put "$SAB/date" <<'SASTUB'
+#!/bin/bash
+R="$(cat '@SA@/realdate')"
+[ -f '@SA@/ctl/date.at' ] || exec "$R" "$@"
+e="$(cat '@SA@/ctl/date.at')"
+if "$R" -u -r 0 >/dev/null 2>&1; then exec "$R" -r "$e" "$@"; else exec "$R" -d "@$e" "$@"; fi
+SASTUB
 
 # ---- the repositories ----------------------------------------------------------
 _sa_commit() { _fx_git "$1" add -A >/dev/null 2>&1; _fx_git "$1" -c user.name=t -c user.email=t@t commit -qm "$2" >/dev/null 2>&1; }
@@ -176,7 +186,7 @@ _sa_fail() { printf '%s\n' "$2" > "$SAK/bill.$1.rc"; printf '%b' "$3" > "$SAK/bi
 _sa_it() { printf '{"date":"%sT00:00:00Z","product":"%s","sku":"%s","quantity":%s,"unitType":"%s","pricePerUnit":0.006,"grossAmount":1.0,"discountAmount":0.5,"netAmount":%s,"repositoryName":"home"}' "$1" "$2" "$3" "$4" "$5" "$6"; }
 # One run of the page for R13: T is its page, SAYM the month its users/ GET asked, SAD the budget detail.
 SAALL=""; SARCS=""
-_sa_brun() { SAC1="$(_sa_clock)"; _sa_land --prs --tsv; _sa_keep "$1"; SAC2="$(_sa_clock)"; T="$SAX/$1"
+_sa_brun() { local n="$1"; shift; SAC1="$(_sa_clock)"; _sa_land --prs --tsv "$@"; _sa_keep "$n"; SAC2="$(_sa_clock)"; T="$SAX/$n"
   SAYM="$(_sa_ym "$(_sa_q "$T.gh" users)")"; SAD="$(_sa_srcf "$T" budget 8)"; SAALL="$SAALL|$SAD"; SARCS="$SARCS$(cat "$T.rc")"; }
 # The age in "origin/main last moved <age> ago", and that age in whole hours:
 # the first number and the unit after it (s, m, h, d, w, mo, y, or the words).
@@ -278,6 +288,7 @@ _sa_body users '{"total_minutes_used":77,"total_paid_minutes_used":0,"included_m
 _sa_brun r13nokey.tsv
 is "R13: an answer with no usageItems key leaves the budget row unread" "$(_sa_srcf "$T" budget 4)" unread
 has "R13: and says the usage report holds no usageItems" "$SAD" "the usage report holds no usageItems"
+is "R13: A3: no usageItems key: the detail is exactly that the report holds no usageItems list" "$SAD" "the usage report holds no usageItems list"
 _sa_body users "{\"usageItems\":[{\"date\":\"@YM@-03T00:00:00Z\",\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":\"1430\",\"unitType\":\"Minutes\",\"netAmount\":1.0}]}"
 _sa_brun r13nan.tsv
 is "R13: a counted item in minutes whose quantity is not a number leaves the budget row unread" "$(_sa_srcf "$T" budget 4)" unread
@@ -316,6 +327,84 @@ _sa_brun r13net.tsv
 is "R13: a failed GET whose stdout holds a report that would sum stays unread" "$(_sa_srcf "$T" budget 4)" unread
 is "R13: a network error: one billing GET, and the detail is gh's first error line alone" "$(_sa_bills "$T.gh")|$SAD" "users|error connecting to api.github.com"
 rm -f "$SAK"/bill.*
+# ---- R13, amended after review (A1-A6 and the three named gaps), blind 2026-11-12
+# A1: date first on PATH stands the clock at 2026-03-15T12:00:00Z. A date written 2026-3- is an actions item dated outside 2026-03.
+printf '1773576000\n' > "$SAK/date.at"
+is "the amendments fixture: the date stub answers the fixed instant when told to, for the caller's own format (fixture control)" "$(PATH="$SAB:$PATH" date -u +%Y-%m-%dT%H)" 2026-03-15T12
+_sa_body users "{\"usageItems\":[$(_sa_it 2026-03-04 actions 'Actions Linux' 100.0 Minutes 0.40),$(_sa_it 2026-3-05 actions 'Actions Linux' 50.0 Minutes 0.20)]}"
+_sa_brun r13march.tsv
+rm -f "$SAK/date.at"
+is "the amendments fixture: with its control removed the date stub answers the real clock (fixture control)" "$(PATH="$SAB:$PATH" date -u +%Y-%m)" "$(date -u +%Y-%m)"
+is "R13: A1: a clock in March asks the users/ report for month=3, no leading zero" "$(_sa_q "$T.gh" users)" "year=2026&month=3"
+is "R13: A1: and counts only dates starting 2026-03-, zero-padded" "$(_sa_srcf "$T" budget 4)|$SAD" "read|100 Actions minutes used in 2026-03, net \$0.40; Actions items dated outside 2026-03, not counted: 1"
+SAUN="unread|"
+# A2: an answer that ends early, its second item (which would add a lot) left open; and text after the object closes.
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10),{\"date\":\"@YM@-04T00:00:00Z\",\"product\":\"actions\",\"unitType\":\"Minutes\",\"quantity\":99999.0,\"netAmount\":999.0"
+_sa_brun r13short.tsv
+is "R13: A2: an answer that ends early is unread: the usage report is not complete JSON" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report is not complete JSON"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10)]} {\"usageItems\":[]}"
+_sa_brun r13tail.tsv
+is "R13: A2: text after the object closes is unread: the usage report is not complete JSON" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report is not complete JSON"
+# A3: usageItems that is not a list.
+_sa_body users '{"usageItems":null}'
+_sa_brun r13null.tsv
+is "R13: A3: usageItems null is unread: no usageItems list" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds no usageItems list"
+_sa_body users "{\"usageItems\":{\"a\":$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10)}}"
+_sa_brun r13obj.tsv
+is "R13: A3: usageItems an object is unread: no usageItems list" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds no usageItems list"
+# A4: an actions item with no date, and one whose date is a number, beside one that would count.
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10),{\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":5.0,\"unitType\":\"Minutes\",\"netAmount\":0.05}]}"
+_sa_brun r13nodate.tsv
+is "R13: A4: an actions item with no date is unread: an Actions item with no date" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds an Actions item with no date"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes 0.10),{\"date\":20261103,\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":5.0,\"unitType\":\"Minutes\",\"netAmount\":0.05}]}"
+_sa_brun r13numdate.tsv
+is "R13: A4: an actions item whose date is a number is unread: an Actions item with no date" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the usage report holds an Actions item with no date"
+rm -f "$SAK"/bill.*
+# A5: a first error line of 161 characters whose code sits past character 120. How the cut line is shown is section 4.4's,
+# not restated in the amendment, so the detail is held to start with the line's first 120 characters and end with the clause.
+SALONG="gh: GitHub answered the request for this account's usage report with an error, and this line runs on past the cut of one hundred and twenty characters"
+_sa_fail users 1 "$SALONG (HTTP 404)\n"; _sa_fail orgs 1 "$SALONG (HTTP 404)\n"
+_sa_brun r13long404.tsv
+is "R13: A5: a 404 past character 120 of the first error line still brings the orgs/ GET" "$(_sa_bills "$T.gh")" users,orgs
+has "R13: A5: and the detail shows the line from its start" "$SAD" "${SALONG:0:120}"
+is "R13: A5: and, both failing so, ends with the 404 clause" "$(_sa_srcf "$T" budget 4)|${SAD##*; }" "unread|GitHub answers 404 for an account that does not exist and for one whose billing this login may not read"
+rm -f "$SAK"/bill.*
+_sa_fail users 1 "$SALONG (HTTP 410)\n"
+_sa_brun r13long410.tsv
+is "R13: A5: a 410 past character 120 brings no orgs/ GET and ends with the moved clause" "$(_sa_bills "$T.gh")|${SAD##*; }" "users|GitHub has moved this endpoint, so the fix is to Felix's reader and no token scope brings it back"
+rm -f "$SAK"/bill.*
+# The three named gaps: a scope line whose name is no scope name; a 404 then a 410; a netAmount that is not a number.
+_sa_fail users 1 'gh: Not Found (HTTP 404)\ngh: This API operation needs the "read user" scope. To request it, run:  gh auth refresh -h github.com -s read user\n'
+_sa_fail orgs 1 'gh: Not Found (HTTP 404)\ngh: This API operation needs the "user;x" scope. To request it, run:  gh auth refresh -h github.com -s user;x\n'
+_sa_brun r13badscope.tsv
+is "R13: a scope line naming no scope name (a space, a semicolon) names no scope: the 404 clause is given" "$SAD" "gh: Not Found (HTTP 404); GitHub answers 404 for an account that does not exist and for one whose billing this login may not read"
+_sa_fail users 1 'gh: Not Found (HTTP 404)\n'; _sa_fail orgs 1 'gh: This endpoint has been moved. (HTTP 410)\n'
+_sa_brun r13nf410.tsv
+is "R13: a 404 then a 410 on orgs/: both lines, then the moved clause" "$SAD" "gh: Not Found (HTTP 404); organisation report: gh: This endpoint has been moved. (HTTP 410); GitHub has moved this endpoint, so the fix is to Felix's reader and no token scope brings it back"
+rm -f "$SAK"/bill.*
+SANAN="the usage report holds an Actions item whose quantity or netAmount is not a number"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions Linux' 10.0 Minutes '"2.5"')]}"
+_sa_brun r13netstr.tsv
+is "R13: a counted item whose netAmount is a string is unread, quantity or netAmount not a number" "$(_sa_srcf "$T" budget 4)|$SAD" "$SAUN$SANAN"
+_sa_body users "{\"usageItems\":[$(_sa_it @YM@-03 actions 'Actions storage' 1.0 GigabyteHours null)]}"
+_sa_brun r13netnull.tsv
+is "R13: a counted storage item whose netAmount is null is unread, quantity or netAmount not a number" "$(_sa_srcf "$T" budget 4)|$SAD" "$SAUN$SANAN"
+_sa_body users "{\"usageItems\":[{\"date\":\"@YM@-03T00:00:00Z\",\"product\":\"actions\",\"sku\":\"Actions Linux\",\"quantity\":10.0,\"unitType\":\"Minutes\"}]}"
+_sa_brun r13netnone.tsv
+is "R13: a counted item with no netAmount is unread, quantity or netAmount not a number" "$(_sa_srcf "$T" budget 4)|$SAD" "$SAUN$SANAN"
+rm -f "$SAK"/bill.*
+# A6: an owner holding & is no account name. The repository's origin names github.com/fix&ture/home.
+SAAMP="$SA/amprepo"; mkdir -p "$SAAMP"; _fx_git "$SAAMP" init -q >/dev/null 2>&1
+_fx_git "$SAAMP" symbolic-ref HEAD refs/heads/main >/dev/null 2>&1
+printf 'amp\n' > "$SAAMP/README.md"; _sa_commit "$SAAMP" base
+_fx_git "$SAAMP" remote add origin "$SA/github.com/fix&ture/home.git" >/dev/null 2>&1
+_fx_git "$SAAMP" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
+_fx_git "$SAAMP" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main >/dev/null 2>&1
+_sa_prs fix_ture_home "$(_sa_pr 811 main)"
+_sa_brun r13amp.tsv --repo "$SAAMP"
+is "the amendments fixture: the page reads the owner fix&ture into its slug: a row names fix&ture/home (fixture control)" "$([ "$(LC_ALL=C grep -c -F 'fix&ture/home' "$T")" -gt 0 ] && echo yes)" yes
+is "R13: A6: an owner that is not an account name: no billing GET" "$(_sa_bills "$T.gh")" ""
+is "R13: A6: and the row is unread: the owner in the slug is not an account name" "$(_sa_srcf "$T" budget 4)|$SAD" "${SAUN}the owner in the slug is not an account name"
 is "R13: the page exits 0 whatever the budget's reading, in every case above" "$(printf '%s' "$SARCS" | LC_ALL=C tr -d 0)" ""
 _sa_lacks "R13: no budget detail above holds the word included" "$SAALL" included
 _sa_lacks "R13: no budget detail above says the token may lack the user scope" "$SAALL" "the token may lack the user scope"

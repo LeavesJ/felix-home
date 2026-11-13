@@ -2,12 +2,12 @@
 
 **Status.** The receipt format that the hosted trust authority's signing builds
 on, and a document only. Nothing in it is built, keyed or signed. At main
-0.49.338 the engine and `.github/` hold no signing code (no `cosign`,
+0.49.340 the engine and `.github/` hold no signing code (no `cosign`,
 `in-toto` or `DSSE` in either), and the authority that would sign is a design
 and a local mock (#504). On 2026-11-10 the founder decided this pull request
 ("Land it as signing's base"), and his answer 8 on the hosted trust authority
 design (`docs/2026-11-09-trust-hosted-authority-design.md`, pull request #504,
-which was open when this was revised) was "Build and sign now". That brought
+merged on 2026-11-13 as `bc237f7e`) was "Build and sign now". That brought
 signing forward from "Not before March". Its decision 5 names this mapping:
 the record is an in-toto Statement v1 with Felix's predicate in a DSSE
 envelope, and "which scheme Felix signs with follows PR 476's mapping and is
@@ -29,7 +29,7 @@ where the authority's signer differs they give way to the design in #504.
 
 Read at main `78f0268` (0.49.308, 2026-10-29). Every engine path and every
 line number below is at that commit (`git show 78f0268:<path>`). The branch
-was brought up to main at 0.49.338 on 2026-11-12, and the files this document
+was brought up to main at 0.49.340 on 2026-11-13, and the files this document
 cites have moved since: `receipt.sh`, `verify.sh`, `escape.sh`, `bootstrap.sh`,
 `green-tick.sh` and `engine/harness/felix` changed, so line numbers there
 have drifted, and §1.3 says what changed in the gate receipt document.

@@ -1,14 +1,40 @@
-# Felix receipts as in-toto statements: a mapping for March
+# Felix receipts as in-toto statements: the receipt format the trust authority's signing builds on
 
-**Status.** March prep, and a document only. Nothing in it is built, keyed or
-signed before March. `docs/direction.md` §5 lists "DSSE receipts" under "Not
-before March", and roadmap §4 (`docs/2026-09-23-roadmap.md`, line 371) defers
-"DSSE or in-toto receipts (and never a key on the enforcing path)". Building or
-signing earlier would be a direction change, and that change is the founder's.
-This file proposes a shape for review; it decides nothing.
+**Status.** The receipt format that the hosted trust authority's signing builds
+on, and a document only. Nothing in it is built, keyed or signed. At main
+0.49.338 the engine and `.github/` hold no signing code (no `cosign`,
+`in-toto` or `DSSE` in either), and the authority that would sign is a design
+and a local mock (#504). On 2026-11-10 the founder decided this pull request
+("Land it as signing's base"), and his answer 8 on the hosted trust authority
+design (`docs/2026-11-09-trust-hosted-authority-design.md`, pull request #504,
+which was open when this was revised) was "Build and sign now". That brought
+signing forward from "Not before March". Its decision 5 names this mapping:
+the record is an in-toto Statement v1 with Felix's predicate in a DSSE
+envelope, and "which scheme Felix signs with follows PR 476's mapping and is
+open". Direction §5 still lists "DSSE receipts" under "Not before March", and
+the design asks for a row that says otherwise; this pull request does not edit
+`docs/direction.md`.
 
-Read at main `78f0268` (0.49.308, 2026-10-29). Every engine path below is at
-that commit. Outside sources were read on 2026-10-29 and are listed in §9.
+**What carries over, and what does not.** The format (§1, §2) and the
+landscape (§6) do not depend on where the signer runs. §3, the felix-home
+rows of §4 and the commands of §5 describe signing as a GitHub Actions job
+(a cloud KMS key reached by CI, or keyless Sigstore), which was the March
+proposal. The authority's design has a signer under a login of its own on the
+authority's machine, and no GitHub Actions job that signs. The design keeps
+main in the authority's own store and treats a forge as a connector, because
+the founder would not accept a design that depends on a GitHub plan. So those
+parts are the record
+of the CI path and of J's ruling on it. They are not the signing design, and
+where the authority's signer differs they give way to the design in #504.
+
+Read at main `78f0268` (0.49.308, 2026-10-29). Every engine path and every
+line number below is at that commit (`git show 78f0268:<path>`). The branch
+was brought up to main at 0.49.338 on 2026-11-12, and the files this document
+cites have moved since: `receipt.sh`, `verify.sh`, `escape.sh`, `bootstrap.sh`,
+`green-tick.sh` and `engine/harness/felix` changed, so line numbers there
+have drifted, and §1.3 says what changed in the gate receipt document.
+`epoch.sh`, `commission.sh`, `automerge.sh` and `gate.yml` did not change in
+that span. Outside sources were read on 2026-10-29 and are listed in §9.
 
 ## 0. The short version
 
@@ -19,21 +45,26 @@ that commit. Outside sources were read on 2026-10-29 and are listed in §9.
 - Signed, commit-bound receipts are not Felix's own. What is Felix's own is a
   receipt that names what its verdict rests on, so a reader can tell when it
   has gone stale. The predicate is built around that.
-- Signing happens in CI, in its own workflow, after CI has judged the head:
-  keyless for a public repository, or a cloud KMS key reached only by CI.
-  The enforcing path is defined by what a decision needs, and no deciding
-  step (the hooks, the gate, CI's judgment, `felix merge`, the land tick)
-  ever needs a key. J ruled on 10-29 that a CI only KMS key is off that path
-  on three conditions; §3.2 gives each and how it is checked.
+- This document proposed signing in CI, in its own workflow, after CI has
+  judged the head: keyless for a public repository, or a cloud KMS key
+  reached only by CI. That was the March proposal. The authority's design
+  (#504, rule 8) signs each kept record with a signer that is not the kernel,
+  after the fact, so that by its design nothing that decides reads or waits
+  on a signature. The
+  enforcing path is defined by what a decision needs, and no deciding step
+  (the hooks, the gate, CI's judgment, `felix merge`, the land tick) needs a
+  key. J ruled on 10-29 that a CI only KMS key is off that path on three
+  conditions; §3.2 gives each and how it was to be checked on the CI path.
 - felix-home is private on GitHub Free. Keyless signing on the public Sigstore
   instance would publish its identity, so felix-home gets no signed receipts
-  on public infrastructure. A CI only KMS key can sign them on its current
-  plan, once the three conditions of §3.2 hold. The main only pin lives in
-  the token's own claims and the signing job names no environment (J's
-  ruling of 10-31). If Free cannot set the token template on a private
-  repository, the pin moves into the KMS trust policy's own claim
-  conditions; if neither works, the key is on the path and felix-home stays
-  unsigned. Public repositories, starting with the Phase 4 replay
+  on public infrastructure. On the CI path, a CI only KMS key could sign them
+  on its current plan, once the three conditions of §3.2 hold. The main only
+  pin lives in the token's own claims and the signing job names no
+  environment (J's ruling of 10-31). If Free cannot set the token template
+  on a private repository, the pin moves into the KMS trust policy's own
+  claim conditions; if neither works, the key is on the path and felix-home
+  stays unsigned. Under #504 the signer is not in CI, and none of that
+  applies to it. Public repositories, starting with the Phase 4 replay
   repository, can sign keyless.
 - A signed receipt proves who signed which statement about which commit. It
   does not prove the gate was the right gate. Until the judge pin (roadmap
@@ -109,13 +140,25 @@ per machine, not per commit, so a CI runner has none and reports it absent.
 
 ### 1.3 The `felix.receipt/1` document
 
-`felix_receipt` (`engine/harness/lib/receipt.sh:91`), printed by `felix
-receipt` (`felix:4099`). JSON with `schema: "felix.receipt/1"`, a `status` of
-`verified`, `unverified`, `blocked` or `indeterminate`, an `unknown` list, a
+At 78f0268, `felix_receipt` (`engine/harness/lib/receipt.sh:91`), printed by
+`felix receipt` (`felix:4099`). JSON with `schema: "felix.receipt/1"`, a
+`status` of `verified`, `unverified`, `blocked` or `indeterminate`, an
+`unknown` list, a
 `verification.state` of `none`, `stale` or `current` read through
 `felix_verify_current`, risk, evidence, authority, and a `limits` object
 (`receipt.sh:269`). Its rule, "a receipt may not claim more than it knows",
 carries straight into the predicate below.
+
+**What changed on main since.** `receipt.sh` at 0.49.338 writes
+`felix.receipt/2` (0.49.327), not `/1`. Its `status` has six words: `checked`,
+`failed`, `evidence-owed`, `unchecked`, `blocked` and `indeterminate`. The old
+`verified` is now `checked`, and the old `unverified` is split three ways by
+what the gate did on this tree. The same file now adds `evidence` to `unknown`
+when a row of the evidence table could not be judged. The `limits` object is
+untouched by that change. This document does not map `status` into the
+predicate, so nothing in §2 moves, but a builder written from this document
+reads `/2` at main, and the "verified" and "unverified" of the paragraph above
+are the `/1` words.
 
 ## 2. What is Felix's own
 
@@ -132,8 +175,8 @@ tooling Felix does not write.
 ### 2.2 What is
 
 The same review names what nobody else documented: receipts "that go stale
-when a dependency changes". A signature cannot go stale; it is valid forever
-over the bytes it covers. So staleness has to live in the statement as data:
+when a dependency changes". A signature does not go stale on its own: it
+stays a signature over the bytes it covers. So staleness has to live in the statement as data:
 the statement names every input the verdict rested on, with its digest, and a
 verifier recomputes whichever of them it can reach. Section 1 shows Felix
 already records those inputs. The predicate below carries them, plus two
@@ -226,7 +269,7 @@ Illustrative only. Field names are proposals; values are placeholders.
 | `receipt.result`, `when`, `gateCommand` | gate fields 2, 3, 4 | As written. |
 | `receipt.engineVersion` | `engine/.claude-plugin/plugin.json` `version` | Not in the receipt today. |
 | `tree.felixTreeId` | gate field 1 | Felix's own hash, so it gets its own algorithm label and is never put in `digest`, which in-toto reserves for named algorithms. `git hash-object` is SHA-1 here, which is one more reason the subject uses `gitCommit` and this stays inside the predicate. |
-| `tree.gitTree`, `tree.clean` | `git rev-parse HEAD^{tree}` | `gate.yml` already prints this as the "gated tree" notice. On a clean CI checkout the tree id is a function of the commit alone, so `clean: true` is what lets a verifier trust `gitCommit` as the thing judged. A Mac receipt over uncommitted edits is never signed (§3). |
+| `tree.gitTree`, `tree.clean` | `git rev-parse HEAD^{tree}` | `gate.yml` already prints this as the "gated tree" notice. On a clean CI checkout the tree id is a function of the commit alone, so `clean: true` is what lets a verifier trust `gitCommit` as the thing judged. A Mac receipt over uncommitted edits is not what is signed (§3.3 on the CI path; #504 signs the authority's record of a landing). |
 | `checks.reported`, `checks.skipped` | gate fields 6 and 5 | Split from `name:verdict` pairs. Their limit travels with them: a check that runs without printing a line is not here (`verify.sh` comment above `felix_verify_record`). |
 | `obligationSet.policyVersion` | component 3 | Covers all twelve tables at once. |
 | `obligationSet.obligations.digest.gitBlob` | `git rev-parse <commit>:projects/<p>/obligations.tsv` | Not recorded today: the obligation set is folded into the policy hash. Derivable from the commit, so a verifier with the repository can check it. See open question Q2. |
@@ -235,7 +278,7 @@ Illustrative only. Field names are proposals; values are placeholders.
 | `judge.engineCommit` | the engine commit CI ran | An interim provenance fact, not a pin. On felix-home it equals the subject commit, which is exactly the self-judging case the pin exists to end. |
 | `commission.*` | the gate's `commission` line and component 3 | The commission receipt is per machine. A CI runner has none, so the CI statement carries what the gate reported, not a Mac's receipt. See Q4. |
 | `staleWhen` | `felix_verify_current` and `felix_commission_receipt_valid` | Canonical snake_case codes for the reasons those functions print today as sentences. See §2.5. |
-| `limits` | `receipt.sh:269`, plus one line | The first two are carried verbatim from `felix.receipt/1`. |
+| `limits` | `receipt.sh:269`, plus one line | The first two are carried verbatim from `felix.receipt/1`; `/2` left `limits` as it was. |
 
 ### 2.5 Staleness as codes
 
@@ -261,8 +304,8 @@ And for the commission receipt, from `felix_commission_receipt_valid`:
 
 Two of the rows above merge two sentences into one code. Whether they should
 stay separate is Q5. Whichever way it goes, the codes become a contract once
-signed: in March they get a test for the mapping from each sentence and a
-test that the set does not drift.
+signed: before the first record is signed they get a test for the mapping
+from each sentence and a test that the set does not drift (§7, step 1).
 
 ### 2.6 What a verifier can and cannot recompute
 
@@ -283,6 +326,20 @@ reads.
   signature and the commit, and must take the policy hash on trust.
 
 ## 3. Where the key lives
+
+**Read this section as the CI path.** It answers where the key lives if a
+GitHub Actions job signs, which was the proposal for March. The authority's
+design (#504, rule 8 and decision 5) puts the signer under a login of its own
+on the authority's machine, the key made there, its public half a founder
+path, and the signature made after the fact so that, by its design, nothing
+that decides reads it. That design does not pass through this section's `sign.yml`, OIDC
+token, KMS trust policy or Fulcio certificate. What survives it is the
+definition in §3.1 and the rule behind J's three conditions: no deciding step
+reads or waits on the signature. §3.2 and §3.3 stay as the record of the CI
+path, of J's rulings on it, and of the review that shaped them, for a
+connector that signs from a forge's CI. Nothing in them says a key exists.
+"March" in §3, §4 and §5 is the date those steps were proposed for, when this
+was written; #504 schedules none of them.
 
 ### 3.1 What "the enforcing path" means here
 
@@ -309,9 +366,9 @@ that needs a key in order to decide**. It does not mean "a key on the Mac".
 
 J ruled on 2026-10-29 that a cloud KMS key that only CI can reach is off the
 enforcing path on three conditions, and that if any one fails, the key is on
-the path. On 2026-10-31 he ruled how condition 3 is met. This reading goes
-into `docs/direction.md` when receipts come forward in March; it is recorded
-here only, and direction is untouched by this pull request.
+the path. On 2026-10-31 he ruled how condition 3 is met. `docs/direction.md`
+§5, under "Not before March", now records this reading in brief. This pull
+request does not edit direction.
 
 **Condition 1. Nothing that decides reads or waits on the signature.** Not
 the gate, CI's judgment, `felix merge` or the land tick. If KMS is down,
@@ -518,8 +575,10 @@ the key; only the judge pin keeps it away from the verdict.
 
 ## 4. Private repositories
 
-**felix-home.** Private since 10-24 (`docs/direction.md` §6), on GitHub Free
-(J, 10-29). Three facts decide it:
+**felix-home.** Private, on GitHub Free (J, 10-29). `docs/direction.md` §6
+says the founder made it private on 10-30 at about 06:00Z, that a 10-24
+switch never took effect, and that it was public from 08-09. (This document
+first said private since 10-24.) Three facts decide the public Sigstore case:
 1. GitHub's artifact attestations on Free, Pro or Team are "only available
    for public repositories", and "To use artifact attestations in private or
    internal repositories, you must be on a GitHub Enterprise Cloud plan"
@@ -542,10 +601,10 @@ receipts stay as they are: unsigned, local, and current only by
 
 **Which repositories get receipts, and how:**
 
-| Repository | Receipts | How |
+| Repository | Receipts, proposed | How |
 |---|---|---|
-| A public repository Felix governs, first the Phase 4 public replay repository (roadmap Phase 4) | Signed | Keyless on the public Sigstore instance, logged in Rekor. Its identity is public already. |
-| felix-home | Signed with a CI only KMS key, from March | Never on public Sigstore. Only once all three conditions of §3.2 hold, checked as that section says, with the main only pin in the token template or else in the KMS trust policy's own claim conditions and no environment named; if neither pin can be set, the key is on the path and felix-home stays unsigned (Q1). |
+| A public repository Felix governs, first the Phase 4 public replay repository (roadmap Phase 4) | Signed, on the CI path | Keyless on the public Sigstore instance, logged in Rekor. Its identity is public already. |
+| felix-home | On the CI path: a CI only KMS key. Under #504: a record signed by the authority's signer. Nothing is signed today | Never on public Sigstore, on either path. On the CI path only once all three conditions of §3.2 hold, checked as that section says, with the main only pin in the token template or else in the KMS trust policy's own claim conditions and no environment named; if neither pin can be set, the key is on the path and felix-home stays unsigned (Q1). The authority's signer has its own conditions in #504 rule 8. |
 | LeavesJ/Felix (public) | None from this design | Publishing there is a founder stop (direction row 4); this doc proposes nothing for it. |
 | A customer's private repository | Signed only on their infrastructure | One of the three options below. |
 
@@ -566,7 +625,15 @@ receipts stay as they are: unsigned, local, and current only by
 
 ## 5. Verification
 
-For a public repository, the buyer runs:
+The commands below are for the CI path. They check a GitHub workflow's
+identity, which the authority's signer does not have. A record signed by the
+authority is checked against the public key the founder holds as a founder
+path in P (#504 decision 5), and which scheme made it is open there, so no
+command here is tested against it. The key form further down is the closest
+of the three. Of the two lists after the commands, "what it does not prove"
+holds for any signer; "what a passing check proves" is stated for the CI path.
+
+For a public repository on the CI path, the buyer runs:
 
 ```sh
 cosign verify-blob-attestation \
@@ -585,7 +652,7 @@ cosign verify-blob-attestation \
 `gitCommit` as the algorithm name is not confirmed; if it does not, the
 fallback is `--check-claims=false` (which, per cosign, verifies "only the
 DSSE envelope") followed by a `jq` check that `subject[0].digest.gitCommit`
-equals the commit. Testing that is the first March task (Q6). Then, for
+equals the commit. Testing that is Q6 (§7, step 5). Then, for
 staleness, `felix receipt verify` (not built) would recompute what §2.6 says
 can be recomputed and print the `staleWhen` codes that fire.
 
@@ -610,7 +677,7 @@ For a private repository on Enterprise Cloud, `gh attestation verify` with
 `--predicate-type` and `-R OWNER/REPO`, if GitHub's tooling accepts a commit
 subject; else the same cosign command against GitHub's trusted root (Q6).
 
-**What a passing check proves:**
+**What a passing check proves, on the CI path:**
 - this exact statement was signed by a certificate Fulcio issued to the
   signing workflow of that repository, in a run on `main` that a completed
   gate run started;
@@ -618,13 +685,13 @@ subject; else the same cosign command against GitHub's trusted root (Q6).
 - for a public repository, the signing was logged in Rekor at a time inside
   the certificate's 10 minutes.
 
-**What it does not prove:**
+**What it does not prove, whoever signs:**
 - that the gate was the right gate. The signer is the workflow, and the
   workflow ran whatever engine was on main. `judge.pinned: false` says this
   in the statement itself.
 - that the obligations were the right obligations, or complete. Admission
-  is a person's act (direction §3), and the 10-27 snapshot there counts 0 of
-  22 candidates admitted.
+  is a person's act (direction §3), and direction §2, as of 2026-11-12,
+  counts 22 candidates proposed and 0 admitted.
 - that the receipt is still current. The signature is permanent; staleness
   needs the recomputation in §2.6, and part of it (topology) cannot be
   recomputed by a buyer at all.
@@ -633,10 +700,12 @@ subject; else the same cosign command against GitHub's trusted root (Q6).
 
 ## 6. The landscape
 
-in-toto Statement v1 in a DSSE envelope is the most common choice among the
-projects that sign agent receipts. It is not a settled standard for them: no
-standards body has adopted an agent receipt format, and every project below is
-young and small. Star counts were read on the repository pages on 2026-10-29.
+in-toto Statement v1 in a DSSE envelope is what six of the ten rows below use
+for signed receipts. That counts what was found when this was read, not the
+field. It is not a settled standard for them: none of the sources read on
+2026-10-29 showed a standards body adopting an agent receipt format, and each
+project below had one star or none. Star counts were read on the repository
+pages on 2026-10-29.
 
 **The base layers.** The in-toto attestation framework defines the Statement
 (`_type` is "Always `https://in-toto.io/Statement/v1`"; each subject "MUST
@@ -699,41 +768,54 @@ appears only as a possible future "SCITT-style inclusion-proof profile".
    not to build on it. If it reaches a working group, Felix can emit a second
    envelope over the same predicate; nothing in §2 is tied to DSSE.
 
-## 7. What this asks of March
+## 7. What this asks of the build
 
-Nothing before March. In March, in this order, each as its own change:
-1. Q6 settled by a test: does cosign verify a `gitCommit` subject. Beside
-   it, the OIDC subject template set on felix-home and a real token's `sub`
-   read (§3.2, condition 3).
-2. The stale codes of §2.5 as a contract, with the mapping and drift tests.
-3. The predicate, written from the gate receipt by a builder that lives in
-   the signing workflow (§3.2, Q3).
-4. `sign.yml` and its reusable signing workflow, as a draft labelled
-   `needs-founder` (it touches `.github/workflows/`), with the checks §3.2
-   names for each condition, and the branch refusal test run before any
-   receipt is signed.
-5. The first signed receipt on the public replay repository, verified by the
-   §5 command from a clean machine.
+Nothing here is built. This list is what the format asks of whoever builds
+the authority's signing (#504 rule 8, decision 5), in an order that holds
+whichever scheme the signer uses. #504's own staged order (its §7) decides
+when each lands; none of these is scheduled here.
+1. The stale codes of §2.5 as a contract, with the mapping and drift tests.
+   This reads the gate receipt at main, which is `felix.receipt/2` (§1.3).
+2. The predicate, written from the gate receipt by a builder. Where it runs
+   is the authority's design to place: it has to sit with the signer, outside
+   the kernel, so that, by the authority's design, nothing that decides reads
+   it or waits on it. On the
+   CI path it was to live in the signing workflow (§3.2, Q3).
+3. The predicate type URI (Q7), chosen before the first record is signed,
+   since a signed statement carries it.
+4. The signing scheme, which #504 leaves open and which this document
+   proposes nothing for: DSSE (§6) signs the exact payload bytes and leaves the
+   key to the signer, so the envelope does not fix the scheme. What §5 can say about each
+   scheme is in §5.
+5. The verification command run from a clean machine on the first signed
+   record. If the scheme is Sigstore's or a cosign key, that includes Q6,
+   whether cosign verifies a `gitCommit` subject.
+6. Only if a connector signs from a forge's CI: `sign.yml` and its reusable
+   signing workflow, as a draft labelled `needs-founder` (it touches
+   `.github/workflows/`), with the checks §3.2 names for each condition and
+   the branch refusal test run before any receipt is signed.
 
 ## 8. Open questions
 
-Nothing waits on J now. Q1 is ruled, and Q7 waits for March. Q2, Q4 and
-Q5 are how questions: the March build decides them and writes down why. Q3
-is settled, and Q6 is a test.
+Nothing waits on J now. Q1 is ruled, and Q7 waits until the first record is
+to be signed. Q2, Q4 and Q5 are how questions: the build decides them and
+writes down why. Q3 is settled for the CI path, and Q6 is a test. The signing
+scheme is open in #504 and is not one of these seven.
 
-**Ruled by J, or held for March:**
+**Ruled by J, or held:**
 - **Q1, ruled 2026-10-29 and 2026-10-31.** A cloud KMS key that only CI
   can reach is off the enforcing path on the three conditions of §3.2, and
   on the path if any one fails. On 10-31 J ruled condition 3 as the token
   pin alone, with no environment, with the fallback into the KMS trust
   policy's own claim conditions, and felix-home unsigned if neither works.
-  The refusal test still runs before the first receipt. Into
-  `docs/direction.md` when receipts come forward in March, not now.
-- **Q7, waits for March.** The predicate type URI. It needs a stable base
-  Felix controls; this doc keeps `<FELIX_PREDICATE_BASE>`, and the address
-  gets chosen when receipts come forward.
+  The refusal test still runs before the first receipt on the CI path.
+  `docs/direction.md` §5 records the ruling in brief. #504 rule 8 carries
+  condition 1 into the authority's design.
+- **Q7, held.** The predicate type URI. It needs a stable base Felix
+  controls; this doc keeps `<FELIX_PREDICATE_BASE>`, and the address gets
+  chosen before the first record is signed.
 
-**For the March build:**
+**For the build:**
 - **Q2.** Whether the gate receipt records the obligation set's own digest
   (a ninth field), or deriving it from the commit is enough.
 - **Q3, settled.** The statement builder lives in the signing workflow,
@@ -743,12 +825,14 @@ is settled, and Q6 is a test.
   only rides inside the gate statement as the gate reported it.
 - **Q5.** Whether `epoch_absent` and `epoch_unreadable` stay one code each
   or split into the sentences they merge.
-- **Q6.** The cosign `gitCommit` test, run by the desktop session in March.
+- **Q6.** The cosign `gitCommit` test, run by a session before the first
+  signed record, if the scheme is one cosign verifies.
   The same run reads a live certificate's identity, which names the reusable
   signing file (§5).
-- **Reused pushes.** Sign the pull request's run receipt after the tree
-  check, or leave reused commits unsigned (§3.2, "Which commits get a signed
-  receipt").
+- **Reused pushes.** On the CI path: sign the pull request's run receipt
+  after the tree check, or leave reused commits unsigned (§3.2, "Which
+  commits get a signed receipt"). The authority signs each landing's record,
+  so the question takes another form there that #504 does not raise.
 
 ## 9. Sources
 

@@ -434,6 +434,7 @@ _gt_uninstall() {
   launchctl bootout "gui/$(id -u)/felix.land.$p" >/dev/null 2>&1 || true
   rm -f "$HOME/Library/LaunchAgents/felix.land.$p.plist" "$HOME/Library/Application Support/felix/land/$p/tick"
   rmdir "$HOME/Library/Application Support/felix/land/$p" 2>/dev/null || true
+  _dh_clear "$_GT_LAND"   # DW2.3: a lander that is gone deploys nothing, so no one waits for it
   _gt_row uninstalled - - - 0 "the job is disarmed: nothing lands unattended until felix land --install; $(_gt_by)"   # B25
   printf 'land on green is uninstalled for %s\n' "$p"
 }

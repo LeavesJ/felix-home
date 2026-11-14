@@ -1,4 +1,4 @@
-### 2026-11-09: the hosted trust authority, designed around Felix holding main and tried on a local mock (trust-plane step 4, documents only)
+### 0gf. 2026-11-09: the hosted trust authority, designed around Felix holding main and tried on a local mock (trust-plane step 4, documents only)
 
 **What this is.** The design for the hosted authority of design §4.8 and direction row 43, and a spike of the claims it rests on most. The founder answered its calls on 2026-11-09 and 11-10 (UTC), and the design was rewritten around his answer to the third. Nothing in `engine/` changes. Nothing was built at GitHub, and no login, account, repository, App, token, key or setting was made or changed.
 - The design is `docs/2026-11-09-trust-hosted-authority-design.md`. The measurement is `docs/2026-11-09-trust-hosted-authority-spike.md`. Both have a PDF in `docs/pdf/`.

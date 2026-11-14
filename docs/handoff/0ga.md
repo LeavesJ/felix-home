@@ -1,4 +1,4 @@
-### 2026-11-08: part 1495 compares two page runs with the ages they print put aside, so a minute boundary between the runs is not a failure (suite only, 0.49.335)
+### 0ga. 2026-11-08: part 1495 compares two page runs with the ages they print put aside, so a minute boundary between the runs is not a failure (suite only, 0.49.335)
 
 **What this is.** A flake in the test, not in `felix monitor`. On 2026-11-07 a full `felix gate` on main 4b3179ff went red on part 1495's "B9.41: and stdout is exactly what felix monitor --repo B prints with the real awk" (35 min against 45), because the Mac slept between the two runs. The part passed 85/85 alone. Branch `LeavesJ/practical-driscoll-e10880`; no engine code changed.
 

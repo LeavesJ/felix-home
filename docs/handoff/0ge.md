@@ -1,4 +1,4 @@
-### 2026-11-10: the founder's door is designed, its protocol tried on a mock, and his choice of surface recorded (trust step 4, documents only)
+### 0ge. 2026-11-10: the founder's door is designed, its protocol tried on a mock, and his choice of surface recorded (trust step 4, documents only)
 
 **What this is.** The mechanism the 11-09 hosted-authority design left open at its §5.5: how the founder gives his word to the authority. Two documents, `docs/2026-11-10-trust-door-design.md` and `docs/2026-11-10-trust-door-spike.md`, with their PDFs. Nothing in `engine/` changes and nothing is released. The 11-09 design is pull request 504's; this work cites it and does not depend on its merge. The mock and its logs are in the memory root, `audits/2026-11-10-trust-door/`.
 

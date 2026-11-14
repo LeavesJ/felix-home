@@ -8,12 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	af02125285bef1da92e382493ea6956f885d9d23	0.49.340
-run	286	17102	48
-D4: a unit that dies in its prelude, before @@prelude-done in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -	1
-R1: and once the record run after a unit that dies in its prelude, before @@prelude-done has exited no process of red's tree is left, stopped or running	1
-and landed on the shared home's cache, which this block does not read	1
-and the refresh the hook forked asked the claude for the catalogue	1
+base	origin/main	6451e295c09401020805fadb824369668a0348d1	0.49.342
+run	282	17328	48
 ts4 door 2.5, D12: a tick shows that branch escaped as the door does, names its first founder path in the order git lists them, and prints no control byte of the worker's	1
 ts4 door 3: a refusal is a line on the door's standard output	1
 ts4 door D10: with a lock that fails, the statement is kept, the lock was run, the door prints NOT LOCKED, and the exit status stays 0	1

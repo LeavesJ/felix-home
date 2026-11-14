@@ -1,4 +1,4 @@
-### 2026-11-09: the readers' merge detects no directory renames, as GitHub's merge does (S6.7, 0.49.337)
+### 0gc. 2026-11-09: the readers' merge detects no directory renames, as GitHub's merge does (S6.7, 0.49.337)
 
 **What this is.** A fix to the change readers' merge (`_felix_merge_refs`, `lib/resolve.sh`), on branch `claude/trust-merge-dir-renames`, found right after 0.49.336 (trust step 3, slice 3) landed. The finding and the spec are in the memory root, `audits/2026-11-08-trust-plane-step3/merge-dir-renames/`.
 

@@ -1,4 +1,4 @@
-### 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.341)
+### 0gj. 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.341)
 
 **What changed.** #482 rewrote the sentences the engine prints that said
 verified, unverified, proven or unproven (its contract counts them), and kept two kinds because each had

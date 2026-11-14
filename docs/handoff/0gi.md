@@ -1,4 +1,4 @@
-### 2026-11-13: step 1's pre-registered rerun ran, and the method does not advance (trust step 1, a measurement; nothing in the engine or the specification changes)
+### 0gi. 2026-11-13: step 1's pre-registered rerun ran, and the method does not advance (trust step 1, a measurement; nothing in the engine or the specification changes)
 
 **What this is.** The rerun that the trust-plane specification's revision 1 defers to (part 2 §5.4), asked for by step 1's report. It answers one question: whether the method as revised (a model for each need, spec oracles written blind, a review packet without findings) advances to the prospective trial of direction row 39. It was pre-registered on 2026-11-08 and run on 2026-11-13, 02:55Z to 10:42Z, from a folder outside the founder's home so that no agent in it saw Felix's memory index. The founder chose that day to run it ("Now, from a clean folder (Recommended)"). The pre-registration, ledger, frozen tools, cases, runs, scoring and report are in the memory root, `audits/2026-11-08-trust-plane-step1-rerun/`; the report is `report/step1-rerun-report.md`, with its PDF beside it.
 

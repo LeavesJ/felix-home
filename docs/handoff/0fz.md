@@ -1,4 +1,4 @@
-### 2026-11-08: the change readers' merge ignores the checkout's merge configuration (S6.6, 0.49.334)
+### 0fz. 2026-11-08: the change readers' merge ignores the checkout's merge configuration (S6.6, 0.49.334)
 
 **What this is.** A security fix on branch `claude/trust-merge-driver`, separate from trust step 3's slices.
 - The write-up is `docs/2026-11-08-trust-merge-driver.md`, with a PDF in `docs/pdf/`.

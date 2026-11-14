@@ -1,4 +1,4 @@
-### 2026-11-12: the budget row reads GitHub's usage report (stuck-PR spec R13, 0.49.340)
+### 0gh. 2026-11-12: the budget row reads GitHub's usage report (stuck-PR spec R13, 0.49.340)
 
 **What this is.** A fix to the `budget` source row of `felix land --prs`, on branch `LeavesJ/nostalgic-keller-e94a07`. The row had read `unread` since 2026-10-13 and blamed the token's scope. On 2026-11-10 the founder added the `user` scope and it still read `unread`: GitHub has retired `users/<owner>/settings/billing/actions` (HTTP 410). The spec is `audits/2026-10-01-report-v5-review/specs/stuck-pr/amendment-r13-budget-usage-report.md` in the memory root; it replaces section 4.4 and R2 of spec v2 for this row.
 

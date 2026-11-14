@@ -73,7 +73,9 @@ printf '\nthe evidence readers agree with the judge: a path that stands and is n
 #   cannot be judged, naming evidence.tsv" is a line of its output that names evidence.tsv and holds "not judged"
 #   or "cannot be judged". A5's extension reads "that row" as a line saying an evidence row was not judged (or
 #   cannot be), whichever row it names, so that C5's row, named unit, is the yes the reference case owes; it is
-#   one assertion a state, over R, C1, C3 and C5, named "A5 agreement, felix next".
+#   one assertion a state, over R, C1, C3 and C5, named "A5 agreement, felix next". Since 2026-11-14 the PATH is
+#   A25's /usr/bin:/bin behind $ERA/git, a directory holding only the git every other reader here runs; why is
+#   above _era_read.
 # - Amendment 4: felix brief reads, on stdin, an issue naming src/thing.js, as 1830 A33 drives it. Its section is
 #   the lines after the heading "what a fix must prove" up to the first blank line, as A4 reads incident's. C1's
 #   "no such section" is paired with the brief naming src/thing.js. A5's extension is "not judged" in that
@@ -357,6 +359,13 @@ _era_rr() {
 printf '%s\n' "$_era_trace" > "$ERA/trace.in"
 printf 'src/thing.js throws when it loads\n' > "$ERA/issue.in"
 mkdir -p "$ERA/home"
+# felix next runs under A25's narrowed PATH, which is there so that no claude CLI is found, and which also hands it
+# /usr/bin/git where every other reader here runs the suite's git. On a Mac /usr/bin/git is Xcode's shim, and from
+# an Xcode update until its licence is accepted it exits 69 on every call; felix next then says the base names
+# nothing and the tree has no gate receipt. In a full gate on 2026-11-14 that failed the nine next assertions of
+# R and C5: Xcode 27.2 was installed at 09:36:10Z, its licence accepted at 09:39:14Z, and the seven next calls ran
+# at 09:36:57Z to 09:37:58Z. So $ERA/git holds the suite's git alone, and next finds it before /usr/bin.
+mkdir -p "$ERA/git"; _era_git="$(type -P git)"; [ -z "$_era_git" ] || ln -sf "$_era_git" "$ERA/git/git"
 # READER...: the change at HEAD read by each READER (evidence classify receipt merge incident next brief d4) over
 # the base refs/heads/era-base at HEAD~1, after a green gate receipt and a fresh commission receipt (1830 A21).
 _era_read() {
@@ -373,7 +382,7 @@ _era_read() {
       merge)    _era_rr "felix merge --dry-run" both /dev/null "$FELIX" merge --base "$b" --dry-run; ERA_M="$ERA_O"
                 ERA_ML="$(printf '%s\n' "$ERA_M" | LC_ALL=C awk '$1 == "evidence"')" ;;
       incident) _era_rr "felix incident" both "$ERA/trace.in" "$FELIX" incident; ERA_I="$ERA_O" ;;
-      next)     _era_rr "felix next" both /dev/null env PATH="/usr/bin:/bin" HOME="$ERA/home" "$FELIX" next --base "$b"
+      next)     _era_rr "felix next" both /dev/null env PATH="$ERA/git:/usr/bin:/bin" HOME="$ERA/home" "$FELIX" next --base "$b"
                 ERA_N="$ERA_O" ;;
       brief)    _era_rr "felix brief" both "$ERA/issue.in" "$FELIX" brief --from - --title t; ERA_B="$ERA_O" ;;
       d4)       _era_rr "felix_receipt with lib/receipt.sh sourced alone" split /dev/null \

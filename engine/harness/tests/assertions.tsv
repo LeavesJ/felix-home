@@ -2597,6 +2597,85 @@
 1	D8: and its driver sources every part it holds once, in name order: 0001 to 0007, the stubs, then 9990 (control)
 1	D8: and leaves no run in the copy when it fails
 1	DEVLOG.md gets exactly the old entry: blank line, header with day branch sha, blank line, text
+1	DW1 (control): the hold felix gate meets is in force by DW1: one line, three fields, LEASE now, a version
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: FELIX_DEPLOY_HOLD=off skips the wait, saying nothing
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: FELIX_HOLD_PASSED=1 skips the wait, saying nothing
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: SINCE 150 s ago under FELIX_DEPLOY_HOLD_LIMIT=100
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: SINCE 3700 s ago, past the default limit of 3600
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a LEASE 120 s in the future
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a LEASE that is not a plain decimal integer
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a file beside land/, not in it
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a stale lease, 1300 s old
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: an empty file
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: an unreadable file (fail open)
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: four fields
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: the path is a directory
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: two fields
+1	DW1: a fresh hold (LEASE and SINCE now) is in force: felix gate waits
+1	DW1: in force, felix gate waits: FELIX_HOLD_PASSED set but empty does not skip it
+1	DW1: in force, felix gate waits: SINCE 150 s ago under FELIX_DEPLOY_HOLD_LIMIT=200
+1	DW1: in force, felix gate waits: a FELIX_DEPLOY_HOLD_LIMIT of 0 is read as 3600
+1	DW1: in force, felix gate waits: a LEASE 30 s in the future (within now + 60)
+1	DW1: in force, felix gate waits: one project's file garbled and another's in force (lease 1100 s old): any one in force holds the machine
+1	DW2.1: a fresh lease of main's version keeps SINCE and moves LEASE to now
+1	DW2.1: a hold for another version does not keep SINCE: SINCE now, VERSION main's
+1	DW2.1: a stale lease (1300 s) does not keep SINCE: SINCE is now
+1	DW2.1: past the limit the tick keeps refreshing LEASE with SINCE unchanged
+1	DW2.1: the tick asserts the hold: one line of three fields, LEASE now, SINCE = LEASE, VERSION main's
+1	DW2.3: a deploy that ends deploy-failed clears the hold
+1	DW2.3: a hold in force is cleared by the deployed row
+1	DW2.3: after felix land --pause, the tick clears the hold
+1	DW2.3: and the deployed row clears it
+1	DW2.3: the tick pausing (the home off main) clears the hold
+1	DW2.3: with no deploy owed the tick clears a hold in force
+1	DW2.4: and the row says the hold has lapsed
+1	DW2.4: its detail holds new suites and gates wait
+1	DW2.4: the row's first words are still a gate or suite is running
+1	DW2: nothing is signalled: the running suite is alive and caught no signal
+1	DW2: the file is written whole, a new file renamed over the old (its inode changes)
+1	DW3: a cycle in the table's parents does not hang the tick: it ends with its deploy-owed row naming the suite
+1	DW3: a marker for another memory root drops nothing: its suite is named and nothing is installed
+1	DW3: a ps that exits 1 (its table printed all the same), the ancestor counts as running: deploy-owed names it, nothing installed
+1	DW3: a ps that prints nothing, the ancestor counts as running: deploy-owed names it, nothing installed
+1	DW3: a ps whose lines do not parse, the ancestor counts as running: deploy-owed names it, nothing installed
+3	DW3: matched does not name a waiter or an ancestor of one
+3	DW3: matched names a pid that is no waiter nor ancestor of one (a suite, a waiter's child, one ps does not show)
+1	DW3: the tick reads the table once with ps -axo pid=,ppid=,command=
+1	DW3: waiters, their ancestors and a real suite listed: still one deploy-owed row (control)
+1	DW3: when every pid pgrep lists is a waiter or an ancestor of one, nothing runs and the tick deploys
+1	DW4 (control): the hold the part run meets is still in force by DW1 (SINCE in the future, LEASE now)
+1	DW4 rev 2: and its part runs, with FELIX_HOLD_PASSED=1 in its environment
+1	DW4 rev 2: tests/run --part under a hold goes straight on: no waiting line, nothing about a deploy on stderr
+1	DW4: a door that goes on exports FELIX_HOLD_PASSED=1 to the project's gate
+1	DW4: a full tests/run under a hold waits: its waiting line, no mktemp made, nothing on stdout
+1	DW4: a full tests/run with FELIX_DEPLOY_HOLD=off skips the wait and starts, saying nothing
+1	DW4: a full tests/run with FELIX_HOLD_PASSED=1 skips the wait and starts, saying nothing
+1	DW4: a full tests/run with no hold starts at once, saying nothing (control)
+1	DW4: and says nothing of a deploy on stderr (control)
+1	DW4: felix gate with arguments (--quick) waits too
+1	DW4: felix gate with no hold goes on at once: no wait, its gate runs (control)
+1	DW4: tests/run --record-assertions waits, before it makes anything
+1	DW4: tests/run --reuse waits, before it makes anything
+1	DW4: tests/run -j 2 waits, before it makes anything
+1	DW4: the tick's own felix gate --quick runs with FELIX_HOLD_PASSED=1
+1	DW4: then its gate runs, with FELIX_HOLD_PASSED=1 exported
+1	DW4: while it waits, felix gate's stdout is empty
+1	DW4: while it waits, the project's gate has not run
+1	DW5: a file still there but no longer in force (a stale lease) ends the wait as the hold lapsed
+1	DW5: and the waiting line says at most 2 s
+1	DW5: and then its gate runs
+1	DW5: bounded: with FELIX_DEPLOY_HOLD_LIMIT=2 and the hold still in force, it goes ahead saying the limit was reached
+1	DW5: nothing it said went to stdout
+1	DW5: once the file is gone it goes ahead within a few polls, saying went ahead after N s: the hold ended
+1	DW5: the first stderr line begins felix gate: waiting for the engine deploy
+1	DW5: the waiting line holds at most <LIMIT> s, 3600 by default
+1	DW5: the waiting line holds the hold's VERSION
+1	DW5: the waiting line names FELIX_DEPLOY_HOLD=off as the way past
+1	DW5: with FELIX_DEPLOY_HOLD_SAY=1 it says a still-waiting line holding the seconds waited
+1	DW6: a door that went ahead leaves no marker for its root
+1	DW6: a waiting felix gate has exactly one marker child, felix-deploy-hold-wait <its memory root> <its poll>
+1	DW6: a waiting tests/run keeps its command line (it matches the tick's pattern) and has one marker child for its root and poll
+1	DW6: when the waiting door is killed with KILL, its marker ends by itself within a few seconds
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_GRAPH_TAIL widens the window when someone needs it to
 1	FELIX_HARNESS_DIR holds lib/maintenance.sh, so it is an engine harness
@@ -10490,6 +10569,19 @@
 1	elenchus's push guard, two passing at once: the runs overlapped
 1	eleven rows now
 1	emits the documented UserPromptSubmit shape
+1	end to end: a new full suite does not run: its waiting line on stderr, no mktemp, nothing on stdout
+1	end to end: a tick while both are there still names the running suite
+1	end to end: a wrapper of that shape around the copy's tests/run is a process the tick's pgrep lists (control)
+1	end to end: and drops the waiter's wrapper, still there and an ancestor of a waiter
+1	end to end: and its suite runs, FELIX_HOLD_PASSED=1 inherited by its part
+1	end to end: and once it has gone ahead no marker for the tick's root is left
+1	end to end: and the hold is asserted, in force by DW1 (LEASE now, VERSION main's)
+1	end to end: it refreshes LEASE and keeps SINCE
+1	end to end: once the running suite has ended, the tick deploys and clears the hold
+1	end to end: the waiter goes ahead, saying went ahead after N s: the hold ended
+1	end to end: the waiter says it is still waiting
+1	end to end: the waiting door keeps its command line and has one marker child for the tick's root
+1	end to end: with a deploy owed, the running suite (a real process) is matched: one deploy-owed row naming its pid (control)
 1	engine/harness/felix turns off the options a caller's SHELLOPTS can turn on, stops exporting SHELLOPTS and BASHOPTS, records the caller's CDPATH unexported and unsets all sixteen names, or one of them reaches what the engine runs
 1	entries older than a day do not count
 1	envelope path values are gone from the tokens
@@ -15690,7 +15782,12 @@
 1	the terminal fixture: the ledger's two details and the paused reason hold ESC (fixture control)
 1	the terminal fixture: the second checkout's directory name and origin URL hold a tab, and origin/HEAD names main (fixture control)
 1	the tests check is behind the verifier confine
+1	the tests/run door's fixture: _suite_copy_tree made a copy of this suite with the planted part (control)
 1	the third field is the epoch the answer file named
+1	the tick fixture: _dw_named reads pid 40010 before a semicolon or at the end as named, and pid 4001 or 400100 as not (control)
+1	the tick fixture: a deploy owed and a suite running: one deploy-owed row, nothing installed (control)
+1	the tick fixture: a deploy owed and nothing running, the tick deploys: one deployed row, one install (control)
+1	the tick fixture: just deployed, a suite running: no deploy is owed, no deploy-owed row, no install (control)
 1	the topology is back once the ignored file is gone
 1	the trap says the remotes moved while the run ran, never that the run moved them
 1	the tree holds only the marker beside what was there
@@ -15756,6 +15853,7 @@
 1	this engine's reader takes neither a leading no-break space, an ideographic space nor a lead byte as part of a tidy grant
 1	this engine's reader takes neither tidy and a Shift-JIS ideographic space, tidy and a file separator, nor tidy. as a grant, under C or UTF-8
 1	this engine's version is above origin/main's when this tree holds commits origin/main lacks
+1	this part leaves no process of its own running (control)
 1	this repository's every table is declared and accepted
 1	this session's catch prompts after its checkout moves to another branch
 1	this session's catch seen from outside git is settled by its own row

@@ -48,6 +48,13 @@ beyond these eight, he is asked again.
 stop on its rows, though its header says each row is a person's judgment,
 reviewed in the pull request that adds it.
 
+After main at 0.49.345 was merged in (`a47d78ff`), a preview cut with these
+acknowledgements again read "98 acknowledged, none open", and the secret scan
+found nothing new. The snapshot session's separate audit then read the 47
+files that changed since the 0.49.340 preview: no address, no path from this
+machine, no session id or worktree name, and the founder's name only as the
+author. That is one run, over the names it searches for.
+
 **Next.** Once this lands, run `snapshot.sh` from the home on main (it runs the
 suite on the snapshot). Audit what differs from the staged preview, test the
 install in a scratch HOME, and open the public pull request, merged with

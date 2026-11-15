@@ -9646,14 +9646,14 @@
 1	b12 A42 control (B12): unset, it lists SessionEnd
 1	b12 A43 (B13): no line outside the six named files reads $HOME/.claude without CLAUDE_CONFIG_DIR
 1	b12 A44 (B13): the lint's scanner counts x="$HOME/.claude/y" and skips the comments and ${CLAUDE_CONFIG_DIR:-$HOME/.claude} (control)
-1	b12 A45 (B22): https://github.com/acme/webapp.git binds webapp, not web, whose acme/web it only begins with
+1	b12 A45 (B22): https://github.com/acme/website.git binds website, not web, whose acme/web it only begins with
 1	b12 A46 (B22): git@github.com:acme/web.git binds web (control)
-1	b12 A47 (B22): ssh://git@github.com/acme/webapp.git binds webapp, not web
-1	b12 A48 (B22): https://github.com/LeavesJ/Elenchus-docs.git binds nothing, though LeavesJ/Elenchus begins it
-1	b12 A49 (B22): a lowercase clone, https://github.com/leavesj/elenchus.git, binds el
+1	b12 A47 (B22): ssh://git@github.com/acme/website.git binds website, not web
+1	b12 A48 (B22): https://github.com/Acme/Atlas-docs.git binds nothing, though Acme/Atlas begins it
+1	b12 A49 (B22): a lowercase clone, https://github.com/acme/atlas.git, binds el
 1	b12 A5 (B3): and felix_exceptions_judge prints refused, ob1, LIVE, the-founder, not honoured:, its why naming fetch
-1	b12 A50 (B22): https://github.com/LeavesJ/Elenchus.git binds el (control)
-1	b12 A51 (B22): an origin carrying userinfo before github.com/LeavesJ/Elenchus binds el (control)
+1	b12 A50 (B22): https://github.com/Acme/Atlas.git binds el (control)
+1	b12 A51 (B22): an origin carrying userinfo before github.com/Acme/Atlas binds el (control)
 1	b12 A52 (B22): https://gitlab.example/acme/api-gateway.git binds nothing, though gl's https://gitlab.example/acme/api begins it
 1	b12 A53 (B22): https://gitlab.example/acme/api.git binds gl (control)
 1	b12 A54 (B22): git@gitlab.example:team/svc.git binds s1, team/svc anchored after a colon (control)
@@ -9661,7 +9661,7 @@
 1	b12 A56 (B22): https://gitlab.example/xteam/svc.git binds nothing: team/svc after an x is not anchored
 1	b12 A57 (B22): https://example.invalid/pcwd-remote.git binds ex (control)
 1	b12 A58 (B22): https://github.com/acme/dup.git binds nothing, dup1 and dup2 tying on acme/dup
-1	b12 A59 (B22): a checkout whose .felix names web binds web, its origin acme/webapp notwithstanding (control)
+1	b12 A59 (B22): a checkout whose .felix names web binds web, its origin acme/website notwithstanding (control)
 1	b12 A6 (B4): and felix_obligations_run prints column 8 as -
 1	b12 A60 (B23): on the tie, felix_binding_broken prints a sentence naming dup1 and dup2 and remote_match
 1	b12 A61 (B23): on the tie, session-start with a startup payload says binding broken
@@ -9701,7 +9701,7 @@
 1	b12 A90 (B41): with the home's origin at srvq/other, both grants are doubted and both judge whys name remote_match (control)
 1	b12 A91 (B34): after the failed printf, a naive resolver reading pwd -P inside $( ) gives a root that is not the top level, as the probe reads it
 1	b12 A92 (B39): in h1, acme/web.git, git@github.com:acme/web.git and https://github.com/acme/web bind webgit, declared as acme/web.git
-1	b12 A93 (B39): in h1, acme/webapp.git binds webapp and acme/web-docs.git binds nothing (control)
+1	b12 A93 (B39): in h1, acme/website.git binds website and acme/web-docs.git binds nothing (control)
 1	b12 A94 (B39): h2's acme/web/ binds acme/web/ and acme/web.git, and h3's gitlab remote_match ending in / binds svc.git and svc/
 1	b12 A95 (B39): in h4, acme/web and acme/web.git tie: nothing is bound, and the sentence names w1, w2 and remote_match
 1	b12 A96 (B39): in h1, felix_binding_broken on the acme/web.git checkout prints nothing, exits 0 and records webgit

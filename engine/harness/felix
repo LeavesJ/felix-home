@@ -2051,7 +2051,7 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0 nopol=0 prov=0 suite=0 inst=0
+    local kind subject reason esc=0 unk=0 nogit=0 unread=0 stamp=0 table=0 owed=0 nopol=0 prov=0 suite=0 inst=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
@@ -2072,6 +2072,8 @@ cmd_merge() {
         # A change git could not read to the end, by its pseudo-path
         # (2026-10-08), is not a base that names nothing.
         unknown:ADDED-LINES|unknown:CHANGED-PATHS) unread=1 ;;
+        # A git that could not run (2026-11-14), by its pseudo-subject, is not one either.
+        unknown:GIT)        nogit=1 ;;
         unknown:*)          unk=1 ;;
         commission:receipt) stamp=1 ;;
         commission:table)   stamp=1; table=1 ;;
@@ -2122,7 +2124,9 @@ EOF
     # the tree" after a scan that never ran would move the false all-clear from
     # the verdict into the explanation and leave it just as wrong. Nothing was
     # compared, so nothing can be said about what escapes.
-    if [ "$unk" -eq 1 ]; then
+    if [ "$nogit" -eq 1 ]; then
+      :   # A git that could not run (2026-11-14) is said last, below, and in place of the all-clear.
+    elif [ "$unk" -eq 1 ]; then
       printf '\nNothing was compared, so nothing above is a finding about this branch.\n'
       printf 'The base names nothing this repository holds — check --base, or the\n'
       printf 'default branch, which is not `main` everywhere. This says nothing\n'
@@ -2196,7 +2200,7 @@ EOF
       printf 'commission for itself, so a green gate does not clear this.\n'
     fi
     # A policy line is never a finding about the branch: nothing judged it.
-    if [ "$nopol" -eq 1 ] && [ "$unk" -eq 0 ]; then
+    if [ "$nopol" -eq 1 ] && [ "$unk" -eq 0 ] && [ "$nogit" -eq 0 ]; then
       printf '\nNo authorized version of this project'"'"'s policy judged the branch: the\n'
       printf 'policy line above says why. Its tables, and the instruments they name, are\n'
       printf 'read from the base and never from this checkout, so nothing here stands in\n'
@@ -2209,7 +2213,13 @@ EOF
       printf 'is the one GitHub would squash onto, and run this again.\n'
     fi
     [ -z "$instnote" ] || printf '\n%s\n' "$instnote"
-    if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ] && [ "$inst" -eq 0 ] && [ "$suite" -eq 0 ]; then
+    # Last, so it is what the reader is left with: the scan never ran, so no line
+    # here may say the rest escapes nothing, and the merge is judged again once git runs.
+    if [ "$nogit" -eq 1 ]; then
+      printf '\ngit could not run here, so the escape scan compared nothing; the unknown row\n'
+      printf 'above gives its exit status. This says nothing about whether the change\n'
+      printf 'escapes the tree; that was never asked. Make git run here, then run this again.\n'
+    elif [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ] && [ "$inst" -eq 0 ] && [ "$suite" -eq 0 ]; then
       if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
         printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
         printf 'write the test that is missing, then run this again.\n'

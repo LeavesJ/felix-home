@@ -876,6 +876,17 @@ felix_base_resolves() {
   return 1
 }
 
+# The subject a row names a base by: the base as given, or in double quotes
+# when it is spelled as one of the pseudo-subjects the rows' readers branch on
+# (GIT, CHANGED-PATHS, ADDED-LINES, SUITE). A base that names nothing and is
+# spelled GIT read as a git that could not run, to every reader that tells the
+# two apart by subject (review of 2026-11-14), and CHANGED-PATHS as a change
+# git could not read. Quoted, it is a base again, and a quoted name can be no
+# pseudo-subject.
+felix_base_subject() {
+  case "${1:-}" in GIT|CHANGED-PATHS|ADDED-LINES|SUITE) printf '"%s"' "$1" ;; *) printf '%s' "${1:-}" ;; esac
+}
+
 # Does git run here at all? 0 when `git --version` exits 0, the first git on
 # PATH run in this environment, as every other call runs it. Otherwise 2, and
 # a first argument names a variable that then holds the clause the readers

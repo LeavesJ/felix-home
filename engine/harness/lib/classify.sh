@@ -179,7 +179,7 @@ felix_classify_diff() {
       0) ;;
       2) printf 'unknown\tGIT\t%s, so the base %s was not looked up and nothing was compared\n' "$gwhy" "$base"
          return 0 ;;
-      *) printf 'unknown\t%s\tthis base names nothing here, so nothing was compared\n' "$base"
+      *) printf 'unknown\t%s\tthis base names nothing here, so nothing was compared\n' "$(felix_base_subject "$base")"
          return 0 ;;
     esac
   fi

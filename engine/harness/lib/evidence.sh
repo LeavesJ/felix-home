@@ -458,7 +458,7 @@ felix_evidence_check() {
       0) ;;
       2) printf 'unknown\tGIT\t%s, so the base %s was not looked up and no rule was consulted\n' "$gwhy" "$base"
          return 0 ;;
-      *) printf 'unknown\t%s\tthis base names nothing here, so no rule was consulted\n' "$base"
+      *) printf 'unknown\t%s\tthis base names nothing here, so no rule was consulted\n' "$(felix_base_subject "$base")"
          return 0 ;;
     esac
   fi

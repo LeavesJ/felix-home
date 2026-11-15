@@ -860,10 +860,41 @@ felix_unresolved_log() {
 # An empty base is not a failure to resolve one. felix_changed_paths has always
 # taken it to mean "no branch comparison, working tree only", and callers rely
 # on that; deciding it is unknown would break every one of them.
+#
+# Status 2 is a lookup that failed because git could not run (felix_git_runs),
+# and a third argument names a variable that then holds why. A git that never
+# ran says nothing about the base: on 2026-11-14 an Xcode update left
+# /usr/bin/git exiting 69 until its licence was accepted, and every reader of a
+# 1 here printed "this base names nothing here" about a ref that existed. A
+# caller that only asks whether it resolved reads 2 as it read 1. The locals
+# are prefixed so that the variable a caller names is never one of them.
 felix_base_resolves() {
-  local root="${1:-}" base="${2:-}"
-  [ -n "$root" ] && [ -n "$base" ] || return 1
-  git -C "$root" rev-parse --verify "$base^{commit}" >/dev/null 2>&1
+  local _fbr_root="${1:-}" _fbr_base="${2:-}"
+  [ -n "$_fbr_root" ] && [ -n "$_fbr_base" ] || return 1
+  git -C "$_fbr_root" rev-parse --verify "$_fbr_base^{commit}" >/dev/null 2>&1 && return 0
+  felix_git_runs "${3:-}" || return 2
+  return 1
+}
+
+# Does git run here at all? 0 when `git --version` exits 0, the first git on
+# PATH run in this environment, as every other call runs it. Otherwise 2, and
+# a first argument names a variable that then holds the clause the readers
+# print: "git could not run here (git --version exited N)". Asked only after a
+# git call has already failed, so a git that works costs nothing.
+#
+# `--version` needs no repository, reads no configuration and touches no file,
+# so its failing is about git and nothing else. Apple's /usr/bin/git is a shim
+# that runs xcrun, and xcrun refuses every call while the Xcode licence is not
+# accepted (exit 69); a git missing from PATH is the shell's 127. What this
+# does not see: a git that answers --version and refuses everything else (a
+# missing git-core) reads as running, and a git that starts or stops running
+# between the failed call and this one is read as it is now.
+felix_git_runs() {
+  local _fgr_rc=0
+  git --version >/dev/null 2>&1 </dev/null || _fgr_rc=$?
+  [ "$_fgr_rc" -ne 0 ] || return 0
+  [ -z "${1:-}" ] || printf -v "$1" 'git could not run here (git --version exited %s)' "$_fgr_rc"
+  return 2
 }
 
 # The ref a base NAME should actually be compared against.

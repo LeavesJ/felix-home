@@ -1719,7 +1719,14 @@ closes #$issue"
   # reason given is the real one.
   # Since 2026-10-08 `unknown` is also a change git could not read to the end,
   # over a base that resolves, and the reason given must be the real one.
-  if [ "$tier" = "unknown" ] && felix_base_resolves "$root" "$cbase"; then
+  # And since 2026-11-14 `unknown` is a git that could not run at all, which is
+  # neither: felix_base_resolves says 2, and the reason is git's exit status.
+  local brc=0 gwhy=""
+  [ "$tier" != "unknown" ] || felix_base_resolves "$root" "$cbase" gwhy || brc=$?
+  [ "$brc" -ne 2 ] || die "$gwhy, so this change was not compared against '$base'.
+  There is no tier to put on it, so no pull request was opened. Make git run
+  here, then run this again."
+  if [ "$tier" = "unknown" ] && [ "$brc" -eq 0 ]; then
     die "git could not read this change to the end ($(felix_change_why "$root" "$cbase")).
   There is no tier to put on it, so no pull request was opened. Fix what git
   names, then run this again."
@@ -1885,9 +1892,13 @@ cmd_merge() {
   # carries it, and an expression such as `main~1` is read by git in its
   # short-name order, where a tag called main comes first. The report-only
   # readers can live with that; the command that judges and merges cannot.
-  local given="$base"
-  base="$(felix_base_ref "$root" "$base" 2>/dev/null)" \
-    || _felix_merge_die "$dry" "$proj" "$named" usage "felix: cannot tell which commit '$given' names in this repository (as a remote-tracking branch, a local branch or a revision), so there is no base to merge against. Fetch the remote, or name a base that exists with --base."
+  local given="$base" gwhy=""
+  # A git that could not run says nothing about which commit the base names (2026-11-14), so it is said first.
+  base="$(felix_base_ref "$root" "$base" 2>/dev/null)" || {
+    felix_git_runs gwhy \
+      || _felix_merge_die "$dry" "$proj" "$named" usage "felix: $gwhy, so which commit '$given' names in this repository was not looked up, and there is no base to merge against. Make git run here, then run this again."
+    _felix_merge_die "$dry" "$proj" "$named" usage "felix: cannot tell which commit '$given' names in this repository (as a remote-tracking branch, a local branch or a revision), so there is no base to merge against. Fetch the remote, or name a base that exists with --base."
+  }
   case "$base" in
     refs/*) git check-ref-format "$base" >/dev/null 2>&1 \
               || _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' is an expression that begins with refs/, not a ref name, and felix merge takes only a ref name that exists: git reads an expression such as refs/heads/x~0 through its short-name order, where a tag called refs/heads/x answers first. Name the ref itself with --base." ;;
@@ -4250,7 +4261,10 @@ cmd_evidence() {
     printf '\nNothing was compared, so nothing above is a finding about this change.\n'
     # The row says which of two (2026-10-08): CHANGED-PATHS is a change git
     # could not list, over a base that resolves, and its reason quotes git.
-    if grep -q '^unknown	CHANGED-PATHS	' <<<"$results"; then
+    # And GIT (2026-11-14) is a git that could not run at all; the row gives its exit status.
+    if grep -q '^unknown	GIT	' <<<"$results"; then
+      printf 'git could not run here; make it run, then run this again.\n'
+    elif grep -q '^unknown	CHANGED-PATHS	' <<<"$results"; then
       printf 'git could not list all of it; fix what git names, then run this again.\n'
     else
       printf 'Check --base, or the default branch, which is not `main` everywhere.\n'
@@ -4569,7 +4583,15 @@ $1"; shift ;;
   if [ -z "$(printf '%s' "$paths" | LC_ALL=C tr -d '[:space:]')" ]; then
     from_diff=1
     base="${base:-main}"
-    felix_base_resolves "$root" "$base" || {
+    local brc=0 gwhy=""
+    felix_base_resolves "$root" "$base" gwhy || brc=$?
+    # A git that could not run names no base and is not a typo (2026-11-14).
+    if [ "$brc" -eq 2 ]; then
+      printf '%s, so nothing was compared and no\n' "$gwhy"
+      printf 'tier can be given. Make git run here, then scope it.\n'
+      return 1
+    fi
+    [ "$brc" -eq 0 ] || {
       printf 'The base %s names nothing here, so nothing was compared and no tier\n' "$base"
       printf 'can be given. Name a branch or commit this checkout has.\n'
       return 1
@@ -4665,7 +4687,16 @@ cmd_classify() {
     done
     # The same tier since 2026-10-08 for a change git could not read to the
     # end over a base that resolves; the rows above say which, and so does this.
-    if felix_base_resolves "$root" "$base"; then
+    # Since 2026-11-14 also a git that could not run at all (status 2).
+    local brc=0
+    felix_base_resolves "$root" "$base" || brc=$?
+    if [ "$brc" -eq 2 ]; then
+      printf '\nNothing was compared. This is not a green change and not a risky one; git\n'
+      printf 'could not run here, and the unknown row above says how it exited. Make git\n'
+      printf 'run, then run this again.\n'
+      return 1
+    fi
+    if [ "$brc" -eq 0 ]; then
       printf '\nNot classified. This is not a green change and not a risky one; git\n'
       printf 'could not read all of it, and the unknown row above quotes why. Fix what\n'
       printf 'git names, then run this again.\n'

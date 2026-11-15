@@ -342,9 +342,19 @@ felix_escapes() {
   # it, so nothing can demote it, and neither `reviewed` nor a confine clause
   # reaches it. Callers must route it away from the founder — it is a typo, not
   # a decision about writing outside the tree.
-  if [ -n "$base" ] && ! felix_base_resolves "$root" "$base"; then
-    printf 'unknown\t%s\tthis base names nothing here, so nothing was scanned; no channel was consulted\n' "$base"
-    return 0
+  #
+  # A git that could not run is the same unanswerable scan and not the same
+  # typo (2026-11-14), so its row is named GIT and says so, with git's status.
+  if [ -n "$base" ]; then
+    local brc=0 gwhy=""
+    felix_base_resolves "$root" "$base" gwhy || brc=$?
+    case "$brc" in
+      0) ;;
+      2) printf 'unknown\tGIT\t%s, so the base %s was not looked up and nothing was scanned; no channel was consulted\n' "$gwhy" "$base"
+         return 0 ;;
+      *) printf 'unknown\t%s\tthis base names nothing here, so nothing was scanned; no channel was consulted\n' "$base"
+         return 0 ;;
+    esac
   fi
 
   # A change git could not read to the end is unknown, on the same reserved

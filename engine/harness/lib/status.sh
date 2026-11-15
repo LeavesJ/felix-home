@@ -348,7 +348,7 @@ _felix_status_icloud() {
 # A receipt that cannot be checked without writing the real index is not
 # checked: empty output, which the caller reads as unknown.
 _felix_status_verify() {
-  local root="$1" home="$2" proj="$3" idx tmp="" out
+  local root="$1" home="$2" proj="$3" idx tmp="" out rc=0
   if [ -n "$(felix_verify_receipt "$root" "$home" 2>/dev/null)" ]; then
     idx="$(git -C "$root" rev-parse --git-path index 2>/dev/null)"
     case "$idx" in /*|'') ;; *) idx="$root/$idx" ;; esac
@@ -358,19 +358,19 @@ _felix_status_verify() {
     fi
   fi
   if [ -n "$tmp" ]; then
-    out="$(GIT_INDEX_FILE="$tmp"; export GIT_INDEX_FILE; felix_verify_current "$root" "$home" "$proj" 2>/dev/null)"
+    out="$(GIT_INDEX_FILE="$tmp"; export GIT_INDEX_FILE; felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" || rc=$?
     rm -f "$tmp"
   else
-    out="$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)"
+    out="$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" || rc=$?
   fi
-  printf '%s' "$out"
+  printf '%s' "$out"; return "$rc"   # its status too: 2 is a git that could not run, and that row is unknown (2026-11-14)
 }
 
 # felix_verify_current's answer for the checkout: current, stale with its reason,
 # red, or none-run when no gate has recorded a receipt here; no-gate when the
 # project declares none, which is not a gate that has not run.
 _felix_status_gate() {
-  local root="$1" home="$2" proj="$3" v kind reason pj="$3/project.json" tab=$'\t'
+  local root="$1" home="$2" proj="$3" v kind reason pj="$3/project.json" tab=$'\t' vrc=0
   if [ -z "$proj" ]; then
     _felix_status_row gate none - "this directory is not a governed checkout"; return 0
   fi
@@ -384,13 +384,13 @@ _felix_status_gate() {
     _felix_status_row gate value no-gate "${proj##*/} declares no gate in $pj: the Stop hook checks no stop here; set \"gate\" there"; return 0
   fi
   _felix_status_need felix_verify_current verify
-  v="$(_felix_status_verify "$root" "$home" "$proj")"
+  v="$(_felix_status_verify "$root" "$home" "$proj")" || vrc=$?
   kind="${v%%$tab*}"; reason="${v#*$tab}"
   [ "$reason" != "$v" ] || reason=""
   case "$kind" in
     current) _felix_status_row gate value current "-" ;;
     red)     _felix_status_row gate value red "the last gate run here was red" ;;
-    stale)   _felix_status_row gate value stale "${reason:-the receipt is not current}" ;;
+    stale)   if [ "$vrc" -eq 2 ]; then _felix_status_row gate unknown - "$reason"; else _felix_status_row gate value stale "${reason:-the receipt is not current}"; fi ;;
     none)    _felix_status_row gate value none-run "no gate has run in this checkout" ;;
     *)       _felix_status_row gate unknown - "the receipt could not be read" ;;
   esac

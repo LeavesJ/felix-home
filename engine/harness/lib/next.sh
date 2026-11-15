@@ -38,12 +38,15 @@ felix_next() {
   local tid receipt line kind subject reason
 
   # 1 — the change in hand.
-  local cur
-  cur="$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" || true
-  case "$cur" in
-    current) ;;
-    stale*)  _felix_next_row 1 felix "$(printf '%s' "$cur" | cut -f2 | sed 's/; run felix gate$//')" "felix gate" ;;
-    *)       _felix_next_row 1 felix "this tree has no green gate receipt" "felix gate" ;;
+  # Status 2 is a git that could not run (2026-11-14): the reason says so, and
+  # running the gate is no remedy until git runs.
+  local cur crc=0
+  cur="$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" || crc=$?
+  case "$crc:$cur" in
+    *:current) ;;
+    2:stale*) _felix_next_row 1 felix "$(printf '%s' "$cur" | cut -f2)" "make git run here, then run this again" ;;
+    *:stale*) _felix_next_row 1 felix "$(printf '%s' "$cur" | cut -f2 | sed 's/; run felix gate$//')" "felix gate" ;;
+    *)        _felix_next_row 1 felix "this tree has no green gate receipt" "felix gate" ;;
   esac
 
   # And the one thing that makes running that gate a waste of the minutes it
@@ -109,8 +112,13 @@ EOF
       # end, named by its pseudo-path rather than by a base. The reason quotes
       # git, and the remedy is whichever that names: a path back to a readable
       # file, an index rebuilt, or a base this branch shares history with.
+      # Since 2026-11-14 it also means git could not run at all, by the
+      # pseudo-subject GIT, and the reason gives git's exit status.
       if [ "$kind" = "unknown" ]; then
         case "$subject" in
+          GIT)
+            _felix_next_row 1 felix "$reason" \
+              "make git run here, then run this again" ;;
           ADDED-LINES|CHANGED-PATHS)
             _felix_next_row 1 felix "not scanned in full: $subject — $reason" \
               "fix what git names in that reason, then run this again" ;;

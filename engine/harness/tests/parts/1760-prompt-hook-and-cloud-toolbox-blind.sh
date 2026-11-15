@@ -311,8 +311,12 @@ _b7p_run() {   # NAME SOURCE MODE BUDGET|- [outside]: one run in the case's P, k
   B7P_SEC="$(( $(date +%s) - t0 ))"; B7PC="$c"; B7P_O="$(cat "$c/out" 2>/dev/null)"
   return 0
 }
+# Not blind: the public snapshot does not ship .claude/cloud, so where the
+# directory is absent each is skipped saying so, as part 2070 does. A directory
+# without its provision script is still bad.
 _b7p_is() {   # jq|any NAME GOT WANT
-  if [ ! -f "$B7PS" ]; then bad "$2" "no provision script at $B7PS"
+  if [ ! -d "${B7PS%/provision}" ]; then skip "$2" "no .claude/cloud beside this harness (the public snapshot does not ship it)"
+  elif [ ! -f "$B7PS" ]; then bad "$2" "no provision script at $B7PS"
   elif [ "$1" = jq ] && ! command -v jq >/dev/null 2>&1; then skip "$2" "jq is not on PATH, and provision reads the toolbox with jq"
   elif [ "$3" = "$4" ]; then ok "$2"
   else bad "$2" "expected [$4] got [$3]; exit [$B7P_RC] stdout [${B7P_O:0:400}] stderr [$(head -c 200 "$B7PC/err" 2>/dev/null)]"; fi

@@ -1,4 +1,4 @@
-### 2026-11-14: a git that cannot run is told apart from a base that names nothing and from a tree that changed (0.49.347)
+### 2026-11-14: a git that cannot run is told apart from a base that names nothing and from a tree that changed (0.49.349)
 
 **Scope.** How the readers of a base (`felix_base_resolves`) and of the gate receipt (`felix_verify_current`) say a git that could not run, and the sentences `felix merge` prints about it. The contract is `docs/2026-11-14-git-cannot-run-contract.md` (rev 3, GR1 to GR8). The other readers of a git failure are under Open and are not changed.
 

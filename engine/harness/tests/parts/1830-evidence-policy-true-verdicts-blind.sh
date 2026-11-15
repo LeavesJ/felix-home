@@ -11,7 +11,9 @@ printf '\nthe evidence policy gives true verdicts (audit b11, blind)\n'
 # - F2's change is committed by _stage (tests/lib/widget-repo.sh), as 0110's evidence section stages it,
 #   and undone by _reset. Every file it writes holds a line no earlier commit held, so _stage always
 #   commits. felix brief and felix incident read an issue and a trace, not a diff, so they take no --base.
-#   felix next runs with PATH and HOME as 0600 runs it, so no claude CLI and no real home is read.
+#   felix next runs with PATH and HOME as 0600 runs it, so no claude CLI and no real home is read. Since
+#   2026-11-15 the PATH is /usr/bin:/bin behind $B11/git, a directory holding only the suite's git; why is
+#   above A25.
 # - A21 runs felix merge --dry-run, which refuses on the same blockers and stops before gh, over a tree
 #   given a green gate receipt and a fresh commission receipt (_cm_stamp, part 0004), so the evidence row
 #   is the one blocker the fix adds. Its base is a branch at HEAD~1, as 0100's _mbase names one, under a
@@ -210,7 +212,11 @@ _b11_o="$(cd "$REPO" && "$FELIX" receipt --base HEAD~1 </dev/null 2>/dev/null)"
 is "b11 A24: felix receipt lists evidence as unknown, is indeterminate, is not autonomous, and names the row neither met nor gap" \
    "$(_b11_rcj "$_b11_o")" ok
 mkdir -p "$B11/home"
-_b11_o="$(cd "$REPO" && PATH="/usr/bin:/bin" HOME="$B11/home" "$FELIX" next --base HEAD~1 </dev/null 2>&1)"
+# /usr/bin:/bin keeps the claude CLI out of reach, and alone it would also hand felix next /usr/bin/git. On a Mac
+# that is Xcode's shim, which exits 69 on every call from an Xcode update until its licence is accepted; next then
+# reads HEAD~1 as naming nothing, and A25 and A26 fail. So $B11/git holds the suite's git alone, ahead of /usr/bin.
+mkdir -p "$B11/git"; [ -z "$(type -P git)" ] || ln -sf "$(type -P git)" "$B11/git/git"
+_b11_o="$(cd "$REPO" && PATH="$B11/git:/usr/bin:/bin" HOME="$B11/home" "$FELIX" next --base HEAD~1 </dev/null 2>&1)"
 _b11_cn "b11 A25: felix next gives Felix a row naming the row it could not judge and saying not judged" \
         "$_b11_o" 'index($0, "felix") && index($0, "unit") && index($0, "not judged")' 1+
 _b11_hl "b11 A26: and the gap row is unchanged (control)" "$_b11_o" '+the change owes evidence: code'

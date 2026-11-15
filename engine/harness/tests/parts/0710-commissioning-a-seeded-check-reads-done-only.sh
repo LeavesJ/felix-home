@@ -224,7 +224,12 @@ is  "and the fixture is restored to awaiting"  "$(_cmp constitution_audited)" "a
 # here. The commissioning block calls no cli, and that is what is asserted.
 rm -f "$_cmans" "$FROOT/state/commission/cmproj.seen"
 mv "$CMP/routes.tsv" "$CMP/routes.keep"
-_cmhook() { ( cd "$CMR" && PATH="${1:-$PATH}" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
+# A PATH given here is the stub's directory and /usr/bin:/bin, so that the only claude is the stub, and that alone
+# would also hand the hook /usr/bin/git. On a Mac that is Xcode's shim, which exits 69 on every call from an Xcode
+# update until its licence is accepted, the hook then ingests no answer, and two assertions below fail. So a PATH
+# given here starts with $_cmgit, which holds one link, to the git the rest of the suite runs.
+_cmgit="$TMP/cm-git"; mkdir -p "$_cmgit"; [ -z "$(type -P git)" ] || ln -sf "$(type -P git)" "$_cmgit/git"
+_cmhook() { ( cd "$CMR" && PATH="${1:+$_cmgit:}${1:-$PATH}" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1 ); }
 _cmh="$(_cmhook)"
 has "the hook names the request a session still owes"          "$_cmh" "automation_surveyed (awaiting)"
 # It repeats. The addressee is a session and sessions end; a hold keyed to the

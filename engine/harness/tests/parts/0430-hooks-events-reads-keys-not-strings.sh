@@ -180,12 +180,17 @@ case "\$*" in "plugin list --json") printf '{ "felix@felix": { "installPath": "%
 exit 0
 STUB
 chmod +x "$DCK/bin/claude"
+# The two helpers with no CLI narrow PATH so that no claude is found, and /usr/bin:/bin alone would also hand
+# deploy-check /usr/bin/git. On a Mac that is Xcode's shim, which exits 69 on every call from an Xcode update until
+# its licence is accepted, and deploy-check then exits 126: the five assertions below that use these helpers failed
+# that way on 2026-10-12. So $DCK/git holds one link, to the git the rest of the suite runs, ahead of /usr/bin.
+mkdir -p "$DCK/git"; _dck_git="$(type -P git)"; [ -z "$_dck_git" ] || ln -sf "$_dck_git" "$DCK/git/git"
 _dck()  { ( cd "$DCKT" && HOME="$DCK/home"   PATH="$DCK/bin:$PATH" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
-_dckn() { ( cd "$DCKT" && HOME="$DCK/nohome" PATH="$DCK/nobin:/usr/bin:/bin" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+_dckn() { ( cd "$DCKT" && HOME="$DCK/nohome" PATH="$DCK/nobin:$DCK/git:/usr/bin:/bin" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
 # The CLI absent and a cache present: the one branch a machine without the
 # claude CLI takes, which the commit claimed as behaviour and no fixture
 # reached — every other helper here either has the stub on PATH or no cache.
-_dckc() { ( cd "$DCKT" && HOME="$DCK/home"   PATH="$DCK/nobin:/usr/bin:/bin" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
+_dckc() { ( cd "$DCKT" && HOME="$DCK/home"   PATH="$DCK/nobin:$DCK/git:/usr/bin:/bin" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
 # The code, exactly. `has ... "rc=1"` is a substring match that rc=126 and
 # rc=127 both satisfy — the two codes that mean the checker never ran at all,
 # so every exit-1 assertion here was green for a script that could not start.

@@ -1,7 +1,8 @@
 # >>> git-cannot-run
 printf '\na git that cannot run is not a fact about the repository: the clause, the base, the receipt and the readers that say them (contract 2026-11-14, blind)\n'
 # Blind, written on 2026-11-14 from docs/2026-11-14-git-cannot-run-contract.md (GR1 to GR8) alone, rev 1 and then
-# rev 2, which rewrote GR4 (its tail, and the receipt found on disk) and took this part's GR2 and GR6 readings. The engine was
+# rev 2, which rewrote GR4 (its tail, and the receipt found on disk) and took this part's GR2 and GR6 readings, and
+# rev 3, whose clauses (marked rev 3 in the names) were added with the implementation committed and unread. The engine was
 # read for the harness idiom, for how to call its functions and for what its outputs are today, which is what the
 # GR7 controls pin; every expected value of the new behaviour comes from the contract's text. A name ending
 # (control) holds on the engine the contract was cut from, on purpose; the others are its new behaviour.
@@ -32,6 +33,18 @@ printf '\na git that cannot run is not a fact about the repository: the clause, 
 #   calls over a base the branch is behind, which write one would-refuse row.
 # - GR8's macOS route runs where /usr/bin/xcrun exists and /usr/bin/git exits 69 under the stand-in and 0 without it,
 #   through a link to /usr/bin/git first on PATH; elsewhere its names are skipped.
+# - Rev 3. GR3's quoted name is asserted for GIT in all three producers, CHANGED-PATHS in escapes, ADDED-LINES in
+#   classify and SUITE in escapes, each armed by the name naming nothing here. felix merge --base SUITE naming nothing
+#   is refused at its base read, before any blocker loop, so there the clause is only today's message (control).
+#   GR5.1's "keeps today's row and action" is a rank-1 row holding today's names-nothing reason with today's action;
+#   whether its subject is shown quoted is not pinned. GR5.7's later stop is made by a git that counts its calls and
+#   refuses the chosen one and every one after; the stops tried are the merge's own rev-parse --verify ...^{commit}
+#   calls, found by a run under the same git refusing nothing, in order, at most six, each run with a kernel cache of
+#   its own; the first run whose output has an escapes GIT row (a line with the word GIT and the escapes tail) is
+#   judged. Its closing words are its last paragraph; "to make it run" is make it run or make git run, and the
+#   names-nothing sentence is looked for in the whole output, both without regard to case. GR6's "does not say that
+#   no gate can run" is read as none of no gate can run, gate cannot run, gate can not run, gate cannot be run,
+#   cannot run the gate, without regard to case.
 # Every fixture is under $TMP/gcr and the project gcrw, built with the suite's git; a refusing git is first on PATH
 # only for the call under test.
 
@@ -170,6 +183,18 @@ is "gcr GR3 GR7 under a working git a base that names nothing gives today's thre
    "$(printf 'unknown\tnosuch\tthis base names nothing here, so no rule was consulted#unknown\tnosuch\tthis base names nothing here, so nothing was scanned; no channel was consulted#unknown\tnosuch\tthis base names nothing here, so nothing was compared')"
 is "gcr GR1 GR3 under a git that answers --version and refuses the rest, the evidence row is today's for a base that names nothing (control)" \
    "$(_gcr_fn "$SVER" "$GCR_L" felix_evidence_check "$GCR_P" main "$GCR_R")" "$(printf 'unknown\tmain\tthis base names nothing here, so no rule was consulted')"
+is "gcr GR3 rev 3 fixture: GIT, CHANGED-PATHS, ADDED-LINES and SUITE each name nothing in the checkout under the suite's git (control)" \
+   "$(for _gcr_b in GIT CHANGED-PATHS ADDED-LINES SUITE; do git -C "$GCR_R" rev-parse -q --verify "$_gcr_b^{commit}" >/dev/null 2>&1 && printf '%s names a commit; ' "$_gcr_b"; done)" ""
+_gcr_q() { printf 'unknown\t"%s"\tthis base names nothing here, so %s' "$1" "$2"; }   # BASE TAIL -> the rev 3 row naming BASE in double quotes
+is "gcr GR3 rev 3 under a working git a base spelled GIT that names nothing is named in double quotes in the evidence, escapes and classify rows, reasons unchanged" \
+   "$(_gcr_fn "$SREAL" "$GCR_L" felix_evidence_check "$GCR_P" GIT "$GCR_R")#$(_gcr_fn "$SREAL" "$GCR_L" felix_escapes "$GCR_P" GIT "$GCR_R" "$FROOT")#$(_gcr_fn "$SREAL" "$GCR_L" felix_classify_diff "$GCR_P" GIT "$GCR_R")" \
+   "$(_gcr_q GIT "$GCR_TEV")#$(_gcr_q GIT "$GCR_TES")#$(_gcr_q GIT "$GCR_TCL")"
+is "gcr GR3 rev 3 under a working git a base spelled CHANGED-PATHS that names nothing is named in double quotes in the escapes row, reason unchanged" \
+   "$(_gcr_fn "$SREAL" "$GCR_L" felix_escapes "$GCR_P" CHANGED-PATHS "$GCR_R" "$FROOT")" "$(_gcr_q CHANGED-PATHS "$GCR_TES")"
+is "gcr GR3 rev 3 under a working git a base spelled ADDED-LINES that names nothing is named in double quotes in the classify row, reason unchanged" \
+   "$(_gcr_fn "$SREAL" "$GCR_L" felix_classify_diff "$GCR_P" ADDED-LINES "$GCR_R")" "$(_gcr_q ADDED-LINES "$GCR_TCL")"
+is "gcr GR3 rev 3 under a working git a base spelled SUITE that names nothing is named in double quotes in the escapes row, reason unchanged" \
+   "$(_gcr_fn "$SREAL" "$GCR_L" felix_escapes "$GCR_P" SUITE "$GCR_R" "$FROOT")" "$(_gcr_q SUITE "$GCR_TES")"
 
 printf '\n  felix_verify_current (GR4)\n'
 is "gcr GR4 a green receipt handed in, under a git exiting 69: stale, the clause with 69, status 2" \
@@ -207,6 +232,10 @@ _gcr_hl "gcr GR5.1 next: with a green receipt present it ran and says neither no
    "$GCR_O" "+next for gcrw" "-this tree has no green gate receipt" "-names nothing" "-the tree changed"
 _gcr_hl "gcr GR5.1 GR7 next under a working git: the receipt is current and the change owes evidence; no receipt row, no clause (control)" \
    "$(_gcr_cli "$SREAL" next --base main)" "+next for gcrw" "+the change owes evidence: code" "-no green gate receipt" "-git could not run" "-names nothing"
+GCR_O="$(_gcr_cli "$SREAL" next --base GIT)"; _gcr_a="$(_gcr_sec "$GCR_O")"
+_gcr_hl "gcr GR5.1 rev 3 next under a working git, --base GIT naming nothing: today's names-nothing row and action, no make-git-run action, no clause (control)" \
+   "[row=$(_gcr_row "$_gcr_a" has "this base names nothing here, so nothing was scanned; no channel was consulted" "name a base that exists here, with --base, then run this again")] $_gcr_a" \
+   "+[row=yes]" "-$GCR_DO" "-git could not run"
 GCR_O="$(_gcr_cli "$S69" evidence --base main)"
 _gcr_hl "gcr GR5.2 evidence: the GIT row as an unknown row, nothing was compared, the git sentence in place of Check --base, exit 1" \
    "[rc=$(cat "$GCR/rc")] $GCR_O" "+[rc=1] " "+  [?] GIT " "+$(_gcr_r3 69 main "$GCR_TEV")" "+Nothing was compared" \
@@ -214,6 +243,9 @@ _gcr_hl "gcr GR5.2 evidence: the GIT row as an unknown row, nothing was compared
 is "gcr GR5.2 GR7 evidence under a working git, a base that names nothing: today's output, exit 1 (control)" \
    "$(_gcr_cli "$SREAL" evidence --base nosuch)|$(cat "$GCR/rc")" \
    "$(printf 'base:  nosuch\n\n  [?] %-14s %s\n\nNothing was compared, so nothing above is a finding about this change.\nCheck --base, or the default branch, which is not `main` everywhere.\nThis says nothing about what the change owes; that was never asked.|1' nosuch 'this base names nothing here, so no rule was consulted')"
+GCR_O="$(_gcr_cli "$SREAL" evidence --base GIT)"
+_gcr_hl "gcr GR5.2 rev 3 evidence under a working git, --base GIT naming nothing: Check --base and not the git sentence, exit 1 (control)" \
+   "[rc=$(cat "$GCR/rc")] $GCR_O" "+[rc=1] " "+Check --base" "-git could not run here; make it run, then run this again."
 GCR_O="$(_gcr_flat "$(_gcr_cli "$S69" classify --base main)")"; GCR_PCL="Nothing was compared. This is not a green change and not a risky one; git could not run here, and the unknown row above says how it exited. Make git run, then run this again."
 _gcr_a=no; case "$GCR_O" in *"unknown GIT $(_gcr_r3 69 main "$GCR_TCL")"*"$GCR_PCL"*) _gcr_a=yes ;; esac
 _gcr_hl "gcr GR5.3 classify: the unknown GIT row, then the git paragraph in place of the one about a base it cannot resolve, exit 1" \
@@ -245,6 +277,9 @@ _gcr_hl "gcr GR5.7 merge: where it cannot read which commit the base names under
 is "gcr GR5.7 GR7 merge --dry-run under a working git, a base that names nothing: today's message, exit 1 (control)" \
    "$(_gcr_cli "$SREAL" merge --base nosuch --dry-run)|$(cat "$GCR/rc")" \
    "felix: felix: cannot tell which commit 'nosuch' names in this repository (as a remote-tracking branch, a local branch or a revision), so there is no base to merge against. Fetch the remote, or name a base that exists with --base.|1"
+is "gcr GR3 GR5.7 rev 3 merge --dry-run under a working git, --base SUITE naming nothing: today's base-read refusal, not the paragraph about instrument parts (control)" \
+   "$(_gcr_cli "$SREAL" merge --base SUITE --dry-run)|$(cat "$GCR/rc")" \
+   "felix: felix: cannot tell which commit 'SUITE' names in this repository (as a remote-tracking branch, a local branch or a revision), so there is no base to merge against. Fetch the remote, or name a base that exists with --base.|1"
 
 printf '\n  the Stop hook (GR6)\n'
 _gcr_stop() {   # DIR ROOT -> the Stop hook's stdout in ROOT with PATH DIR:/usr/bin:/bin, then |status
@@ -260,10 +295,12 @@ is "gcr GR6 armed: the git that stops ran the hook's first reads, refused from i
    "$_gcr_a $(_gcr_held "$GCR_O")" "stopped held"
 _gcr_hl "gcr GR6 the hold names the clause with 69 and gives no usual cause of an unreadable tree (a named pipe, a socket, a device)" \
    "$GCR_O" "+$(_gcr_cl 69)" "-a named pipe" "-a socket" "-a device"
+_gcr_hl "gcr GR6 rev 3 the hold does not say that no gate can run" \
+   "[$(_gcr_held "$GCR_O")] $(printf '%s' "$GCR_O" | tr '[:upper:]' '[:lower:]')" "+[held] " "-no gate can run" "-gate cannot run" "-gate can not run" "-gate cannot be run" "-cannot run the gate"
 is "gcr GR6 the recorded detail stays tree unknown (control)" "$(_gcr_last)" "blocked tree unknown"
 GCR_O="$(_gcr_stop "$SREAL" "$GCR_F")"
 _gcr_hl "gcr GR6 GR7 under a working git a tracked pipe holds with the usual cause and no clause, detail tree unknown (control)" \
-   "$(_gcr_held "$GCR_O") [$(_gcr_last)] $GCR_O" "+held [blocked tree unknown] " "+a named pipe, a socket, a device" "-git could not run"
+   "[$(_gcr_held "$GCR_O")] [$(_gcr_last)] $GCR_O" "+[held] [blocked tree unknown] " "+a named pipe, a socket, a device" "-git could not run"
 
 printf '\n  the callers that only ask whether a base resolved (GR7)\n'
 # DIR BASE -> owed=<felix_land_owed's status> out=[would_refuse's stdout and stderr] says=+<lines it added to says.log>
@@ -304,10 +341,53 @@ else
      "rank1=$(_gcr_row "$(_gcr_sec "$GCR_O")" is "$(_gcr_r4 69)" "$GCR_DO") $GCR_O" "+rank1=yes" "-this tree has no green gate receipt" "-names nothing"
 fi
 
+printf '\n  felix merge when git stops after the base was read (GR5.7, rev 3)\n'
+cp "$TMP/obligations.keep" "$GCR_P/obligations.tsv"; cp "$TMP/commissioning.keep" "$GCR_P/commissioning.tsv"
+SCNT="$GCR/scnt"; mkdir -p "$SCNT"
+# The counting git: every call logged on one line of calls, numbered by count; from call number <at> on it refuses.
+cat > "$SCNT/git" <<GCR_CNT_EOF
+#!/bin/sh
+d="\$(dirname "\$0")"
+printf x >> "\$d/count"; n=\$((\$(wc -c < "\$d/count")))
+printf '%s' "\$*" | tr '\n' ' ' >> "\$d/calls"; echo >> "\$d/calls"
+k="\$(cat "\$d/at" 2>/dev/null)"
+if [ -n "\$k" ] && [ "\$n" -ge "\$k" ]; then echo "$GCR_LIC" >&2; exit 69; fi
+exec "$_gcr_g" "\$@"
+GCR_CNT_EOF
+chmod +x "$SCNT/git"
+_gcr_merge() {   # [K] -> felix merge --base main --dry-run in the checkout, its git refusing from call K on (never for no K); stdout and stderr
+  rm -f "$SCNT/count" "$SCNT/calls" "$SCNT/at"; [ -z "${1:-}" ] || printf '%s\n' "$1" > "$SCNT/at"
+  ( _fx_cd "$GCR_R" || exit 1; unset FELIX_KERNEL
+    env PATH="$SCNT:$PATH" HOME="$GCR/home" FELIX_KERNEL_CACHE="$GCR/kc.${1:-all}" "$FELIX" merge --base main --dry-run 2>&1 )
+}
+_gcr_esc() { printf '%s\n' "$1" | LC_ALL=C awk '{ g = 0; for (i = 1; i <= NF; i++) if ($i == "GIT") g = 1 } g && index($0, "nothing was scanned; no channel was consulted") { f = 1 } END { print (f ? "yes" : "no") }'; }   # OUTPUT -> yes with an escapes GIT row
+_gcr_close() { printf '%s\n' "$1" | LC_ALL=C awk 'NF { p = p " " $0; next } p != "" { l = p; p = "" } END { if (p != "") l = p; print l }' | tr '[:upper:]' '[:lower:]'; }   # OUTPUT -> its last paragraph, lower case
+_gcr_merge "" >/dev/null
+GCR_MC="$(LC_ALL=C awk 'index($0, "rev-parse") && index($0, "--verify") && index($0, "^{commit}") { print NR }' "$SCNT/calls" 2>/dev/null | head -6 | tr '\n' ' ')"
+is "gcr GR5.7 rev 3 armed: felix merge --dry-run ran the counting git and asked it rev-parse --verify of a commit (control)" \
+   "$([ -s "$SCNT/calls" ] && echo calls) $([ -n "$GCR_MC" ] && echo stops)" "calls stops"
+GCR_MH=""; GCR_MO=""
+for _gcr_k in $GCR_MC; do
+  GCR_MO="$(_gcr_merge "$_gcr_k")"
+  if [ "$(_gcr_esc "$GCR_MO")" = yes ]; then GCR_MH="$_gcr_k"; break; fi
+done
+rm -f "$SCNT/at"
+GCR_MN="gcr GR5.7 rev 3 merge: where git stops after the base was read and the escape scan gives the GIT row, its closing words say git could not run here and to make it run, not that the base names nothing this repository holds"
+if [ -z "$GCR_MC" ]; then skip "$GCR_MN" "felix merge asked the counting git no rev-parse --verify of a commit, so no stop after the base read could be chosen"
+elif [ -z "$GCR_MH" ]; then bad "$GCR_MN" "no stop at calls [$GCR_MC] gave an escapes GIT row; the last run said [$GCR_MO]"
+else
+  _gcr_a="$(_gcr_close "$GCR_MO")"; _gcr_b="$(printf '%s' "$GCR_MO" | tr '[:upper:]' '[:lower:]')"
+  _gcr_c1=no; case "$_gcr_a" in *"git could not run here"*) _gcr_c1=yes ;; esac
+  _gcr_c2=no; case "$_gcr_a" in *"make it run"*|*"make git run"*) _gcr_c2=yes ;; esac
+  _gcr_c3=no; case "$_gcr_b" in *"names nothing this repository holds"*) _gcr_c3=yes ;; esac
+  _gcr_hl "$GCR_MN" "[closing-clause=$_gcr_c1 closing-make=$_gcr_c2 names-nothing=$_gcr_c3] stopped at call $GCR_MH: $GCR_MO" \
+    "+[closing-clause=yes closing-make=yes names-nothing=no]"
+fi
+
 # The home as this part found it: the pipe let go and removed, the project gone; receipts under $FROOT/state stay.
 perl -e 'use Fcntl; sysopen(my $r, $ARGV[0], O_RDONLY|O_NONBLOCK); sysopen(my $w, $ARGV[0], O_WRONLY|O_NONBLOCK); close $w if $w; close $r if $r' "$GCR_F/README" 2>/dev/null
 unlink "$GCR_F/README" 2>/dev/null
 rm -rf "${GCR_P:?}"
 unset -f _gcr_stub _gcr_cl _gcr_r4 _gcr_r3 _gcr_flat _gcr_hl _gcr_repo _gcr_rec _gcr_rt _gcr_fn _gcr_cur _gcr_fbr _gcr_cli _gcr_v \
-         _gcr_sec _gcr_row _gcr_gate _gcr_stop _gcr_held _gcr_last _gcr_land
+         _gcr_sec _gcr_row _gcr_gate _gcr_stop _gcr_held _gcr_last _gcr_land _gcr_q _gcr_merge _gcr_esc _gcr_close
 # <<< git-cannot-run

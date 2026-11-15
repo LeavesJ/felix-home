@@ -1,4 +1,4 @@
-# Contract: a git that cannot run is not a fact about the repository (rev 2, 2026-11-14)
+# Contract: a git that cannot run is not a fact about the repository (rev 3, 2026-11-14)
 
 **Scope.** How the engine's readers of a base (`felix_base_resolves`) and of the
 gate receipt (`felix_verify_current`) tell a git that could not run apart from a
@@ -64,7 +64,12 @@ where `<tail>` is the text that function's row already ends in:
 `GIT` is a pseudo-subject like `CHANGED-PATHS` and `ADDED-LINES`, so a reader
 tells this row from a base that names nothing by kind and subject, never by the
 reason's wording. When git runs and BASE names nothing, each row is
-byte-for-byte what it is today.
+byte-for-byte what it is today, with one exception (rev 3): a BASE spelled
+exactly as one of the pseudo-subjects a reader branches on is named in its row
+in double quotes (`"GIT"`, `"CHANGED-PATHS"`, `"ADDED-LINES"`, `"SUITE"`; the
+last is the instrument judge's, which felix merge reads beside these rows), so
+that no reader takes a base that names nothing for one of them. Its reason is
+unchanged.
 
 ## GR4. `felix_verify_current ROOT HOME PROJ [RECEIPT]`
 
@@ -93,11 +98,14 @@ the tree changed, and none of them says either of those then.
    GR4 reason and whose action is `make git run here, then run this again`. The
    GR3 escapes row is a rank-1 `felix` row whose text holds the row's reason and
    whose action is the same. With a green receipt present, next prints neither
-   "this tree has no green gate receipt" nor "names nothing".
+   "this tree has no green gate receipt" nor "names nothing". With a git that
+   runs, a base spelled `GIT` that names nothing keeps today's row and action
+   (`name a base that exists here, with --base, then run this again`).
 2. **`felix evidence`.** It prints the GIT row as an unknown row, says nothing
    was compared, and in place of "Check --base" says
    `git could not run here; make it run, then run this again.` Exit 1, as for
-   any unknown.
+   any unknown. With a git that runs, `--base GIT` naming nothing still says
+   "Check --base" and not the git sentence.
 3. **`felix classify`.** After the unknown row, in place of the paragraph about
    a base this repository cannot resolve:
    `Nothing was compared. This is not a green change and not a risky one; git`
@@ -111,14 +119,18 @@ the tree changed, and none of them says either of those then.
    it reads `value none-run`), with the GR4 reason as its detail.
 7. **`felix merge`.** Where it cannot read which commit the base names and git
    could not run, it stops with a message holding the clause, in place of
-   "Fetch the remote, or name a base that exists".
+   "Fetch the remote, or name a base that exists". Where git stops running
+   later, after the base was read, and the judge's escape scan gives the GIT
+   row, its closing words say git could not run here and to make it run, and
+   do not say the base names nothing this repository holds (rev 3).
 
 ## GR6. The Stop hook
 
 When the tree id is empty and git could not run, the hold names the clause and
 does not give the usual cause of an unreadable tree (a named pipe, a socket, a
-device). Its recorded detail stays `tree unknown`, and when it holds is
-unchanged. This is reached when git stops running after the hook's own
+device). It does not say that no gate can run: `felix gate` runs over a tree
+with no id, and what it cannot do is record a receipt for it (rev 3). Its
+recorded detail stays `tree unknown`, and when it holds is unchanged. This is reached when git stops running after the hook's own
 `git rev-parse --git-dir` check: a git that refuses from the hook's first call
 ends the hook there, holding nothing and saying nothing, as today (left open
 below).
@@ -154,6 +166,11 @@ Two ways to make git refuse, both with no sudo:
   traced); `felix_tree_id`'s other callers.
 - A git that answers `--version` and fails every other call (a missing
   `git-core`) reads as before.
+- A git that stops running partway through the Stop hook, after the tree id
+  and before the receipt is read, or after that read, gets a hold that reads
+  the receipt as missing or the tree as unidentified without the clause (the
+  rev 2 review's note 4). The lander classes the merge refusal a git that
+  stopped mid-judge causes as final, by its exit status.
 - A git that starts or stops running between the failed call and the probe is
   read by the probe.
 - The 22 test files that narrow `PATH` to `/usr/bin:/bin` (the 2300 write-up).

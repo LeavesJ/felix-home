@@ -10,11 +10,12 @@
 - `lib/verify.sh`: when the receipt's path cannot be hashed, or a green receipt's tree id is empty, and git could not run, the answer is `stale`, the clause, "so this tree cannot be identified and no receipt can be confirmed for it", with status 2. A receipt handed in that is empty (`none`) or not green (`red`) is read without git and is unchanged.
 - Readers: `felix next` (the action is "make git run here, then run this again"), `felix evidence`, `felix classify`, `felix scope`, `felix pr`, `felix status` (the gate row is `unknown`), `felix merge` (where it cannot read the base's commit, and, after the base was read, a closing paragraph about git that replaces "The rest escapes nothing") and the Stop hook (the hold names the clause, not a named pipe, and says no gate run can record a receipt; its detail stays `tree unknown`).
 
-**Measured.** All on this Mac, one part run at a time.
-- Part 2490 (blind, rev 2): 25 of 113 assertions failed on main's engine (3ecdfcf9); 113 of 113 passed on 61924e71.
-- Its rev 3 assertions (11, written blind from the review's three should-fix items): 8 of 124 failed on 61924e71; after the fixes, 124 of 124 passed. One of the 8 found that `felix merge` still ended on "The rest escapes nothing" after a scan that never ran.
-- Part 1100 (the 500-line cap on `lib/status.sh`, which a first draft broke at 506): 292 of 292.
-- The full record and gate: in this PR's receipts.
+**Measured.** All on this Mac; part runs one at a time. Part counts are the part's own assertions; a `--part` run also prints the driver's 62 framing assertions, which are not counted here.
+- Part 2490 (blind, rev 2): 25 of its 51 assertions failed on main's engine (3ecdfcf9); 51 of 51 passed on 61924e71.
+- Its rev 3 assertions (11, written blind from the review's three should-fix items): 8 of 62 failed on 61924e71; after the fixes, 62 of 62 passed. One of the 8 found that `felix merge` still ended on "The rest escapes nothing" after a scan that never ran.
+- Part 1100 (the 500-line cap on `lib/status.sh`, which a first draft broke at 506): 230 of 230.
+- The record, after main c9bff19b was merged in: 17,720 assertions, 0 failed; `red.tsv` names 30 against c9bff19b, all part 2490's. The gate's result is in the PR.
+- Under the exit-69 stand-in, the branch's `felix next` in this checkout gave the GR4 and GR3 rows with "make git run here"; main's engine (0.49.346) on the same Mac gave "this tree has no green gate receipt" and "this base names nothing here".
 
 **Open.**
 - Other readers of a git failure: the Stop hook allows a stop unchecked when its own `git rev-parse --git-dir` fails; the receipt document leaves `tree` out of `unknown` when git cannot run (`receipt.sh`); the merge boundary reads `none` for a receipt it could not find (`escape.sh`); under the exit-69 stand-in `felix next` in this checkout also listed "upkeep due: graphify", which a working git did not (seen once, not traced); `felix_tree_id`'s other callers.

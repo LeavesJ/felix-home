@@ -33,6 +33,11 @@ _durap="$FROOT/projects/duraproj"
 _durar="$TMP/dura-repo"
 _durahome="$TMP/dura-home"
 mkdir -p "$_durap" "$_durar/tests" "$_durahome"
+# Each block's CLI and hook run under a PATH narrowed so that no claude but the block's own stub is found, and
+# /usr/bin:/bin alone would also hand them /usr/bin/git. On a Mac that is Xcode's shim, which exits 69 on every call
+# from an Xcode update until its licence is accepted, and fourteen assertions here then fail. So every block puts
+# $_durgit, holding one link to the git the rest of the suite runs, ahead of /usr/bin; the last block removes it.
+_durgit="$TMP/dur-git"; mkdir -p "$_durgit"; [ -z "$(type -P git)" ] || ln -sf "$(type -P git)" "$_durgit/git"
 printf '{\n  "name": "duraproj",\n  "remote_match": "example.com/duraproj",\n  "gate": "true"\n}\n' > "$_durap/project.json"
 printf '# duraproj\n' > "$_durap/CLAUDE.md"
 # Detected: secrets (.env.example) and tests (tests/). Declared: secrets, and
@@ -69,7 +74,7 @@ _durainto() { local _duram="$1"
     _duradecl=untouched
     felix_declared_into _duradecl "$_durap"; _durarc=$?
     printf '%s|%s|' "$_durarc" "$_duradecl" ) 2>/dev/null; }
-_duracli() { ( cd "$_durar" && HOME="$_durahome" PATH=/usr/bin:/bin "$FELIX" "$@" 2>&1 ); }
+_duracli() { ( cd "$_durar" && HOME="$_durahome" PATH="$_durgit:/usr/bin:/bin" "$FELIX" "$@" 2>&1 ); }
 # said when $1 holds $2 as a whole line.
 _durahas() { case "
 $1
@@ -290,7 +295,7 @@ chmod +x "$_durbstub/claude"
 _durblib() { local _durbm="$1"; shift
   ( cd "$_durbr" || exit 99
     HOME="$_durbhome"; FELIX_PLUGIN_CACHE="$_durbhome/.claude/plugins/cache"; FELIX_HOME_DIR="$FROOT"
-    PATH="$_durbstub:/usr/bin:/bin"
+    PATH="$_durbstub:$_durgit:/usr/bin:/bin"
     . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
     . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/route.sh"; . "$FROOT/harness/lib/discover.sh"
     . "$FROOT/harness/lib/toolbox.sh"; . "$FROOT/harness/lib/procedures.sh"; . "$FROOT/harness/lib/candidates.sh"
@@ -298,7 +303,7 @@ _durblib() { local _durbm="$1"; shift
       nz)       felix_declared() { return 128; } ;;
       part)     felix_declared() { printf 'durbcap\n'; return 128; } ;;
       gone)     felix_declared() { exit 0; } ;;
-      noclaude) PATH=/usr/bin:/bin; felix_declared() { return 128; } ;;
+      noclaude) PATH="$_durgit:/usr/bin:/bin"; felix_declared() { return 128; } ;;
     esac
     "$@" ) 2>/dev/null; }
 # [output] status, under each of the three ways the list goes unread, and read.
@@ -310,9 +315,9 @@ _durbtri() { local _durbm _durbo _durbc _durbs=""
   printf '%s' "${_durbs% }"; }
 _durbone()  { local _durbo _durbc; _durbo="$(_durblib "$@")"; _durbc=$?; printf '[%s] %s' "$_durbo" "$_durbc"; }
 _durbread() { _durbone read "$@"; }
-_durbcli() { ( cd "$_durbr" && HOME="$_durbhome" PATH="$_durbstub:/usr/bin:/bin" "$FELIX" "$@" 2>&1 ); }
+_durbcli() { ( cd "$_durbr" && HOME="$_durbhome" PATH="$_durbstub:$_durgit:/usr/bin:/bin" "$FELIX" "$@" 2>&1 ); }
 _durbstart() { local _durbo
-  _durbo="$(cd "$_durbr" && HOME="$_durbhome" PATH=/usr/bin:/bin CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+  _durbo="$(cd "$_durbr" && HOME="$_durbhome" PATH="$_durgit:/usr/bin:/bin" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
   printf '%s\n' "${_durbo//\\n/$'\n'}"; }
 _durbsays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
 _durbboth() { if printf '%s\n' "$1" | awk -v a="$2" -v b="$3" 'index($0, a) && index($0, b) { f = 1 } END { exit !f }'
@@ -571,7 +576,7 @@ chmod +x "$_durcstub/claude"; : > "$_durcasked"
 _durcrun() { local _durcm="$1"; shift
   ( cd "$_durcr" || exit 99
     set -o pipefail
-    HOME="$_durchome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durcstub:/usr/bin:/bin"
+    HOME="$_durchome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durcstub:$_durgit:/usr/bin:/bin"
     . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
     . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/route.sh"; . "$FROOT/harness/lib/discover.sh"
     . "$FROOT/harness/lib/toolbox.sh"; . "$FROOT/harness/lib/procedures.sh"; . "$FROOT/harness/lib/candidates.sh"
@@ -581,7 +586,7 @@ _durcrun() { local _durcm="$1"; shift
       exit0) felix_detect() { exit 0; } ;;
     esac
     _durco="$("$@")"; printf '%s|%s' "$?" "$_durco" ) 2>/dev/null; }
-_durccli() { ( cd "$_durcr" && HOME="$_durchome" PATH="$_durcstub:/usr/bin:/bin" "$FELIX" "$@" 2>&1 ); }
+_durccli() { ( cd "$_durcr" && HOME="$_durchome" PATH="$_durcstub:$_durgit:/usr/bin:/bin" "$FELIX" "$@" 2>&1 ); }
 _durcsays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
 _durcis()   { if [ -e "$1" ]; then printf 'there\n'; else printf 'absent\n'; fi; }
 _durcasks() { grep -c "$1" "$_durcasked" 2>/dev/null | tr -d ' '; : > "$_durcasked"; }
@@ -630,7 +635,7 @@ felix_declared() {
 }
 EOF
 cp "$_durceng/detect.new" "$_durceng/harness/lib/detect.sh"
-_durceng_cli() { ( cd "$_durcr" && HOME="$_durchome" PATH="$_durcstub:/usr/bin:/bin" FELIX_HOME="$FROOT" "$_durceng/harness/felix" "$@" 2>&1 ); }
+_durceng_cli() { ( cd "$_durcr" && HOME="$_durchome" PATH="$_durcstub:$_durgit:/usr/bin:/bin" FELIX_HOME="$FROOT" "$_durceng/harness/felix" "$@" 2>&1 ); }
 : > "$_durcasked"
 _durcout="$(_durceng_cli discover --adopt)"; _durcrc=$?
 is  "through the engine copy and over a list it read, felix discover --adopt fills the cache and finds nothing to adopt" \
@@ -748,7 +753,7 @@ is  "and assigns a caller's local of any name it might have used itself" "$_durc
 
 # 9. Session start over an unread list, with an answer file for a provider row (R6).
 _durcstart() { local _durco
-  _durco="$(cd "$_durcr" && HOME="$_durchome" PATH=/usr/bin:/bin CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+  _durco="$(cd "$_durcr" && HOME="$_durchome" PATH="$_durgit:/usr/bin:/bin" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
   printf '%s\n' "${_durco//\\n/$'\n'}"; }
 printf 'automation_surveyed\t-\t-\t-\tprovider:durcplug:durcskill\t-\t-\n' > "$_durcp/commissioning.tsv"
 _durctopo2="$(_durcrun w felix_commission_topology "$_durcp" "$_durcr")"
@@ -856,7 +861,7 @@ _durdset() {
   cp "$_durdp/stack.tsv" "$TMP/durd-stack.keep"; cp "$_durdp/setup.tsv" "$TMP/durd-setup.keep"
   rm -f "$TMP/durd-caps.keep"; [ -f "$_durdp/capabilities" ] && cp "$_durdp/capabilities" "$TMP/durd-caps.keep"
   return 0; }
-_durdcli() { ( cd "$_durdr" && HOME="$_durdhome" PATH="$_durdbin:/usr/bin:/bin" "$FELIX" commission "$@" 2>&1 ); }
+_durdcli() { ( cd "$_durdr" && HOME="$_durdhome" PATH="$_durdbin:$_durgit:/usr/bin:/bin" "$FELIX" commission "$@" 2>&1 ); }
 # said when $1 holds $2 as a whole line; silent otherwise.
 _durdline() { case "
 $1
@@ -978,7 +983,7 @@ is  "a full run over an empty capabilities file adopts what the checkout shows a
 is  "and the run over an empty capabilities file never prints Capability drift was not checked" "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'Capability drift was not checked')" "ran silent"
 
 
-rm -rf "$_durdp" "$_durdr" "$_durdhome" "$_durdbin" "$MEM/durdproj" "$_durdgone"
+rm -rf "$_durdp" "$_durdr" "$_durdhome" "$_durdbin" "$MEM/durdproj" "$_durdgone" "$_durgit"
 rm -f "$_durdasked" "$TMP/durd-stack.keep" "$TMP/durd-setup.keep" "$TMP/durd-caps.keep"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*durdproj*' -exec rm -rf {} + 2>/dev/null
 _durdnl='
@@ -991,4 +996,4 @@ is  "and the block for felix commission over an unread declared list leaves the 
 unset -f _durdfixture _durdset _durdcli _durdline _durdsays _durdbegins _durdat _durdrow1 _durdsum _durdran _durdlink \
          _durdtarget _durdsame _durdcaps
 unset _durdfound _durddirs _durdp _durdr _durdhome _durdbin _durdasked _durdgone _durdwhy _durddrift _durdadopted \
-      _durddet _durdout _durdls _durdrun _durdn _durdhead _durdat2 _durdfirst _durdnl _durdd
+      _durddet _durdout _durdls _durdrun _durdn _durdhead _durdat2 _durdfirst _durdnl _durdd _durgit

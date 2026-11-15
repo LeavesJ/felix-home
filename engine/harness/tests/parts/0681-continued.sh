@@ -18,9 +18,14 @@ _durefixture() { { find "$FROOT/projects" "$FROOT/state" "$MEM" 2>/dev/null | LC
 _durefound="$(_durefixture)"
 _duredirs="$(find "$FROOT/state" -type d 2>/dev/null)"
 _durep="$FROOT/projects/dureproj"; _durer="$TMP/dure-repo"; _durehome="$TMP/dure-home"
-_durebin0="$TMP/dure-bin0"; _duregrep="$TMP/dure-nogrepc"; _duretr="$TMP/dure-notr"
+_durebin0="$TMP/dure-bin0"; _duregrep="$TMP/dure-nogrepc"; _duretr="$TMP/dure-notr"; _duregit="$TMP/dure-git"
 _duretpl="$FROOT/harness/templates"
-mkdir -p "$_durep" "$_durer/tests" "$_durehome/.claude/plugins" "$_durebin0" "$_duregrep" "$_duretr"
+mkdir -p "$_durep" "$_durer/tests" "$_durehome/.claude/plugins" "$_durebin0" "$_duregrep" "$_duretr" "$_duregit"
+# The CLI, the hook and the readers below run under a PATH narrowed to a stub directory (or none) and /usr/bin:/bin,
+# so that no claude is found and a stub grep or tr comes first; that PATH alone would also hand them /usr/bin/git. On
+# a Mac that is Xcode's shim, which exits 69 on every call from an Xcode update until its licence is accepted, and
+# seven assertions here then fail. So $_duregit holds one link, to the git the rest of the suite runs, ahead of /usr/bin.
+[ -z "$(type -P git)" ] || ln -sf "$(type -P git)" "$_duregit/git"
 printf '{\n  "name": "dureproj",\n  "remote_match": "example.com/dureproj",\n  "gate": "true"\n}\n' > "$_durep/project.json"
 printf '# dureproj\n' > "$_durep/CLAUDE.md"
 # Detected: secrets (.env.example), tests (tests/) and deploy (Dockerfile).
@@ -47,7 +52,7 @@ chmod +x "$_duregrep/grep" "$_duretr/tr"
 # $1 is the stub directory first on PATH (bin0 holds none), the rest is the command.
 # Prints its output and then [exit N], so a status is part of what is compared.
 _durecli() { local _durebin="$1"; shift
-  ( cd "$_durer" && HOME="$_durehome" PATH="$_durebin:/usr/bin:/bin" "$FELIX" "$@" 2>&1; printf '[exit %s]' "$?" ); }
+  ( cd "$_durer" && HOME="$_durehome" PATH="$_durebin:$_duregit:/usr/bin:/bin" "$FELIX" "$@" 2>&1; printf '[exit %s]' "$?" ); }
 _duresays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
 # The lines of $1 that begin with $2, joined by a bar.
 _durelines() { printf '%s\n' "$1" | awk -v p="$2" 'index($0, p) == 1 { printf "%s%s", (n++ ? "|" : ""), $0 } END { print "" }'; }
@@ -115,7 +120,7 @@ printf 'secrets\ndurebill\ndurecap\n' > "$_durep/capabilities"
 _dureprun() { local _durem="$1"; shift
   ( cd "$_durer" || exit 99
     set -o pipefail
-    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:/usr/bin:/bin"
+    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:$_duregit:/usr/bin:/bin"
     . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/procedures.sh"
     case "$_durem" in
       nohd) trap '' XFSZ; ulimit -f 0 ;;
@@ -147,12 +152,12 @@ is  "and names it with the same status when here-documents cannot be written" \
 # The CLI is another process: the limit is set in the subshell that starts it, and
 # what it says on stderr about a here-document it could not make is not compared.
 _durenohdcli() { ( cd "$_durer" || exit 99
-    HOME="$_durehome"; PATH="$_durebin0:/usr/bin:/bin"; trap '' XFSZ; ulimit -f 0
+    HOME="$_durehome"; PATH="$_durebin0:$_duregit:/usr/bin:/bin"; trap '' XFSZ; ulimit -f 0
     "$FELIX" "$@" 2>/dev/null; printf '[exit %s]' "$?" ); }
 for _duren in deploy durebill durecap secrets tests; do
   printf 'capability:%s\tcommissioning\tdure-check\ta stance on %s\n' "$_duren" "$_duren"
 done >> "$_durep/procedures.tsv"
-_dureplain="$( cd "$_durer" && HOME="$_durehome" PATH="$_durebin0:/usr/bin:/bin" "$FELIX" procedures 2>/dev/null; printf '[exit %s]' "$?" )"
+_dureplain="$( cd "$_durer" && HOME="$_durehome" PATH="$_durebin0:$_duregit:/usr/bin:/bin" "$FELIX" procedures 2>/dev/null; printf '[exit %s]' "$?" )"
 _durenohd="$(_durenohdcli procedures)"
 is  "felix procedures with every item answered and one stance at a moment nobody declared names that stance and makes no closing claim" \
     "$(_duresays "$_dureplain" 'stances at a moment nobody declared') $(_duresays "$_dureplain" 'Every item has a stance')" "said silent"
@@ -213,12 +218,12 @@ cp "$_dureeng/prov.new" "$_dureeng/harness/lib/commission-provider.sh"
 # $1 is the plugin root the hook runs from, $2 the call of felix_commission_topology to fail.
 _durestart() { local _dureo
   : > "$_durecalls"; rm -f "$FROOT/state/commission/dureproj.seen"
-  _dureo="$(cd "$_durer" && HOME="$_durehome" PATH=/usr/bin:/bin CLAUDE_PLUGIN_ROOT="$1" DURE_CALLS="$_durecalls" DURE_FAIL_CALL="${2:-0}" \
+  _dureo="$(cd "$_durer" && HOME="$_durehome" PATH="$_duregit:/usr/bin:/bin" CLAUDE_PLUGIN_ROOT="$1" DURE_CALLS="$_durecalls" DURE_FAIL_CALL="${2:-0}" \
               "$1/harness/hooks/session-start" 2>&1)"
   printf '%s\n' "${_dureo//\\n/$'\n'}"; }
 _durecom() { ( cd "$_durer" || exit 99
     set -o pipefail
-    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:/usr/bin:/bin"
+    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:$_duregit:/usr/bin:/bin"
     . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/verify.sh"
     . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"
     "$@" ) 2>/dev/null; }
@@ -270,7 +275,7 @@ _durecalls2="$TMP/dure-calls2"
 _durereq() { local _durem="$1"; shift
   ( cd "$_durer" || exit 99
     set -o pipefail
-    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:/usr/bin:/bin"
+    HOME="$_durehome"; FELIX_HOME_DIR="$FROOT"; PATH="$_durebin0:$_duregit:/usr/bin:/bin"
     . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/verify.sh"
     . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/commission-provider.sh"
     case "$_durem" in
@@ -332,7 +337,7 @@ is  "and the two hashes are the ones the engine before this change gave, abf0d82
     "$_duretopo1 $_duretopo2" "abf0d82af4e01e177b725cf9c2432a15aa58e93f 4eed57d3f18d5ffd616035ca5ee3b906a4da1a7b"
 rm -rf "$_duretp" "$_dureempty"
 
-rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$_durepv" "$_dureeng" "$_durecalls" "$MEM/dureproj"
+rm -rf "$_durep" "$_durer" "$_durehome" "$_durebin0" "$_duregrep" "$_duretr" "$_duregit" "$_durepv" "$_dureeng" "$_durecalls" "$MEM/dureproj"
 [ -d "$FROOT/state" ] && find "$FROOT/state" -name '*dureproj*' -exec rm -rf {} + 2>/dev/null
 _durenl='
 '
@@ -342,7 +347,7 @@ done
 is  "and the block for the second review's fixes leaves the projects, the state and the memory as it found them" \
     "$(_durefixture)" "$_durefound"
 unset -f _durefixture _durecli _durenohdcli _duresays _durelines _durerecl _duredl _dureprun _durej _durepol _durestart _durecom _durereq _dureblank _duretriple _durecapt
-unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duretpl _durerealgrep _dureretr \
+unset _durefound _duredirs _durep _durer _durehome _durebin0 _duregrep _duretr _duregit _duretpl _durerealgrep _dureretr \
       _dureplain _durestub _durenohd _duren _durenl _dured _durerec0 _durerec1 _dured0 _dured1 _dureeff _duregaps \
       _durepv _durepolun _durepolrd _durepolno _durepolem _dureeng _durecalls _durewhy _durans _duretopo _dureold \
       _durerow _durerowk _durerow3 _dures1 _dures2 _dures3 _dures4 _dures5 _durecalls2 _durereqfile _durefirst _durereads _duretopoin _durecapsin \

@@ -1,4 +1,4 @@
-### 2026-11-13: the door's cases were run at a door with no key, and each ended as written beforehand (trust step 4, documents only)
+### 0gg. 2026-11-13: the door's cases were run at a door with no key, and each ended as written beforehand (trust step 4, documents only)
 
 **What this is.** The founder's decision of 2026-11-13 on pull request 506 recorded the reruns at a door with no key as open, "done before anything is built". Asked "Run the mock's reading and showing cases at a door with no key now?", he answered "Yes, run them". This is that run, recorded in `docs/2026-11-10-trust-door-spike.md` (§10, and findings 15 to 23) and in `docs/2026-11-10-trust-door-design.md` (§5.8, and decisions 16 and 17), with their PDFs. Nothing in `engine/` changes and nothing is released. The mock and its logs are in the memory root, `audits/2026-11-10-trust-door/`.
 

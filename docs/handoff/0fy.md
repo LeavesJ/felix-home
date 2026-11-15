@@ -1,4 +1,4 @@
-### 2026-11-08: what the merge judges is what the provider squashes (trust-plane step 3, slice 2, 0.49.333)
+### 0fy. 2026-11-08: what the merge judges is what the provider squashes (trust-plane step 3, slice 2, 0.49.333)
 
 **What this is.** Design step 3, slice 2, on branch `claude/trust-step3-slice2`. It closes inventory rows A6, A7 and A8 and narrows G1.
 - The spec is in the memory root, `audits/2026-11-08-trust-plane-step3/spec-slice2.md`, with the run logs beside it in `slice2/`.

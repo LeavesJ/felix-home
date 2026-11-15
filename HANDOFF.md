@@ -22,7 +22,7 @@ so two sessions' handoffs cannot collide in whatever order they land. The
 session start names every section waiting there. Each is newer than the
 current section below. `felix handoff --rotate`, on a branch cut from main
 when upkeep says it is due, folds them in, oldest-landed first:
-- each takes the next id (after 0fx comes 0fy);
+- each takes the next id (after 0gl comes 0gm);
 - the section it replaces moves into `docs/handoff/<id>.md`, unchanged;
 - their rows go in at the top of the index.
 
@@ -47,50 +47,29 @@ tree; the engine is published as a snapshot with no history at
 Sections newer than this one may be waiting in `docs/handoff/pending/`. The
 session start names them.
 
-### 0fx. 2026-11-08: the merge boundary reads its policy and its instruments from P (trust-plane step 3, slice 1, 0.49.332)
+### 0gl. 2026-11-13: the authority that holds main is built in shadow, first slice: its store, standing, door, the reading of his word, a reader's check and the reach test (trust step 4, stage 1, 0.49.343)
 
-**What this is.** Design step 3, "separate the authority" (`docs/2026-11-07-trust-plane-design.md` §4.1, §9), slice 1, on branch `LeavesJ/distracted-hellman-58e0fa`.
-- The inventory of what the landing authority reads is `docs/2026-11-08-trust-step3-inventory.md`.
-- The measurement is `docs/2026-11-08-trust-step3-measurement.md`.
-- PDFs of both are in `docs/pdf/`.
-- The spec and the review records are in the memory root, `audits/2026-11-08-trust-plane-step3/`.
+**What this is.** The first engine slice of the hosted authority (the 11-09 design, on main since 2026-11-13 as pull request 504) and of the founder's door (`docs/2026-11-10-trust-door-design.md`, §5 and §7). Five libraries (`lib/authority.sh`, `authority-paths.sh`, `authority-tick.sh`, `door.sh`, `door-read.sh`), two programs (`bin/reach-witness`, `bin/reach-probe`) and two commands: `felix authority init|status|tick|decide|log|verify` and `felix door`, with `felix door stop` as the brake. The document is `docs/2026-11-13-trust-step4-shadow-slice1.md`, with its PDF. The contract the tests were written from (revision 3), the review, the blind author's report and the logs are in the memory root, `audits/2026-11-13-trust-step4-shadow/`.
 
-**What changed.**
-- **`lib/policy.sh` (new).** `felix_merge_blockers` reads every table from a snapshot of the project directory as P holds it (S1).
-  - P is BASE when the directory sits in a worktree of the merged repository, by that repository's own worktree list, never the index.
-  - P is BASE's `projects/<name>` whenever the merged repository is the engine's own, wherever `FELIX_HOME` points, with `<name>` read from BASE's `.felix` (S1.7).
-  - Otherwise the path is classified as the home names it: the home directory's physical path, and the rest as written, so a link at `projects/<name>` or a `.git` planted under the home does not choose P (S1.8).
-  - A home whose commission tables differ from P's gets an `unverified home` line naming the remedy, because a receipt written there cannot be current (S1.9).
-  - An empty or unresolvable base is judged as before; a missing policy library gives a `policy` line (S1.10).
-  - For a product's home in another repository, P is that repository's `origin/main`, or its HEAD.
-  - A BASE without the directory refuses with a `policy` line.
-- **P's commands run P's instruments (S2).** A command-position word of an obligation or probe command that names a file BASE holds runs as BASE's copy, with its whole top-level directory beside it. The working directory stays the candidate's.
-  - The rewrite reads a small grammar and stops at the first construct outside it: a substitution, a brace, `[[`, `case`, an array, a here-document, an option or redirection after an interpreter, a wrapper (S2.1).
-  - It fails closed. The rest of a command that stopped is read again as bash reads it, and a path P holds that sits where a command, an interpreter's script or a wrapper's argument runs refuses the merge with a `policy` line. None of the 110 commands in the home's tables today lists one.
-- **`lib/escape.sh`.** The old body is `_felix_merge_blockers_at`. A trailing comma is forgiven only in `*.json` (S3): appending `,` to a TSV count confine read as no change, and landed on green.
-- **`felix` and `lib/resolve.sh`.** Self-governance is asked of BASE as well (`felix_self_governed_at`, S4).
-- **Tests.** Parts 2176 and 2177 (one group, `ts3`) were written blind from the spec, a round per amendment: 54 assertions, 25 red-first, which fail on main and pass here. Part 0100 holds a non-blind table of 38 commands over the scan, so CI's gawk runs the reader. Mutants: m8 survives (the worktree-list rule: S1.7 answers first for Felix's own repository, and for a product the next rule reaches the same ref in every case built); the rest are in the report.
-- **Reviews.** The first-build review, then four security reviews of the command reader, five rounds in all, each fixed (the fifth round found a regression in the fourth's fix). No further round is taken: the reader models bash, and the structural answer is the partition (spec E5).
+**His decision, 2026-11-13: "Build now, login this week".** The authority is built now and runs in shadow under his own login. It judges and records. Nothing it says counts and it holds nothing until three things are true: it runs as its own login, the reach test has passed, and he has given the first start at that login's desktop. The engine reads those as five conditions, and `felix authority status` prints a `why` line for each that does not hold: its own login (a), its files its alone (b), the code it runs out of a worker's reach (e), a first start at the console (c), a reach pass at the console (d).
 
-**Measured** (details in the report).
-- **Battery:** 25 cases were run at both versions: 17 landed on main and 5 land on slice 1. Five review cases more, reproduced against the first cut, are refused on slice 1. Every one that still lands is a stated residual:
-  - R5: a cwd-relative read, a mixed file, a runner the scan does not know executing its argument;
-  - R2 with R4: `--base`, and a moved local `origin/main`, each with forged receipts and the loosened table copied into the home.
-- **Deny floor (0.49.330):** `gh pr merge` in 10 shapes passes it, and push to main is refused in 4.
-- **False blocks:** 6 of 59 main commits since 10-08 touched the instrument closure, and none changed output under P's instruments. Two of the three instruments were replayed.
-- **Cost:** CPU per judgement on felix-home's tables, interleaved under one load, went from 1.64–1.75 s to 1.99–2.09 s.
+**What is shadow.** Each line a tick prints starts with the standing. No other command reads the authority's store, log or ledger: the gate, the lander and the merge judge are as they were. In shadow the store's main follows the source's main forward, and a statement given under his own login is kept, marked `given: shadow`, and does not count. **A store started in shadow stays a rehearsal:** the authority's login runs `init` in its own home, and the shadow store is not carried over.
 
-**Open, for whoever takes step 3 next.**
-- **The partition (spec E5)** before any more work on the command reader: five review rounds each found a parser differential in it. Judge with P's instruments by construction, and read the candidate's tree only as the subject.
-- **R2:** bind P to the PR's base as the provider holds it (inventory A6, A7, G1). Since slice 1 the base names the tables too, so this is now the route a receipt forger takes.
-- **The stance table.** `lifecycle_wired` hands its checker the candidate's stance table, `engine/harness/templates/lifecycle.tsv`, a yellow path. Moving it to P needs the partition (spec E5) or a change to the row.
-- **The suite (R3):** running P's suite over the candidate.
-- **Products** whose home is a plain directory still supply their own tables.
-- `deploy-check`'s false-block replay, and a fault-injection round on `lib/policy.sh`'s own reads.
-- **Replace refs and grafts** (inventory A8): `git replace` in the merged repository changes what git returns for P and the subject. By reading, only the directory snapshot is cut where no replace ref is held; the other reads are made in the checkout. Not run.
-- **The rewriter's open forms:** a wrapper S2.1 does not name (`caffeinate tools/check-fx`), an instrument named through a variable, a glob, a path built at run time, a runner defined in the command (`f() { "$@"; }`). The fail-closed reader has run only under BWK awk on this Mac; CI's gawk run of parts 0100 and 2176 is its first there.
+**What waits for the login,** and is his: making the authority's login and enrolling its fingerprint, the restart, the sharing settings, sitting at the screen for the reach test, and the first start. None was done. No login, account, key, token or App was made and no system setting was changed. Moving the authority to that login is a change of `FELIX_AUTHORITY_HOME` and of the rows of `authority.conf`, and of nothing in the code. That login also needs a copy of the engine and a `PATH` no worker can write: under his own login the `git` on his `PATH` sits in a directory he owns, and condition e says so.
 
-**Gate.** `felix gate` was run on this branch's final tree. Its result is in the pull request's body.
+**What it does not do yet.** Nothing lands, in either standing. A tick ends where the judge would begin. The judge, landing and the spending of a permission, a forge connector, and the signer with its keys are later slices, listed in the document's §7.
+
+**Fixed from the mocks, and not copied.** His word is read in its order (V5f). A hold given after an authorization or an override takes it back, and a release after that hold does not bring it back (V6f). An override names the tree he was shown and holds for that tree alone (V31f). One function reads the founder-path policy for the door and for the decision, and a path with a newline is his (V43). A reader with a memory notices a dropped statement (V62). The confirmation's characters are two pairs at places the statement's nonce picks, with one try and a record of a refused one (the no-key run's VD3).
+
+**The review.** One reviewer attacked the first build and reported fifteen findings, each with a script: a candidate that replaced `.felix` read `eligible`; a blind guess of the confirmation was kept on run 31; the user's attributes reached the merge; "console" was read once and from a `ps` that could fail; "the authority's alone" read three modes; the reader took a second start and a reused nonce. Each is fixed in the build or listed as open, and the reviewer's scripts were run again on the fixed code. The record is `review/findings-and-responses.md` in the audit folder.
+
+**Measured,** on this Mac under a load average of 60 to 92. The four blind parts (2186 to 2189, 301 assertions) were red on main with no build (282 fail, 18 fixture controls pass, 1 skips) and pass on the build but the one skip, the probe's run on macOS. They found four lines of the door and the tick that were not the spec's, each fixed. The whole suite then found a fifth: the reader said `unverified`, a word the engine's wording contract (C18) refuses in a printed line, so the spec, the reader and part 2189 now say `not ok`. A rehearsal against this repository's main checkout decided 146 candidates in 52 to 54 s a tick (115 `conflict`, 22 `eligible`, 8 `nothing`, 1 `waits`); the door opened in 40 s and the brake reached its confirm line in 2 s.
+
+**Not shown.** A second login, a switch of desktop, a fingerprint, a restart, a lock that works on this macOS, or a person. The reach test's probe was never run. "Live" was reached in a fixture where one login played both sides.
+
+**Open.** Which copy of the engine the authority's login runs. What condition e does not read (the directories above the ones it reads, where a link's target sits, libraries a program loads, a login not named in `workers`). A source that login can read. The lock program for this macOS. The cost of a tick and of the door grows with the candidates, and no cache is built. A fetch's size is the source's to set, and one object the checked fetch refuses pauses each decision. A hand-written entry by the authority's own login reads `ok`: no statement is signed. The typed confirmation is one blind try in 361. The document's §7 has the list, and it is the items found so far.
+
+**The founder's acts,** in order, for the day the login exists: the document's §8. A release needs him by name (direction row 49). The pull request is labelled needs-founder.
 
 ---
 
@@ -101,6 +80,20 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0gk](docs/handoff/0gk.md) | 2026-11-06: an owed engine deploy gets its window; new suites and gates wait for it (0.49.342) |
+| [0gj](docs/handoff/0gj.md) | 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.341) |
+| [0gi](docs/handoff/0gi.md) | 2026-11-13: step 1's pre-registered rerun ran, and the method does not advance (trust step 1, a measurement; nothing in the engine or the specification changes) |
+| [0gh](docs/handoff/0gh.md) | 2026-11-12: the budget row reads GitHub's usage report (stuck-PR spec R13, 0.49.340) |
+| [0gg](docs/handoff/0gg.md) | 2026-11-13: the door's cases were run at a door with no key, and each ended as written beforehand (trust step 4, documents only) |
+| [0gf](docs/handoff/0gf.md) | 2026-11-09: the hosted trust authority, designed around Felix holding main and tried on a local mock (trust-plane step 4, documents only) |
+| [0ge](docs/handoff/0ge.md) | 2026-11-10: the founder's door is designed, its protocol tried on a mock, and his choice of surface recorded (trust step 4, documents only) |
+| [0gd](docs/handoff/0gd.md) | 2026-11-09: slice 3's units read the bytes and names that land, and so do the base-side copies (trust step 3, A22 and A23, 0.49.338) |
+| [0gc](docs/handoff/0gc.md) | 2026-11-09: the readers' merge detects no directory renames, as GitHub's merge does (S6.7, 0.49.337) |
+| [0gb](docs/handoff/0gb.md) | 2026-11-09: P's instrument parts judge the candidate (trust-plane step 3, slice 3, 0.49.336) |
+| [0ga](docs/handoff/0ga.md) | 2026-11-08: part 1495 compares two page runs with the ages they print put aside, so a minute boundary between the runs is not a failure (suite only, 0.49.335) |
+| [0fz](docs/handoff/0fz.md) | 2026-11-08: the change readers' merge ignores the checkout's merge configuration (S6.6, 0.49.334) |
+| [0fy](docs/handoff/0fy.md) | 2026-11-08: what the merge judges is what the provider squashes (trust-plane step 3, slice 2, 0.49.333) |
+| [0fx](docs/handoff/0fx.md) | 2026-11-08: the merge boundary reads its policy and its instruments from P (trust-plane step 3, slice 1, 0.49.332) |
 | [0fw](docs/handoff/0fw.md) | 2026-11-08: the trust-plane specification, revision 1: a model for each need, spec oracles, and a review packet without findings; the step 1 rerun is pre-registered |
 | [0fv](docs/handoff/0fv.md) | 2026-11-07: the trust-plane design is final, releases fail closed, and trust rework goes first |
 | [0fu](docs/handoff/0fu.md) | 2026-11-07: who authorizes a change that removes what a need checks |

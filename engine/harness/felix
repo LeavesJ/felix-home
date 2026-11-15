@@ -25,6 +25,8 @@
 #   felix pulse          back up memory and report what waits; --install schedules it daily
 #   felix status [--tsv] read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
 #   felix lane [--tsv]   read-only: each lane's share of engine landings, against its target
+#   felix authority      the authority that holds main, in shadow: init, status, tick, decide, log, verify
+#   felix door           the founder's door: one statement to the authority, at its own desktop
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -312,6 +314,8 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/lifecycle.sh"
 # shellcheck source=lib/automerge.sh
 . "${SCRIPT_DIR}/lib/automerge.sh"
+# shellcheck source=lib/deploy-hold.sh
+. "${SCRIPT_DIR}/lib/deploy-hold.sh"
 # shellcheck source=lib/green-tick.sh
 . "${SCRIPT_DIR}/lib/green-tick.sh"
 # shellcheck source=lib/green-install.sh
@@ -389,6 +393,13 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 # shellcheck source=lib/handoff.sh
 . "${SCRIPT_DIR}/lib/handoff.sh"
 . "${SCRIPT_DIR}/lib/merge-judge.sh"
+# The authority that holds main, and the founder's door (trust-plane step 4, stage 1, slice 1).
+# shellcheck source=lib/authority.sh
+. "${SCRIPT_DIR}/lib/authority.sh"
+. "${SCRIPT_DIR}/lib/authority-paths.sh"
+. "${SCRIPT_DIR}/lib/door-read.sh"
+. "${SCRIPT_DIR}/lib/authority-tick.sh"
+. "${SCRIPT_DIR}/lib/door.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -441,6 +452,12 @@ specific project, language, or toolchain.
     felix which            which project governs here, and where its doctrine is
     felix status [--tsv]     read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
     felix lane [--tsv]     read-only: each lane's share of engine landings on origin/main, against its target
+    felix authority status|tick|decide COMMIT|log|verify [--store P] [--memory F]
+                           the authority that holds main, in shadow until it runs as its own login:
+                           its standing, what the founder's word makes of each candidate, and the
+                           reader's check of the log; felix authority init --user U --workers W --source S sets one up
+    felix door             the founder's door: one statement to the authority, typed at its own desktop
+    felix door stop        the brake: his stop, with no fetch and no list before it
     felix gate [args]      run this project's gate; exits with the gate's status
     felix route            what kind of work this is, and what to reach for
     felix decisions        the capability-decision record: mandates, declines, answer rate
@@ -780,6 +797,8 @@ cmd_gate() {
   resolve_or_die; local proj="$PROJ" gate
   gate="$(felix_json_str "$proj/project.json" gate)"
   [ -n "$gate" ] || die "project $(basename "$proj") declares no gate in project.json"
+  # While the lander owes a deploy, nothing new starts (lib/deploy-hold.sh, the gate's door); what is admitted passes it on.
+  _dh_wait "felix gate"
 
   # Run from the checkout being gated, never from Felix. A gate that inspects
   # "the tree it lives in" instead of "the tree it was pointed at" reports a
@@ -6784,6 +6803,69 @@ cmd_status() {
 # root's bindings.tsv): felix merge and felix land run those, so they stay as main has them. Exit 0 for any report; 2 for a
 # usage error, a directory no project governs, or a resolution that did not finish (C2, C5); 1 when the count did not
 # finish (C3): nothing on stdout, "felix: the lane count did not finish in <repo>" on stderr.
+# The authority that holds main (lib/authority.sh), in shadow until it runs as its own login. Each subcommand
+# but init needs one set up at $FELIX_AUTHORITY_HOME; with none, one line on stderr and exit 1, and nothing written.
+cmd_authority() {
+  local sub="${1:-}" user="" workers="" source="" srcmain="" store="" door="" lock="" mem=""
+  [ $# -eq 0 ] || shift
+  case "$sub" in
+    init)
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --user)        need_value "$@"; user="$2"; shift 2 ;;
+          --workers)     need_value "$@"; workers="$2"; shift 2 ;;
+          --source)      need_value "$@"; source="$2"; shift 2 ;;
+          --source-main) need_value "$@"; srcmain="$2"; shift 2 ;;
+          --store)       need_value "$@"; store="$2"; shift 2 ;;
+          --door)        need_value "$@"; door="$2"; shift 2 ;;
+          --lock)        need_value "$@"; lock="$2"; shift 2 ;;
+          *) die "felix authority init: unknown argument: $1" 2 ;;
+        esac
+      done
+      felix_authority_gitenv
+      felix_authority_init "$user" "$workers" "$source" "$srcmain" "$store" "$door" "$lock" \
+        || die "authority init: ${_FA_WHY:-it could not be set up}"
+      printf 'authority: %s\n' "$_FA_ID"
+      printf 'standing: shadow, until it runs as its own login, the reach test has passed and the first start was given at the console\n'
+      printf 'next: the first statement is the first start, given at the door: felix door\n' ;;
+    status)
+      felix_authority_open || die "$_FA_WHY"
+      felix_authority_status ;;
+    tick)
+      felix_authority_open || die "$_FA_WHY"
+      felix_authority_tick ;;
+    decide)
+      felix_authority_open || die "$_FA_WHY"
+      felix_authority_decide_one "${1:-}" ;;
+    log)
+      felix_authority_open || die "$_FA_WHY"
+      [ -z "$_DL_BAD" ] || die "the door's log does not read back: statement $_DL_BAD"
+      felix_door_log_print ;;
+    verify)
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --store)  need_value "$@"; store="$2"; shift 2 ;;
+          --memory) need_value "$@"; mem="$2"; shift 2 ;;
+          *) die "felix authority verify: unknown argument: $1" 2 ;;
+        esac
+      done
+      felix_authority_gitenv
+      if [ -z "$store" ]; then felix_authority_load || die "$_FA_WHY"; store="$_FA_STORE"; fi
+      [ -d "$store" ] || die "the store, $store, is not a directory"
+      felix_authority_verify "$store" "$mem" ;;
+    *) die "felix authority: init, status, tick, decide COMMIT, log or verify. Try 'felix help'." 2 ;;
+  esac
+}
+
+# The founder's door (lib/door.sh): one statement for each run, read from standard input.
+cmd_door() {
+  case "$#:${1:-}" in
+    0:)     felix_door ;;
+    1:stop) felix_door stop ;;   # D13, the brake: no fetch and no list stand between him and the stop
+    *)      die "felix door takes no argument but stop: what he says is typed at the door" 2 ;;
+  esac
+}
+
 cmd_lane() {
   local tsv=0 lrc=0 lout
   case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix lane [--tsv]" 2 ;; esac
@@ -6819,6 +6901,8 @@ case "${1:-help}" in
   pulse)   shift; cmd_pulse "$@" ;;
   status)  shift; cmd_status "$@" ;;
   lane)    shift; cmd_lane "$@" ;;
+  authority) shift; cmd_authority "$@" ;;
+  door)    shift; cmd_door "$@" ;;
   procedures) shift; cmd_procedures "$@" ;;
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;

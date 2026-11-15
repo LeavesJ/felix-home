@@ -1,4 +1,4 @@
-### 2026-11-09: slice 3's units read the bytes and names that land, and so do the base-side copies (trust step 3, A22 and A23, 0.49.338)
+### 0gd. 2026-11-09: slice 3's units read the bytes and names that land, and so do the base-side copies (trust step 3, A22 and A23, 0.49.338)
 
 **What this is.** A fix to trust step 3's slice 3 (0.49.336), on branch `claude/trust-run-tree-bytes`. The finding came from the hosted-authority spike's review (`audits/2026-11-09-trust-hosted-authority/review/round1.md` in the memory root) and was reproduced in plain git 2.56. The spec is section 8 of `audits/2026-11-08-trust-plane-step3/spec-slice3.md`, amended three times. The base-side copies were added at a side session's request, made on the same finding.
 

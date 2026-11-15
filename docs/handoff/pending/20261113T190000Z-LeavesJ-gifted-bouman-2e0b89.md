@@ -1,4 +1,4 @@
-### 2026-11-13: main can be cut as the public snapshot again (0.49.344; suite fixtures, acknowledgements and one README link)
+### 2026-11-13: main can be cut as the public snapshot again (0.49.346; suite fixtures, acknowledgements and one README link)
 
 **What this is.** The public snapshot was due (47 days against 14), and
 `projects/felix/snapshot.sh` could not cut it from main at 0.49.340. This branch
@@ -33,7 +33,7 @@ a design session.
 
 **Order.** The founder put this after the three releases queued ahead of it by
 number, #494, #509 and #511, on 2026-11-13. Once they land, merge main here
-again and record. The fix keeps 0.49.344 if they land as 0.49.341 to 0.49.343.
+again and record. They landed as 0.49.341 to 0.49.343, with 0.49.345 (#513) after them, so the fix took 0.49.346.
 Then gate alone and run `felix merge --dry-run`, which runs main's part 1860
 over the tree as suite work. Its dry run on `3624a0d5`, alone at 20:58Z,
 printed eight escape lines and nothing else that blocks besides the missing

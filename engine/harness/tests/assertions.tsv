@@ -2597,6 +2597,85 @@
 1	D8: and its driver sources every part it holds once, in name order: 0001 to 0007, the stubs, then 9990 (control)
 1	D8: and leaves no run in the copy when it fails
 1	DEVLOG.md gets exactly the old entry: blank line, header with day branch sha, blank line, text
+1	DW1 (control): the hold felix gate meets is in force by DW1: one line, three fields, LEASE now, a version
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: FELIX_DEPLOY_HOLD=off skips the wait, saying nothing
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: FELIX_HOLD_PASSED=1 skips the wait, saying nothing
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: SINCE 150 s ago under FELIX_DEPLOY_HOLD_LIMIT=100
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: SINCE 3700 s ago, past the default limit of 3600
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a LEASE 120 s in the future
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a LEASE that is not a plain decimal integer
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a file beside land/, not in it
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: a stale lease, 1300 s old
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: an empty file
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: an unreadable file (fail open)
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: four fields
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: the path is a directory
+1	DW1, DW7: not in force, felix gate goes on at once and its gate runs: two fields
+1	DW1: a fresh hold (LEASE and SINCE now) is in force: felix gate waits
+1	DW1: in force, felix gate waits: FELIX_HOLD_PASSED set but empty does not skip it
+1	DW1: in force, felix gate waits: SINCE 150 s ago under FELIX_DEPLOY_HOLD_LIMIT=200
+1	DW1: in force, felix gate waits: a FELIX_DEPLOY_HOLD_LIMIT of 0 is read as 3600
+1	DW1: in force, felix gate waits: a LEASE 30 s in the future (within now + 60)
+1	DW1: in force, felix gate waits: one project's file garbled and another's in force (lease 1100 s old): any one in force holds the machine
+1	DW2.1: a fresh lease of main's version keeps SINCE and moves LEASE to now
+1	DW2.1: a hold for another version does not keep SINCE: SINCE now, VERSION main's
+1	DW2.1: a stale lease (1300 s) does not keep SINCE: SINCE is now
+1	DW2.1: past the limit the tick keeps refreshing LEASE with SINCE unchanged
+1	DW2.1: the tick asserts the hold: one line of three fields, LEASE now, SINCE = LEASE, VERSION main's
+1	DW2.3: a deploy that ends deploy-failed clears the hold
+1	DW2.3: a hold in force is cleared by the deployed row
+1	DW2.3: after felix land --pause, the tick clears the hold
+1	DW2.3: and the deployed row clears it
+1	DW2.3: the tick pausing (the home off main) clears the hold
+1	DW2.3: with no deploy owed the tick clears a hold in force
+1	DW2.4: and the row says the hold has lapsed
+1	DW2.4: its detail holds new suites and gates wait
+1	DW2.4: the row's first words are still a gate or suite is running
+1	DW2: nothing is signalled: the running suite is alive and caught no signal
+1	DW2: the file is written whole, a new file renamed over the old (its inode changes)
+1	DW3: a cycle in the table's parents does not hang the tick: it ends with its deploy-owed row naming the suite
+1	DW3: a marker for another memory root drops nothing: its suite is named and nothing is installed
+1	DW3: a ps that exits 1 (its table printed all the same), the ancestor counts as running: deploy-owed names it, nothing installed
+1	DW3: a ps that prints nothing, the ancestor counts as running: deploy-owed names it, nothing installed
+1	DW3: a ps whose lines do not parse, the ancestor counts as running: deploy-owed names it, nothing installed
+3	DW3: matched does not name a waiter or an ancestor of one
+3	DW3: matched names a pid that is no waiter nor ancestor of one (a suite, a waiter's child, one ps does not show)
+1	DW3: the tick reads the table once with ps -axo pid=,ppid=,command=
+1	DW3: waiters, their ancestors and a real suite listed: still one deploy-owed row (control)
+1	DW3: when every pid pgrep lists is a waiter or an ancestor of one, nothing runs and the tick deploys
+1	DW4 (control): the hold the part run meets is still in force by DW1 (SINCE in the future, LEASE now)
+1	DW4 rev 2: and its part runs, with FELIX_HOLD_PASSED=1 in its environment
+1	DW4 rev 2: tests/run --part under a hold goes straight on: no waiting line, nothing about a deploy on stderr
+1	DW4: a door that goes on exports FELIX_HOLD_PASSED=1 to the project's gate
+1	DW4: a full tests/run under a hold waits: its waiting line, no mktemp made, nothing on stdout
+1	DW4: a full tests/run with FELIX_DEPLOY_HOLD=off skips the wait and starts, saying nothing
+1	DW4: a full tests/run with FELIX_HOLD_PASSED=1 skips the wait and starts, saying nothing
+1	DW4: a full tests/run with no hold starts at once, saying nothing (control)
+1	DW4: and says nothing of a deploy on stderr (control)
+1	DW4: felix gate with arguments (--quick) waits too
+1	DW4: felix gate with no hold goes on at once: no wait, its gate runs (control)
+1	DW4: tests/run --record-assertions waits, before it makes anything
+1	DW4: tests/run --reuse waits, before it makes anything
+1	DW4: tests/run -j 2 waits, before it makes anything
+1	DW4: the tick's own felix gate --quick runs with FELIX_HOLD_PASSED=1
+1	DW4: then its gate runs, with FELIX_HOLD_PASSED=1 exported
+1	DW4: while it waits, felix gate's stdout is empty
+1	DW4: while it waits, the project's gate has not run
+1	DW5: a file still there but no longer in force (a stale lease) ends the wait as the hold lapsed
+1	DW5: and the waiting line says at most 2 s
+1	DW5: and then its gate runs
+1	DW5: bounded: with FELIX_DEPLOY_HOLD_LIMIT=2 and the hold still in force, it goes ahead saying the limit was reached
+1	DW5: nothing it said went to stdout
+1	DW5: once the file is gone it goes ahead within a few polls, saying went ahead after N s: the hold ended
+1	DW5: the first stderr line begins felix gate: waiting for the engine deploy
+1	DW5: the waiting line holds at most <LIMIT> s, 3600 by default
+1	DW5: the waiting line holds the hold's VERSION
+1	DW5: the waiting line names FELIX_DEPLOY_HOLD=off as the way past
+1	DW5: with FELIX_DEPLOY_HOLD_SAY=1 it says a still-waiting line holding the seconds waited
+1	DW6: a door that went ahead leaves no marker for its root
+1	DW6: a waiting felix gate has exactly one marker child, felix-deploy-hold-wait <its memory root> <its poll>
+1	DW6: a waiting tests/run keeps its command line (it matches the tick's pattern) and has one marker child for its root and poll
+1	DW6: when the waiting door is killed with KILL, its marker ends by itself within a few seconds
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_GRAPH_TAIL widens the window when someone needs it to
 1	FELIX_HARNESS_DIR holds lib/maintenance.sh, so it is an engine harness
@@ -10490,6 +10569,19 @@
 1	elenchus's push guard, two passing at once: the runs overlapped
 1	eleven rows now
 1	emits the documented UserPromptSubmit shape
+1	end to end: a new full suite does not run: its waiting line on stderr, no mktemp, nothing on stdout
+1	end to end: a tick while both are there still names the running suite
+1	end to end: a wrapper of that shape around the copy's tests/run is a process the tick's pgrep lists (control)
+1	end to end: and drops the waiter's wrapper, still there and an ancestor of a waiter
+1	end to end: and its suite runs, FELIX_HOLD_PASSED=1 inherited by its part
+1	end to end: and once it has gone ahead no marker for the tick's root is left
+1	end to end: and the hold is asserted, in force by DW1 (LEASE now, VERSION main's)
+1	end to end: it refreshes LEASE and keeps SINCE
+1	end to end: once the running suite has ended, the tick deploys and clears the hold
+1	end to end: the waiter goes ahead, saying went ahead after N s: the hold ended
+1	end to end: the waiter says it is still waiting
+1	end to end: the waiting door keeps its command line and has one marker child for the tick's root
+1	end to end: with a deploy owed, the running suite (a real process) is matched: one deploy-owed row naming its pid (control)
 1	engine/harness/felix turns off the options a caller's SHELLOPTS can turn on, stops exporting SHELLOPTS and BASHOPTS, records the caller's CDPATH unexported and unsets all sixteen names, or one of them reaches what the engine runs
 1	entries older than a day do not count
 1	envelope path values are gone from the tokens
@@ -15690,7 +15782,12 @@
 1	the terminal fixture: the ledger's two details and the paused reason hold ESC (fixture control)
 1	the terminal fixture: the second checkout's directory name and origin URL hold a tab, and origin/HEAD names main (fixture control)
 1	the tests check is behind the verifier confine
+1	the tests/run door's fixture: _suite_copy_tree made a copy of this suite with the planted part (control)
 1	the third field is the epoch the answer file named
+1	the tick fixture: _dw_named reads pid 40010 before a semicolon or at the end as named, and pid 4001 or 400100 as not (control)
+1	the tick fixture: a deploy owed and a suite running: one deploy-owed row, nothing installed (control)
+1	the tick fixture: a deploy owed and nothing running, the tick deploys: one deployed row, one install (control)
+1	the tick fixture: just deployed, a suite running: no deploy is owed, no deploy-owed row, no install (control)
 1	the topology is back once the ignored file is gone
 1	the trap says the remotes moved while the run ran, never that the run moved them
 1	the tree holds only the marker beside what was there
@@ -15756,6 +15853,7 @@
 1	this engine's reader takes neither a leading no-break space, an ideographic space nor a lead byte as part of a tidy grant
 1	this engine's reader takes neither tidy and a Shift-JIS ideographic space, tidy and a file separator, nor tidy. as a grant, under C or UTF-8
 1	this engine's version is above origin/main's when this tree holds commits origin/main lacks
+1	this part leaves no process of its own running (control)
 1	this repository's every table is declared and accepted
 1	this session's catch prompts after its checkout moves to another branch
 1	this session's catch seen from outside git is settled by its own row
@@ -16128,6 +16226,307 @@
 1	ts3g: A23, case 3, where names fold: a candidate that deletes the base's MARKER and adds marker is refused as unknown SUITE naming both paths, and no unit runs
 1	ts3g: A23, case 4 (fixture control): the candidate's tree holds engine/widget/Twin.txt and engine/widget/twin.txt, one blob for both
 1	ts3g: A23, case 4, where names fold: a candidate whose tree holds two paths differing only by case is refused as unknown SUITE naming both, and no unit runs
+1	ts4 (control): the test's own escaping writes a newline, a backslash, a quote, an escape and a tab as section 0 says
+1	ts4 door (control): git's own merge onto main is clean for dir, plain and big, conflicts for clash, and for same is main's own tree
+1	ts4 door (control): the planted head's paths hold one escape, one carriage return, one tab and two newlines, its branch name a quote and U+009B, and its message two lines before the first empty one
+1	ts4 door 2.5, D12: a tick shows that branch escaped as the door does, names its first founder path in the order git lists them, and prints no control byte of the worker's
+1	ts4 door 3: a refusal is a line on the door's standard output
+1	ts4 door D10: with a lock that fails, the statement is kept, the lock was run, the door prints NOT LOCKED, and the exit status stays 0
+1	ts4 door D10: with no lock set a kept statement is followed by a line starting NOT LOCKED, and the exit status stays 0
+1	ts4 door D12: a quote and a backslash in a path are shown as \x22 and \x5c, and a path of printable ASCII, look-alikes and all, as it is
+1	ts4 door D1: with SSH_CONNECTION set the door prints a line starting refused: , exits 1 and reads nothing back
+1	ts4 door D1: with SSH_TTY set the door prints a line starting refused: , exits 1 and reads nothing back
+1	ts4 door D2, D6: after five confirmations that failed since the last kept statement, the next door reads back refused-confirmations: 5
+1	ts4 door D2, D6: the next door reads back the word stop and the one refused confirmation, and asks for go against the statement's nonce: a line confirm: nonce and the nonce whole, two pairs of it in brackets, the first starting in its first fifteen places and the second in places sixteen to thirty; go and those four characters keep it
+1	ts4 door D2, W7: with neither set and no statement yet, the door reads back FELIX DOOR with the authority's id, SHADOW and each why, main - and the word go, keeps nothing at the end of its input and exits 1
+1	ts4 door D2: after a kept statement the next door reads back no refused confirmation
+1	ts4 door D2: after the start the door reads back main as the store holds it
+1	ts4 door D2: and the authorization still in effect, of a head that no longer waits and that the last five do not hold, with its number, on a line starting in-effect: 
+1	ts4 door D2: the door reads back the last five statements, here releases of five heads no list entry names, and not the one before them
+1	ts4 door D3, D6: a number from the list names that entry's head: the card for authorize N has a line confirm: and the head whole, with two pairs of its characters in square brackets, the first starting in its first nineteen places and the second in places twenty to thirty-eight
+1	ts4 door D3: the door lists each candidate that waits on his word, its head whole and its branch shown escaped, and no head that is eligible, conflicts or changes nothing
+1	ts4 door D3: the five entries are numbered from 1, and a line then counts the 11 other candidates
+1	ts4 door D3: when the source cannot be read the door says so, lists what the store holds, and still keeps a statement about it
+1	ts4 door D4: a commit the store does not hold is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D4: a number the list does not have is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D4: a verb that is not one of the nine is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D4: an id of 39 digits is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D4: an override of a head that changes nothing is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D4: an override of a head that conflicts with main is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D4: reach pass where the statement would not be given at the console is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D4: the number 0 is refused: a line starting refused: , exit 1, nothing kept and the lock not run
+1	ts4 door D5 (a reading): and the time it was kept with is the time the card showed
+1	ts4 door D5 (a reading): paths-changed counts every changed path, the founder's among them
+1	ts4 door D5 (rev 2): the card of the first start, which has no main yet, says main-shown: - and lands-as: main starts from this commit
+1	ts4 door D5, D11: the card's decision is what decide says of the head, and its branch and subject are in quotes and labelled as the worker's word
+1	ts4 door D5, case 8: the card of thirty paths whose last in tree order is the founder's holds each label once, one founder-path line and twenty path lines
+1	ts4 door D5: a founder path of some 310 bytes is shown whole and escaped, and another path as long is cut: its line is at most 230 bytes and does not hold it whole
+1	ts4 door D5: a head two branches carry names both, each shown escaped
+1	ts4 door D5: the card of a head that changes nothing, and of one that conflicts with main, says lands-as: nothing and the decision
+1	ts4 door D5: the card of an ordinary change holds no founder path, its one path in quotes, the tree it lands as, and that it is eligible
+1	ts4 door D5: the card printed the statement as it was kept: each line of the kept message but card: is a line of the card
+1	ts4 door D5: the card says the statement does not count and why, the commit whole, main as shown, and the tree it would land as
+1	ts4 door D5a: over every door of this part, no row is longer than 78 characters, and long lines were folded into rows that start with four spaces, a bar and a space
+1	ts4 door D6, D8: stop, then stop, is kept: a statement with the verb stop, no commit and no tree
+1	ts4 door D6: a wrong four, with the right line typed after it, is not the confirmation: the door prints refused: , exits 1, keeps nothing and leaves one row in refused.tsv
+1	ts4 door D6: go, then go, typed with the card unread, is not the confirmation of go: nothing is kept, and refused.tsv has one row more
+1	ts4 door D6: stop is confirmed by the word stop alone: go after it is refused, and nothing is kept
+1	ts4 door D6: the end of the input after a card closes the statement: the door prints refused: , exits 1 and keeps nothing
+1	ts4 door D6: the end of the input after a card is a missing confirmation: those twelve asks left twelve rows in refused.tsv
+1	ts4 door D6: the four characters under another verb is not the confirmation: the door prints refused: , exits 1, keeps nothing and leaves one row in refused.tsv
+1	ts4 door D6: the four characters with no verb is not the confirmation: the door prints refused: , exits 1, keeps nothing and leaves one row in refused.tsv
+1	ts4 door D6: the verb and the first pair alone is not the confirmation: the door prints refused: , exits 1, keeps nothing and leaves one row in refused.tsv
+1	ts4 door D6: the verb and the whole id is not the confirmation: the door prints refused: , exits 1, keeps nothing and leaves one row in refused.tsv
+1	ts4 door D6: with FELIX_DOOR_TTL at 2 and no line typed, the door closes the statement by itself: refused: , exit 1, nothing kept
+1	ts4 door D7, D10, case 13: a confirmed start prints kept: statement 0 start COMMIT and then locked, exits 0, and the lock ran once, with no argument
+1	ts4 door D7: the verb, a space and the four characters confirm it: the door prints kept: statement 1 authorize and the head, and exits 0
+1	ts4 door D8, D9: it names the authority, its place, the entry before it, the verb, the head, no tree, main as he was shown it, no key, shadow, and no result or witness
+1	ts4 door D8: card is 40 hex digits, nonce 32, and at a UTC time that begins with the date
+1	ts4 door D8: the kept statement is felix-door/v1 and the fourteen fields, in the spec's order and nothing else
+1	ts4 door D9: the entry is a commit whose one parent is the entry before it, and it holds no file
+1	ts4 door D9: the log is refs/felix/door in the store; its first entry is a commit with no parent and no file
+1	ts4 door case 12, D7: a statement confirmed after another door kept one is refused with the log moved, and the log holds the one
+1	ts4 door case 13: over those two doors the lock ran once, for the statement that was kept
+1	ts4 door case 16: a door fed a statement and a guessed confirmation, with the card unread, keeps nothing and leaves a row in refused.tsv
+1	ts4 door case 19, D5a: a subject and a path padded so that a window of 80 columns would wrap them onto a row reading counts: yes put no such row in the door's output: no row is longer than 78 characters, the long lines are folded into rows that start with four spaces, a bar and a space, and the rows join back to the subject and the path whole
+1	ts4 door case 20, D13: with a source that cannot be read, felix door stop reads back, lists nothing and keeps a stop, confirmed by stop; and felix door takes no other argument: felix door hold keeps nothing
+1	ts4 door case 6, case 7, W9: each path that holds a byte outside printable ASCII is a founder path, shown whole in quotes with the byte as \xNN
+1	ts4 door case 7, D5: no line of that card starts with the worker's bytes: it holds one counts, one decision, one confirm and no kept line, five founder-path lines and two path lines
+1	ts4 door case 7, D5: the branch and the subject of that head are shown escaped, in quotes, and labelled as the worker's word
+1	ts4 door case 7, D5: the card of the planted head prints no control byte and no U+009B of the worker's, and its confirm line holds the real head
+1	ts4 door case 8: that founder path is listed before each other path, whole and escaped, with a count of 1, and 9 of the others are said to be not listed
+1	ts4 door case 9, D6: each of twelve asks about one commit shows a card whose brackets hold the id's own four characters at their place, under a nonce of 32 hex digits no other ask had
+1	ts4 door case 9, D6: over those twelve asks the brackets stand in more than one place
+1	ts4 door case 9: over this part's asks, at least twenty, the brackets stood in more than one place
+1	ts4 reach (control): ps lists this machine's processes, and it has a login other than this one that runs none and one, not root, that runs some
+1	ts4 reach (control): the records to be refused are staged: a plain file outside the home, a directory, a record inside that directory, a path through .. to a plain file, a plain file with another first line, and a name that is not there
+1	ts4 reach D4, D8, T4: reach fail with a record, confirmed by reach fail, is kept in shadow: the statement names no commit, says fail, and carries the record's git blob id as its witness
+1	ts4 reach D4, V1: reach fail - is kept with no record, and the whole log, its three reach statements among seven, verifies
+1	ts4 reach D4: at the console, reach pass is refused for a record named -, which only a fail may name
+1	ts4 reach D4: at the console, reach pass is refused for a record that is a directory
+1	ts4 reach D4: at the console, reach pass is refused for a record that is a plain file outside the home's reach directory
+1	ts4 reach D4: at the console, reach pass is refused for a record that is a symbolic link out of the reach directory
+1	ts4 reach D4: at the console, reach pass is refused for a record that is not there
+1	ts4 reach D4: at the console, reach pass is refused for a record that stands in a directory under reach/, not directly in it
+1	ts4 reach D4: at the console, reach pass is refused for a record whose first line is not felix-reach-witness/v1
+1	ts4 reach D4: at the console, reach pass is refused for a record whose path leaves the reach directory through ..
+1	ts4 reach D9: a reach statement's commit holds the witness record and no other file
+1	ts4 reach K1, W11: in live standing the desktop hold that counts holds its head, and a tick does not move main to the source's
+1	ts4 reach K1, W7, case 14: in live standing each candidate line starts with live, and the hold given at the desktop before the pass, which does not count, is not read
+1	ts4 reach K1: back in shadow each statement is read: each candidate line starts with shadow, and the desktop hold that never counted holds its head
+1	ts4 reach T1, D4: reach-witness --seconds 0 --out DIR writes one record at once, a plain file under DIR whose first line is felix-reach-witness/v1, and prints record: and its path and witness: and the record's git blob id
+1	ts4 reach T1, D4: with no --out the record is written directly in reach/ in the authority's home
+1	ts4 reach T1, T4, V1: the door takes the record reach-witness wrote: the statement's witness is the id the program printed, its commit holds that record, and the log verifies
+1	ts4 reach T1: a second run writes another record, with another witness, and leaves the first as it was
+1	ts4 reach T2: reach-probe --list prints a line for each try, each starting with a name of its own, the eight written so far at the least, and writes nothing
+1	ts4 reach T2: the list names the tries the spec lists: the screen, keys, a click, a window, the pasteboard, the authority's session, its home and the store
+1	ts4 reach T3: where a tool it needs is absent, reach-probe --run writes the row not this system to probe.tsv and exits 3
+1	ts4 reach W6, T4: a reach fail given at the desktop is kept with its record, and the standing is shadow again, for the latest reach statement is no pass
+1	ts4 reach W6: with a start and a reach pass given at the console, and the authority's login its own, the standing is live and status prints no why
+1	ts4 reach W8: after the reach fail a statement given at the desktop does not count, and its card says counts: no: and why
+1	ts4 reach case 14, D4: reach pass is refused at the desktop, where a hold was kept just before, and nothing is kept
+1	ts4 reach case 14, D4: reach pass is refused away from the console: in shadow nothing is kept
+1	ts4 reach case 14, T4, D8: at the console reach pass is kept, confirmed by reach pass, with the record's git blob id as its witness, and it counts
+1	ts4 reach case 14, W8: a statement given at the desktop after the pass counts, and its card says so, while the one given at the desktop before the pass still does not
+1	ts4 reader (control): the source holds main and three branches, each one commit past main, and git names a file's blob without a repository of its own
+1	ts4 reader V1 (the reach tries' control): the reach statement made again by hand with another nonce, its record in place, verifies
+1	ts4 reader V1, V2 (the tries' control): the last statement made again by hand, its commit's own bytes with another nonce, is another commit, and verifies: nothing is signed
+1	ts4 reader V1: --store reads the log of the store at that path: a copy of the store cut by one statement reads as two, and the configured store still as three
+1	ts4 reader V1: the first entry that fails is the one named: with statement 1 made to name another authority and statement 2 made to follow it, the reader says not ok statement 1
+1	ts4 reader V1: the reader refuses a last statement that holds a file and is no reach entry
+1	ts4 reader V1: the reader refuses a last statement that is a reach entry and holds a file besides its record
+1	ts4 reader V1: the reader refuses a last statement that is a reach entry and holds no file
+1	ts4 reader V1: the reader refuses a last statement that is a reach entry and holds other bytes than its witness names
+1	ts4 reader V1: the reader refuses a last statement that is a second start (case 21)
+1	ts4 reader V1: the reader refuses a last statement that names another authority
+1	ts4 reader V1: the reader refuses a last statement whose author line is not the authority's own
+1	ts4 reader V1: the reader refuses a last statement whose commit has one more header (case 21)
+1	ts4 reader V1: the reader refuses a last statement whose commit has two parents
+1	ts4 reader V1: the reader refuses a last statement whose first line names another format
+1	ts4 reader V1: the reader refuses a last statement whose message goes on after a NUL (case 21)
+1	ts4 reader V1: the reader refuses a last statement whose nonce another entry has (case 21)
+1	ts4 reader V1: the reader refuses a last statement whose prev is not its parent
+1	ts4 reader V1: the reader refuses a last statement whose serial is not its place
+1	ts4 reader V1: the reader refuses a last statement whose verb is not known
+1	ts4 reader V1: the reader refuses a last statement with a line after its last field
+1	ts4 reader V1: the reader refuses a last statement with one field twice
+1	ts4 reader V1: the reader refuses a last statement with one field's line gone
+1	ts4 reader V1: the reader refuses a last statement with two fields in the other order
+1	ts4 reader V2, V3: a log of three statements kept through the door verifies, exit 0, each taken on the authority's word, and with no --memory the reader says what it could not see
+1	ts4 reader V3: a log whose last statement was dropped is not ok, by that statement's number, to the reader that saw it, and reads as ok to a reader with no memory
+1	ts4 reader V3: a memory that cannot be written, its path running through a plain file, prints a line starting not ok: and no ok line
+1	ts4 reader V3: memory is of the entry and not of a count: that log, as long as before, with another statement in the place of the one seen, is not ok to the reader that saw it
+1	ts4 reader V3: with --memory the reader keeps what it checked last in the file and says nothing of no memory, and a second run over the same log is ok
+1	ts4 reader case 10, K1, V4: when a middle statement is dropped, so that the entries left no longer follow one another, the reader refuses the log, a tick is paused with the door's log and exits 3, and decide decides nothing
+1	ts4 reader case 10: after the reader has seen a hold, a log with that hold dropped is not ok to that reader
+1	ts4 reader case 11: a statement that follows this log and names the other store's id is refused, where the same statement under this store's id reads as its fourth
+1	ts4 reader case 11: the log of another store, put in the place of this store's, is refused at its first statement: its authority is another id
+1	ts4 reading (control): fsub's tree holds .felix/x and no file .felix, fup's holds .felix and .FELIX, and swap's .felix is another blob than main's
+1	ts4 reading (control): git's own merge onto main is a tree for clean, dir and ov, a conflict for clash, and main's own tree for same and empty
+1	ts4 reading (control): main as it moved holds a table with a row of three cells, then no table, then a table and no .felix
+1	ts4 reading (control): nl's tree holds a name with a newline, hi's one with the bytes c3 a9, mv's has no docs/direction.md, and h1b's tree is h1's under another commit id
+1	ts4 reading (control): onto main as it moves first, git's merge of the overridden head is another tree than he was shown, and onto main as it moves next it conflicts
+1	ts4 reading D2, K6: with main moved under it, the door reads the override back on a line starting lapsed: , with its number, and no longer on a line starting in-effect: 
+1	ts4 reading D2: the door reads that override back on a line starting in-effect: , with its number, and on no line starting lapsed: 
+1	ts4 reading K2, K7: decide says stopped and the statement, of an ordinary head and of an overridden one alike: an override does not pass over a stop
+1	ts4 reading K2: the later of stop and go decides: after go the head is eligible, after a second stop it is stopped by that statement, and after a second go a tick decides each candidate again
+1	ts4 reading K2: with stop a tick prints the one line stopped by the founder at the door (statement N) and no candidate line, and status says the word is stop
+1	ts4 reading K3, K5: a hold of a commit in an authorized head's history, given after the authorization, holds that head
+1	ts4 reading K3: a hold of a commit holds that head and a head whose history holds it, each naming the statement and the commit held, and not the same edit under a new commit id
+1	ts4 reading K4, K5: released, that head waits, its authorization ended by the hold, and the commit held is still held
+1	ts4 reading K4: a hold given after the release holds again
+1	ts4 reading K4: a release names one exact head: it passes the hold for that head, which is eligible and leans on the release, and the head built on it stays held
+1	ts4 reading K5, D8: an override's card shows the tree the head would land as, and the statement kept names the head and that tree
+1	ts4 reading K5, K7: an authorization of a head that changes a founder path makes it eligible, leaning on that statement
+1	ts4 reading K5: a hold given after the override holds the head, and a release after that hold does not bring the override back: the head waits
+1	ts4 reading K5: given again, the override is in effect
+1	ts4 reading K6: when main has moved so that the merge conflicts, the head conflicts, and the detail ends ; override N names another tree
+1	ts4 reading K7: an authorization of a head that a hold covers lifts no hold
+1	ts4 reading K7: an override in effect decides, passing over a hold given before it, though the head changes a founder path
+1	ts4 reading K7: given again, the authorization makes it eligible, leaning on the release that passed the hold and on the new authorization
+1	ts4 reading K7: held comes before conflict: a held head that does not merge is held, and released it conflicts
+1	ts4 reading K7: with nothing said but the start, an ordinary change and a clean merge are eligible, a head that does not merge conflicts, and a head whose merge is main's tree changes nothing
+1	ts4 reading K8: a row holds the standing, the decision, the head, main, the tree the merge made or - and the detail
+1	ts4 reading K8: a second tick with nothing changed adds no row, and decide adds none
+1	ts4 reading K8: main having moved, that tick wrote a row for each candidate, with the new main
+1	ts4 reading K8: that first tick wrote one ledger row of seven fields for each candidate
+1	ts4 reading K8: that tick added a row for each of the two heads whose decision changed, and for no other
+1	ts4 reading K9, W11: nothing lands: after that tick the source's refs are as they were, and the store's main is the source's main itself
+1	ts4 reading W10: a store that holds info/attributes is refused by tick, decide, status and the door, each with a line that starts felix: and exit 1; with the file gone, decide reads the head again
+1	ts4 reading W9, K7: under such a policy his authorization of a head is what makes it eligible
+1	ts4 reading W9, case 15: a candidate that renames the project in .felix and brings a table with no row chose no policy of its own: it waits for .felix, the first of its paths
+1	ts4 reading W9: a change of the path a founder row names, of that path in another case, and of the land table itself waits for his authorization, naming the path shown escaped
+1	ts4 reading W9: changed paths are read with renames off: a candidate that moves the founder's path to another name waits for the path it took away
+1	ts4 reading W9: when main has no .felix, the policy cannot be read and an ordinary change waits, saying so
+1	ts4 reading W9: when main has no land table, the policy cannot be read and an ordinary change waits, saying so
+1	ts4 reading W9: when main's land table holds a row the schema refuses, the policy cannot be read and an ordinary change waits, saying so
+1	ts4 reading W9: with .felix and a table the schema takes back at main, the ordinary change is eligible again and the founder's path waits
+1	ts4 reading case 15, W9: a candidate that adds .FELIX, one that puts a file under .felix, and one that adds the land table's path in another case each wait for his authorization
+1	ts4 reading case 17 (control): with * merge=union in the user's attributes file, plain git here merges the head that conflicts with main
+1	ts4 reading case 17, W10: with * merge=union in the user's attributes file, a head that conflicts with main still reads conflict, in a tick and in decide
+1	ts4 reading case 18, K2: under stop, with the same four names set in the environment, a tick still prints the stopped line alone and decide still says stopped
+1	ts4 reading case 18: with _FP_AT, _FP_AT_UNREADABLE, _FP_AT_N and _FD_NOSTOP set in the environment, a tick and decide print what they print without them
+1	ts4 reading case 4, K4: a release of a head no hold covers is leaned on by nothing, and release then hold of one head leaves it held
+1	ts4 reading case 4, K5: a release after that hold does not bring the authorization back: the head waits for a new one
+1	ts4 reading case 4, K7: authorize then hold: the head is held, for an authorization lifts no hold
+1	ts4 reading case 5, K6: when main has moved so that the merge is another tree, the override is not in effect: the head waits, and the detail ends ; override N names another tree
+1	ts4 reading case 6, W9: a candidate that adds a file whose name holds a newline waits for his authorization, and the tick shows the name with \x0a; so does one whose name holds a byte above 0x7e
+1	ts4 store (control): a directory that every login can write, holding a program named git that runs, is staged
+1	ts4 store (control): ps lists this machine's processes, and it has a login other than this one that runs none and one, not root, that runs some
+1	ts4 store (control): the PATH each felix call is given here names absolute directories only, and git, perl, awk, sed, ps and id are found in them
+1	ts4 store (control): the source holds main, five branches whose heads main's history lacks and one, old, whose head it holds, and merge merges cleanly onto main
+1	ts4 store (control): this machine has no login ts4nologin, and has a login other than this one
+1	ts4 store 2.2: status exits 0 and prints authority, standing, the why lines, user, workers, home, store, door, source, source-main, lock, main, statements and word, in that order and nothing else
+1	ts4 store 2.2: status says this user and worker, the home, its store.git and door, the source, refs/heads/main, no lock, no main, no statement and go
+1	ts4 store 2.5, W7: a tick prints one line of five tab-separated fields for each candidate, each beginning with the standing, in the byte order of the branch names, then tick: shadow, 5 candidates, and exits 0
+1	ts4 store 2.5: decide COMMIT prints that head's one line, with - as the branch
+1	ts4 store 2.5: decide does not fetch: a head pushed after the last tick gets no line and is not in the store, and the next tick lists it
+1	ts4 store 2.5: each line holds its branch's head whole; main's own branch and a branch whose head is in main's history get none; an ordinary change is eligible with no detail
+1	ts4 store 2.6, case 1: log prints one row of seven fields for it: its number, verb, commit, no tree, shadow, no, and a time
+1	ts4 store 2: felix help names authority with init, status, tick, decide, log and verify, and felix door
+1	ts4 store D4, W11: a start on a log that holds a statement is refused, and main stays
+1	ts4 store D4, W8: a statement that would be given at the desktop is refused when no lock is set, and nothing is kept
+1	ts4 store D4: a start that names no commit the store holds is refused, and makes no main
+1	ts4 store D4: on an empty log a verb other than start is refused, and nothing is kept
+1	ts4 store W1, W3: a parameter is the row of authority.conf: with the workers, source-main and lock rows rewritten, status prints the new values
+1	ts4 store W1, W4: init writes authority.conf with a row for user, workers and source, each a key, one tab and its value
+1	ts4 store W10 (control): this git's plain fetch takes a commit with no author line, and its fetch that checks objects refuses it
+1	ts4 store W10, K8 (the base case): the tick says the merging head is eligible, and its ledger row holds main and the tree git's own merge makes
+1	ts4 store W10: a caller's GIT_ATTR_SOURCE does not change the merge the authority makes: decide still says the head is eligible
+1	ts4 store W10: a caller's GIT_CONFIG_COUNT does not change the merge the authority makes: decide still says the head is eligible
+1	ts4 store W10: a caller's GIT_CONFIG_GLOBAL does not change the merge the authority makes: decide still says the head is eligible
+1	ts4 store W10: a caller's GIT_CONFIG_PARAMETERS does not change the merge the authority makes: decide still says the head is eligible
+1	ts4 store W10: a caller's GIT_CONFIG_SYSTEM does not change the merge the authority makes: decide still says the head is eligible
+1	ts4 store W10: a caller's HOME does not change the merge the authority makes: decide still says the head is eligible
+1	ts4 store W10: a caller's url.insteadOf does not change which repository a tick fetches: its candidates are the source's own
+1	ts4 store W10: a fetch checks each object it takes: after a tick the store does not hold a commit with no author line, and no line calls it eligible
+1	ts4 store W11: a tick that finds main moved by another hand prints paused with not the tip this authority recorded, exits 3 and decides nothing; with main put back it decides again
+1	ts4 store W11: in shadow a tick moves main forward to the source's main when that descends from it, and status prints it
+1	ts4 store W11: when the source's main does not descend from main, the tick prints paused with does not descend, exits 3, decides nothing, and main stays
+1	ts4 store W1: empty lines and lines that start # are not rows: status still reads the file
+1	ts4 store W1: every row init wrote has a key of the table, exactly one tab and a value in printable ASCII
+1	ts4 store W1: init takes a source that is a file:// URL, and status prints it
+1	ts4 store W2: a door that is not absolute makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a key given twice makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a key of the table with a space after it makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a key that holds a space makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a key the table lacks makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a lock that is not absolute makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a row with no tab makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a source of the ext:: transport makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a source of the form user@host:path makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a source that is a relative path makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a source that is an http:// URL makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a source that starts with - makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a store that is not absolute makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a user that is not a login name makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a value that holds a tab makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a value with a byte outside printable ASCII makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: a worker that is not a login name makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: no row for source, a required key (a reading), makes authority.conf unreadable: status prints one line to stderr that starts felix: , exits 1 and writes nothing
+1	ts4 store W2: with an unreadable authority.conf, tick, decide, log, verify and door each print one line to stderr that starts felix: and exit 1
+1	ts4 store W2: with no authority.conf, decide prints one line to stderr that starts felix: , exits 1 and makes no home
+1	ts4 store W2: with no authority.conf, door prints one line to stderr that starts felix: , exits 1 and makes no home
+1	ts4 store W2: with no authority.conf, log prints one line to stderr that starts felix: , exits 1 and makes no home
+1	ts4 store W2: with no authority.conf, status prints one line to stderr that starts felix: , exits 1 and makes no home
+1	ts4 store W2: with no authority.conf, tick prints one line to stderr that starts felix: , exits 1 and makes no home
+1	ts4 store W2: with no authority.conf, verify prints one line to stderr that starts felix: , exits 1 and makes no home
+1	ts4 store W4: init for this login prints one id of 40 lowercase hex digits and exits 0
+1	ts4 store W4: init makes the home a directory with no access for group or other
+1	ts4 store W4: init makes the store, a bare git repository, and the door's directory, and makes no main and no statement
+1	ts4 store W4: init refuses a door that holds a newline and a row of its own: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a door that is not absolute: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a home that already holds authority.conf: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a lock that holds a tab: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a lock that is not absolute: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a source of the ext:: transport: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a source of the form user@host:path: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a source that holds a byte outside printable ASCII: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a source that is a relative path: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a source that is an http:// URL: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a source that starts with -: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a source-main that holds a newline and a row of its own: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a store path that is a directory holding a file: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a store path that is a file: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a store that is not absolute: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a user that is not the login this process runs as: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a worker that is no login of this machine: it exits 1 and changes nothing
+1	ts4 store W4: init refuses a worker that is not a login name: it exits 1 and changes nothing
+1	ts4 store W4: init takes --source-main, --store (an empty directory that exists), --door and --lock, makes the store and the door there, and status prints each as given
+1	ts4 store W4: under a umask of 000 init still makes the home with no access for group or other
+1	ts4 store W5: a second store gets another id, and the first store's id is the same at a later status
+1	ts4 store W5: status prints the id init printed
+1	ts4 store W6 (a reading): and the store and the door init made under a umask of 000 are the authority's alone: status gives no why of condition b
+1	ts4 store W6 a, case 2: with root as the worker the standing is shadow with not its own login and not the authority's alone, whoever this login is, and a start given there is kept as given in shadow
+1	ts4 store W6 b: a home that carries an access-control list is not the authority's alone, and status says so until the list is taken off
+1	ts4 store W6 e: a lock that carries an access-control entry that allows is within a worker's reach, and one whose only entry denies is not
+1	ts4 store W6 e: case 22: with a directory every login can write first on PATH, the standing is shadow with not the authority's alone, and that why is gone without it
+1	ts4 store W6 e: with an empty entry on PATH, the standing is shadow with not the authority's alone, and that why is gone without it
+1	ts4 store W6 e: with an entry on PATH that is not absolute, the standing is shadow with not the authority's alone, and that why is gone without it
+1	ts4 store W6: a door directory in which one file can be written by anyone is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: a door directory its group can write is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: a file of the engine's lib that anyone can write (W6 e) is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: a home its group can write is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: a lock program anyone can write (W6 e) is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: a lock program whose directory anyone can write (W6 e) is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: a lock, when one is set and is the authority's alone, changes nothing: the standing is shadow with the why lines of c and d alone
+1	ts4 store W6: a store anyone can write is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: a store in which one file can be written by its group is not the authority's alone, and status says so until the mode is taken back
+1	ts4 store W6: with another login, not root, as the only worker, conditions a, b and e hold: the standing is shadow with the why lines of c and d alone
+1	ts4 store W8 (rev 2): a door that opened at the desktop and would keep in shadow, the home having been made writable by its group meanwhile, keeps nothing and prints refused: 
+1	ts4 store W8: where the list of processes comes back without process 1 and without the door's own, a statement is given at the desktop, though the worker's login runs none
+1	ts4 store W8: where the processes cannot be listed, a statement is given at the desktop, though the worker's login runs none
+1	ts4 store case 1, 2.2: after a start given in shadow, status prints main and one statement, and the standing is still shadow, with each why it had
+1	ts4 store case 1, D8: that statement is a start of the commit, serial 0, with no statement before it, given in shadow
+1	ts4 store case 1, W6: with this login as user and among workers the standing is shadow, with one why line each for a, c and d, and one for e: this login, a worker, owns the engine it runs
+1	ts4 store case 16, D4, D2: after those three the door at the desktop reads back refused-confirmations: 3 and refuses to take a statement: it shows no card, keeps nothing and leaves no row more
+1	ts4 store case 16, D4: the next statement is given at the console, and after it the door at the desktop takes a statement again
+1	ts4 store case 16, D6: at the desktop, three statements typed with a guessed confirmation and the card unread keep nothing and leave three rows in refused.tsv
+1	ts4 store case 2, D4: with a worker login that runs a process, a start would be given at the desktop and is refused: nothing is kept and no main is made
+1	ts4 store case 2, W8: a start kept while the worker's login runs no process is given at the console and counts, and only the reach test then keeps the standing at shadow
+1	ts4 store case 2, W8: with a worker login that runs a process a statement is given at the desktop, and with no reach pass before it it does not count
+1	ts4 store case 3: before the first start a tick prints paused with no main, exits 3, decides nothing and makes no main
+1	ts4 store case 3: start COMMIT, confirmed with the four characters its card brackets, is kept as statement 0 and makes main at COMMIT
 1	turning a comment into a row escapes as verifier, or deleting a hash mark would add a row unseen
 1	twelve sessions ending at once are all still counted
 1	two byte-identical copies at two different paths digest the same

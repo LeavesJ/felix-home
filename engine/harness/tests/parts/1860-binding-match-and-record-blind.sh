@@ -79,19 +79,19 @@ _n12one() {  # FILE KEY PROJECT -> "one line: KEY, PROJECT, a UTC stamp" when th
 
 # ---- C046: fixture B, the binding rule row by row ----------------------------------------------
 N12HB="$N12/b/home"; N12CB="$N12/b/co"; N12MB="$N12/b/mem"; mkdir -p "$N12MB"
-for _n12p in web:acme/web webapp:acme/webapp el:LeavesJ/Elenchus gl:https://gitlab.example/acme/api s1:team/svc \
+for _n12p in web:acme/web website:acme/website el:Acme/Atlas gl:https://gitlab.example/acme/api s1:team/svc \
              s2:gitlab.example/team/svc ex:example.invalid/pcwd-remote dup1:acme/dup dup2:acme/dup nomatch:; do
   _n12proj "$N12HB" "${_n12p%%:*}" "${_n12p#*:}"
 done
-_n12co "$N12CB"; _n12co "$N12/b/marked" https://github.com/acme/webapp.git; printf 'web\n' > "$N12/b/marked/.felix"
+_n12co "$N12CB"; _n12co "$N12/b/marked" https://github.com/acme/website.git; printf 'web\n' > "$N12/b/marked/.felix"
 _n12row() { _n12g "$N12CB" config remote.origin.url "$2"; is "b12 A$1 (B22): $4" "$(_n12res "$N12CB" "$N12HB")" "$3"; }
-_n12row 45 https://github.com/acme/webapp.git 'webapp|0' "https://github.com/acme/webapp.git binds webapp, not web, whose acme/web it only begins with"
+_n12row 45 https://github.com/acme/website.git 'website|0' "https://github.com/acme/website.git binds website, not web, whose acme/web it only begins with"
 _n12row 46 git@github.com:acme/web.git 'web|0' "git@github.com:acme/web.git binds web (control)"
-_n12row 47 ssh://git@github.com/acme/webapp.git 'webapp|0' "ssh://git@github.com/acme/webapp.git binds webapp, not web"
-_n12row 48 https://github.com/LeavesJ/Elenchus-docs.git '|1' "https://github.com/LeavesJ/Elenchus-docs.git binds nothing, though LeavesJ/Elenchus begins it"
-_n12row 49 https://github.com/leavesj/elenchus.git 'el|0' "a lowercase clone, https://github.com/leavesj/elenchus.git, binds el"
-_n12row 50 https://github.com/LeavesJ/Elenchus.git 'el|0' "https://github.com/LeavesJ/Elenchus.git binds el (control)"
-_n12row 51 'https://b12tok:SECRET-b12@github.com/LeavesJ/Elenchus.git' 'el|0' "an origin carrying userinfo before github.com/LeavesJ/Elenchus binds el (control)"
+_n12row 47 ssh://git@github.com/acme/website.git 'website|0' "ssh://git@github.com/acme/website.git binds website, not web"
+_n12row 48 https://github.com/Acme/Atlas-docs.git '|1' "https://github.com/Acme/Atlas-docs.git binds nothing, though Acme/Atlas begins it"
+_n12row 49 https://github.com/acme/atlas.git 'el|0' "a lowercase clone, https://github.com/acme/atlas.git, binds el"
+_n12row 50 https://github.com/Acme/Atlas.git 'el|0' "https://github.com/Acme/Atlas.git binds el (control)"
+_n12row 51 'https://b12tok:SECRET-b12@github.com/Acme/Atlas.git' 'el|0' "an origin carrying userinfo before github.com/Acme/Atlas binds el (control)"
 _n12row 52 https://gitlab.example/acme/api-gateway.git '|1' "https://gitlab.example/acme/api-gateway.git binds nothing, though gl's https://gitlab.example/acme/api begins it"
 _n12row 53 https://gitlab.example/acme/api.git 'gl|0' "https://gitlab.example/acme/api.git binds gl (control)"
 _n12row 54 git@gitlab.example:team/svc.git 's1|0' "git@gitlab.example:team/svc.git binds s1, team/svc anchored after a colon (control)"
@@ -99,7 +99,7 @@ _n12row 55 https://gitlab.example/team/svc.git 's2|0' "https://gitlab.example/te
 _n12row 56 https://gitlab.example/xteam/svc.git '|1' "https://gitlab.example/xteam/svc.git binds nothing: team/svc after an x is not anchored"
 _n12row 57 https://example.invalid/pcwd-remote.git 'ex|0' "https://example.invalid/pcwd-remote.git binds ex (control)"
 _n12row 58 https://github.com/acme/dup.git '|1' "https://github.com/acme/dup.git binds nothing, dup1 and dup2 tying on acme/dup"
-is "b12 A59 (B22): a checkout whose .felix names web binds web, its origin acme/webapp notwithstanding (control)" "$(_n12res "$N12/b/marked" "$N12HB")" "web|0"
+is "b12 A59 (B22): a checkout whose .felix names web binds web, its origin acme/website notwithstanding (control)" "$(_n12res "$N12/b/marked" "$N12HB")" "web|0"
 _n12o="$(_n12bb "$N12CB" "$N12HB" "$N12MB")"
 is "b12 A60 (B23): on the tie, felix_binding_broken prints a sentence naming dup1 and dup2 and remote_match" "$(_n12all "${_n12o%|rc=*}" dup1 dup2 remote_match)" "holds all"
 is "b12 A61 (B23): on the tie, session-start with a startup payload says binding broken" \
@@ -251,10 +251,10 @@ fi
 
 # ---- Review round, M3 (B39, B40): remote_match read as own.sh reads it -------------------------
 # Fixture W: four homes and one checkout co, its origin set URL by URL with no marker. h1 holds webgit
-# (acme/web.git) and webapp, h2 webslash (acme/web/), h3 s3 (https://gitlab.example/team/svc/), and
+# (acme/web.git) and website, h2 webslash (acme/web/), h3 s3 (https://gitlab.example/team/svc/), and
 # h4 w1 (acme/web) and w2 (acme/web.git). felix_checkout_is_own is called as part 1130 calls it.
 N12W="$N12/w"; mkdir -p "$N12W/mem1" "$N12W/mem4"
-_n12proj "$N12W/h1" webgit acme/web.git; _n12proj "$N12W/h1" webapp acme/webapp; _n12proj "$N12W/h2" webslash acme/web/
+_n12proj "$N12W/h1" webgit acme/web.git; _n12proj "$N12W/h1" website acme/website; _n12proj "$N12W/h2" webslash acme/web/
 _n12proj "$N12W/h3" s3 https://gitlab.example/team/svc/; _n12proj "$N12W/h4" w1 acme/web; _n12proj "$N12W/h4" w2 acme/web.git
 _n12co "$N12W/co"
 _n12at() {  # HOME URL... -> [URL: the project it binds|status] for each URL, set as co's origin
@@ -264,9 +264,9 @@ _n12at() {  # HOME URL... -> [URL: the project it binds|status] for each URL, se
 is "b12 A92 (B39): in h1, acme/web.git, git@github.com:acme/web.git and https://github.com/acme/web bind webgit, declared as acme/web.git" \
    "$(_n12at h1 https://github.com/acme/web.git git@github.com:acme/web.git https://github.com/acme/web)" \
    "[https://github.com/acme/web.git: webgit|0][git@github.com:acme/web.git: webgit|0][https://github.com/acme/web: webgit|0]"
-is "b12 A93 (B39): in h1, acme/webapp.git binds webapp and acme/web-docs.git binds nothing (control)" \
-   "$(_n12at h1 https://github.com/acme/webapp.git https://github.com/acme/web-docs.git)" \
-   "[https://github.com/acme/webapp.git: webapp|0][https://github.com/acme/web-docs.git: |1]"
+is "b12 A93 (B39): in h1, acme/website.git binds website and acme/web-docs.git binds nothing (control)" \
+   "$(_n12at h1 https://github.com/acme/website.git https://github.com/acme/web-docs.git)" \
+   "[https://github.com/acme/website.git: website|0][https://github.com/acme/web-docs.git: |1]"
 is "b12 A94 (B39): h2's acme/web/ binds acme/web/ and acme/web.git, and h3's gitlab remote_match ending in / binds svc.git and svc/" \
    "$(_n12at h2 https://github.com/acme/web/ https://github.com/acme/web.git)$(_n12at h3 https://gitlab.example/team/svc.git https://gitlab.example/team/svc/)" \
    "[https://github.com/acme/web/: webslash|0][https://github.com/acme/web.git: webslash|0][https://gitlab.example/team/svc.git: s3|0][https://gitlab.example/team/svc/: s3|0]"
@@ -287,7 +287,7 @@ _n12own() {  # HOME PROJDIR -> felix_checkout_is_own's exit status for co (97 wh
 }
 _n12dis=""; _n12own1=0; _n12own2=0
 for _n12i in https://github.com/acme/web.git git@github.com:acme/web.git https://github.com/acme/web/ https://github.com/acme/web \
-             https://github.com/acme/webapp.git https://github.com/acme/web-docs.git; do
+             https://github.com/acme/website.git https://github.com/acme/web-docs.git; do
   _n12g "$N12W/co" config remote.origin.url "$_n12i"
   for _n12p in h1:webgit h2:webslash; do
     _n12h="${_n12p%%:*}"; _n12pn="${_n12p#*:}"

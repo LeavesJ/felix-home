@@ -12021,6 +12021,68 @@
 1	gate_declared: with every lookup answering, the row reads done (pipefail on and off)
 1	gate_declared: with no pipe to be made, the check does not pass
 1	gate_shown_failing: with every lookup answering, the row reads done (pipefail on and off)
+1	gcr GR1 GR2 2: under a git exiting 69, a base that exists here is not looked up: status 2, V and W hold the clause with 69
+1	gcr GR1 GR2 2: under a git exiting 70, status 2, V and W hold the clause with 70
+1	gcr GR1 GR3 under a git that answers --version and refuses the rest, the evidence row is today's for a base that names nothing (control)
+1	gcr GR1 GR4 a git that answers --version and refuses the rest has run: a green receipt handed in is the tree changed and the one on disk is none, status 1 each (control)
+1	gcr GR1 a git that answers --version and refuses rev-parse has run: status 1, V kept and W unset
+1	gcr GR1 a git that works is never asked --version: felix_base_resolves on main and felix_verify_current on a current receipt (control)
+1	gcr GR2 0: a base that peels to a commit, V kept and W unset (control)
+1	gcr GR2 1: an empty ROOT or an empty BASE, under a working git and a refusing one alike, V kept and W unset (control)
+1	gcr GR2 1: git runs and BASE names nothing there, status 1, V kept and W unset
+1	gcr GR3 GR5.7 rev 3 merge --dry-run under a working git, --base SUITE naming nothing: today's base-read refusal, not the paragraph about instrument parts (control)
+1	gcr GR3 GR7 under a working git a base that names nothing gives today's three rows, byte for byte (control)
+1	gcr GR3 classify: under a git exiting 69, one row: unknown, GIT, the clause, the base main and nothing was compared
+1	gcr GR3 escapes: under a git exiting 69, one row: unknown, GIT, the clause, the base main and nothing was scanned
+1	gcr GR3 evidence: under a git exiting 69, one row: unknown, GIT, the clause, the base main and no rule was consulted
+1	gcr GR3 evidence: under a git exiting 70 the row's clause carries 70
+1	gcr GR3 rev 3 fixture: GIT, CHANGED-PATHS, ADDED-LINES and SUITE each name nothing in the checkout under the suite's git (control)
+1	gcr GR3 rev 3 under a working git a base spelled ADDED-LINES that names nothing is named in double quotes in the classify row, reason unchanged
+1	gcr GR3 rev 3 under a working git a base spelled CHANGED-PATHS that names nothing is named in double quotes in the escapes row, reason unchanged
+1	gcr GR3 rev 3 under a working git a base spelled GIT that names nothing is named in double quotes in the evidence, escapes and classify rows, reasons unchanged
+1	gcr GR3 rev 3 under a working git a base spelled SUITE that names nothing is named in double quotes in the escapes row, reason unchanged
+1	gcr GR4 GR7 under a working git, a green receipt over a tree with a tracked pipe (no tree id) is the tree changed, status 1 (control)
+1	gcr GR4 a green receipt handed in, under a git exiting 69: stale, the clause with 69, status 2
+1	gcr GR4 a green receipt handed in, under a git exiting 70: stale, the clause with 70, status 2
+1	gcr GR4 the green receipt on disk, read by felix_verify_current itself under a git exiting 69: the same stale line, status 2
+1	gcr GR4 under a git exiting 69, an empty fourth argument is none and a red one is red, read without git, status 1 each (control)
+1	gcr GR4 under a git exiting 69, with no fourth argument a checkout with no receipt on disk gets the stale line, status 2
+1	gcr GR4 under a git exiting 69, with no fourth argument a red receipt on disk gets the stale line, status 2
+1	gcr GR5.1 GR7 next under a working git: the receipt is current and the change owes evidence; no receipt row, no clause (control)
+1	gcr GR5.1 next: a rank-1 felix row holding the GR3 escapes reason with 69, with the same action
+1	gcr GR5.1 next: a rank-1 felix row whose text is the GR4 reason with 69 and whose action is make git run here, then run this again
+1	gcr GR5.1 next: with a green receipt present it ran and says neither no green gate receipt nor names nothing nor the tree changed
+1	gcr GR5.1 rev 3 next under a working git, --base GIT naming nothing: today's names-nothing row and action, no make-git-run action, no clause (control)
+1	gcr GR5.2 GR7 evidence under a working git, a base that names nothing: today's output, exit 1 (control)
+1	gcr GR5.2 evidence: the GIT row as an unknown row, nothing was compared, the git sentence in place of Check --base, exit 1
+1	gcr GR5.2 rev 3 evidence under a working git, --base GIT naming nothing: Check --base and not the git sentence, exit 1 (control)
+1	gcr GR5.3 GR7 classify under a working git, a base that names nothing: today's output, exit 1 (control)
+1	gcr GR5.3 classify: the unknown GIT row, then the git paragraph in place of the one about a base it cannot resolve, exit 1
+1	gcr GR5.4 GR7 scope under a working git, a base that names nothing: today's output, exit 1 (control)
+1	gcr GR5.4 scope with no paths: the clause, so nothing was compared and no tier can be given, make git run, exit 1
+1	gcr GR5.5 GR7 pr under a working git, a base that names nothing: today's message, exit 1 (control)
+1	gcr GR5.5 pr: it stops with the clause and says no pull request was opened, not that the base names nothing this repository holds
+1	gcr GR5.6 GR7 status under a working git: the gate row is value current (control)
+1	gcr GR5.6 status: under a git exiting 69 the gate row is in state unknown, not a value, with the GR4 reason as its detail
+1	gcr GR5.7 GR7 merge --dry-run under a working git, a base that names nothing: today's message, exit 1 (control)
+1	gcr GR5.7 merge: where it cannot read which commit the base names under a git exiting 69, it stops with the clause, not Fetch the remote
+1	gcr GR5.7 rev 3 armed: felix merge --dry-run ran the counting git and asked it rev-parse --verify of a commit (control)
+1	gcr GR5.7 rev 3 merge: where git stops after the base was read and the escape scan gives the GIT row, its closing words say git could not run here and to make it run, not that the base names nothing this repository holds
+1	gcr GR6 GR7 under a working git a tracked pipe holds with the usual cause and no clause, detail tree unknown (control)
+1	gcr GR6 a git that refuses from the first call: the hook holds nothing, says nothing and exits 0, as today (control)
+1	gcr GR6 armed: the git that stops ran the hook's first reads, refused from its status on, and the hook held (control)
+1	gcr GR6 rev 3 the hold does not say that no gate can run
+1	gcr GR6 the hold names the clause with 69 and gives no usual cause of an unreadable tree (a named pipe, a socket, a device)
+1	gcr GR6 the recorded detail stays tree unknown (control)
+1	gcr GR7 armed: under a working git, over a base the branch is behind, felix_land_owed returns 0 and felix_land_would_refuse writes one row (control)
+1	gcr GR7 felix_land_owed returns 2 and felix_land_would_refuse writes nothing, under a git exiting 69 and for a base that names nothing alike (control)
+1	gcr GR8 macOS: DEVELOPER_DIR at a stand-in xcrun makes /usr/bin/git exit 69 with the licence sentence, and it runs without it (control)
+1	gcr GR8 macOS: under /usr/bin/git with that DEVELOPER_DIR, felix next gives the GR4 row and neither no green gate receipt nor names nothing
+1	gcr GR8 macOS: under /usr/bin/git with that DEVELOPER_DIR, felix_base_resolves returns 2 and VAR holds the clause with 69
+1	gcr GR8 the git that answers --version: --version exits 0, rev-parse exits 69 with the licence sentence (control)
+1	gcr GR8 the git that stops: it runs the suite's git until a call names status, then refuses that call and the next --version with 69 (control)
+1	gcr GR8 the portable instruments: git first on PATH prints the licence sentence and exits 69, or 70 (control)
+1	gcr fixture: the checkout is on topic with main and ahead, and its receipt is green and current, the red checkout's red, the third's none, under the suite's git (control)
 1	gh pr merge is told the head commit the checkout has, by --match-head-commit
 1	given a bound of 48 hours in seconds, a fold whose tip is 72 hours old is left out
 1	given a home inside the root, the extra exclusions apply beside the home's own

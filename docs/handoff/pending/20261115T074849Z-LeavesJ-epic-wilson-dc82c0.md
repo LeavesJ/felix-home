@@ -14,7 +14,7 @@
 - Part 2490 (blind, rev 2): 25 of its 51 assertions failed on main's engine (3ecdfcf9); 51 of 51 passed on 61924e71.
 - Its rev 3 assertions (11, written blind from the review's three should-fix items): 8 of 62 failed on 61924e71; after the fixes, 62 of 62 passed. One of the 8 found that `felix merge` still ended on "The rest escapes nothing" after a scan that never ran.
 - Part 1100 (the 500-line cap on `lib/status.sh`, which a first draft broke at 506): 230 of 230.
-- The record, after main c9bff19b was merged in: 17,720 assertions, 0 failed; `red.tsv` names 30 against c9bff19b, all part 2490's. The gate's result is in the PR.
+- The record, after main c9bff19b was merged in: 17,720 assertions, 0 failed; `red.tsv` names 30 against c9bff19b, all part 2490's. After main bd10d061 (#515, 0.49.348) was merged in, the red run again names those 30, and only those, against bd10d061. The gate's result is in the PR.
 - Under the exit-69 stand-in, the branch's `felix next` in this checkout gave the GR4 and GR3 rows with "make git run here"; main's engine (0.49.346) on the same Mac gave "this tree has no green gate receipt" and "this base names nothing here".
 
 **Open.**

@@ -3996,6 +3996,17 @@
 1	_felix_cap_active storage returns 2 over a file that is no list and 0 over a marked storage, under a UTF-8 locale
 1	_felix_discover_rules gives the same rules and status when here-documents cannot be written
 1	_felix_discover_rules prints nothing and returns 2 for a declared list it could not read, however it went unread
+1	_felix_instr_sha over a listing past 256 KB that does not hold the path prints nothing, quietly and with status 0, with SIGPIPE at its default (control)
+1	_felix_instr_sha over a listing past 256 KB that does not hold the path prints nothing, quietly and with status 0, with SIGPIPE ignored (control)
+1	_felix_instr_sha over a listing past 256 KB that opens with a tree at the path and then the blob prints the blob's id, quietly and with status 0, with SIGPIPE at its default
+1	_felix_instr_sha over a listing past 256 KB that opens with a tree at the path and then the blob prints the blob's id, quietly and with status 0, with SIGPIPE ignored
+1	_felix_instr_sha over a listing past 256 KB whose first line is the blob prints its id and a newline, writes nothing on stderr and returns 0, with SIGPIPE at its default
+1	_felix_instr_sha over a listing past 256 KB whose first line is the blob prints its id and a newline, writes nothing on stderr and returns 0, with SIGPIPE ignored
+1	_felix_instr_sha over a listing past 256 KB whose last line is the blob prints its id, quietly and with status 0, with SIGPIPE at its default (control)
+1	_felix_instr_sha over a listing past 256 KB whose last line is the blob prints its id, quietly and with status 0, with SIGPIPE ignored (control)
+1	_felix_instr_sha passes over a tree and a commit at the path for the blob after them (control)
+1	_felix_instr_sha prints nothing when the path is there only as another type (control)
+1	_felix_instr_sha takes only a path that is exactly the one asked for, and the first such blob (control)
 1	_felix_mcp_connected still mounts a connected server (sentry)
 1	_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr
 1	_fixture_enclosed finds no checkout at or above the suite's working directory
@@ -4158,6 +4169,27 @@
 1	_fx_lint still passes over remote -v alone, remote -v show and remote get-url, after a raw cd and a raw git -C
 1	_fx_root_add on $TMP, and on a directory below it, adds no root and refuses nothing
 1	_fx_root_add refuses each name that cannot be a root, with a record naming why
+1	_gt_class 3 over felix merge output past 256 KB that opens with a receipt-only block prints receipt and a newline, writes nothing on stderr and returns 0, with SIGPIPE at its default
+1	_gt_class 3 over felix merge output past 256 KB that opens with a receipt-only block prints receipt and a newline, writes nothing on stderr and returns 0, with SIGPIPE ignored
+1	_gt_class does not read a second not merging and its block (control)
+1	_gt_class does not read the lines after the block's closing empty line (control)
+1	_gt_class prints final for a base provider line beside another line (control)
+1	_gt_class prints final for a block that holds any other blocker (control)
+1	_gt_class prints final for an empty block, and reads nothing after it (control)
+1	_gt_class prints final when no line is exactly not merging (control)
+1	_gt_class prints hourly for a block of a base provider line alone (control)
+1	_gt_class prints hourly for a block whose not-green line names tests (control)
+1	_gt_class prints hourly for a block whose unverified line names tests (control)
+1	_gt_class prints hourly when STATUS is 1, whatever the block (control)
+1	_gt_class prints hourly when STATUS is 4, a blocker in the block notwithstanding (control)
+1	_gt_class prints receipt for a block of a commission receipt line alone (control)
+1	_gt_class reads a block that starts on the line after not merging when that line is not empty (control)
+1	_gt_class reads a not-green line that does not name tests as setting neither h nor b (control)
+1	_gt_detail of an empty output prints nothing (control)
+1	_gt_detail over felix merge output past 256 KB whose first line is a blocker prints that line with no newline, writes nothing on stderr and returns 0, with SIGPIPE at its default
+1	_gt_detail over felix merge output past 256 KB whose first line is a blocker prints that line with no newline, writes nothing on stderr and returns 0, with SIGPIPE ignored
+1	_gt_detail prints the first line that begins with two spaces (control)
+1	_gt_detail with no two-space line prints the last line that holds a non-blank character (control)
 1	_lib_clashes names a lib file that defines bad, a function the driver defines before the lib block
 1	_lib_clashes prints nothing for the real tree
 1	_lib_clashes, pointed at a copy of the tree, does not name a lib file that sets a variable a later part also sets
@@ -10597,6 +10629,8 @@
 1	even on the unknown pathway, which holds only while the row applies
 1	every --tsv row has eight tab-separated fields, and there are rows
 1	every [[ =~ ]] in the engine's runtime code sits in a function that declares local LC_ALL=C
+1	every _felix_instr_sha listing below is past 256 KB, the early ones with the blob asked for first
+1	every allowance of the awk lint matches a line the scan of the harness flags
 1	every argument after the second excludes, an untracked file as much as a tracked one
 1	every assertion red.tsv names as red is one the manifest lists
 1	every call is appended
@@ -13205,6 +13239,7 @@
 1	nine fields per log row
 1	no allow row claims a surface that no longer names it
 1	no awk in either library uses a gawk-only function or match's third argument
+1	no awk in the engine or the suite's library reads a pipe and exits outside its END action, the allowance aside
 1	no bracket in bash's own pattern syntax in the engine's runtime code holds a range of digits; each is spelled out
 1	no byte sends the read into a binary mode: a comment holding every byte but NUL and newline is skipped and the names after it printed, and a name holding every byte from 200 up is no list, never a Binary file line or a path, under LC_ALL=C
 1	no byte sends the read into a binary mode: a comment holding every byte but NUL and newline is skipped and the names after it printed, and a name holding every byte from 200 up is no list, never a Binary file line or a path, under a UTF-8 locale
@@ -14939,6 +14974,7 @@
 1	the Stop hook's unborn checkout has no commit (control)
 1	the T7 control: a green receipt stamped on the clean tree is current there (T7)
 1	the T8 control: a passing felix gate over a readable edit leaves a receipt that reads current (T8)
+1	the _gt_detail and _gt_class outputs below are past 256 KB with their deciding lines first
 1	the added row Zulu sorts before _under in bytes and after it in the UTF-8 locale, so the escape fixture can fail
 1	the admit phase answers already for a nomination stack.tsv declares first of 3,002 rows
 1	the admit phase installs nothing and edits no manifest
@@ -14966,6 +15002,28 @@
 1	the arithmetic, block and byte fixtures' runs reach, against their own working trees, every name their manifests list and as often
 1	the attribution fixtures have disjoint histories
 1	the audit runs above are wired to the read-only checks: an engine that writes under HOME and calls claude, run through the same wrapper, shows in that HOME and in the stub log
+1	the awk lint does not count exitcode, do_exit, an exit in a double-quoted string or one in an awk comment (sample)
+1	the awk lint does not read a program in a file, in a variable or in double quotes, nor a comment line (sample)
+1	the awk lint flags a main-rule exit beside an END action, and an awk on the closing line of another's program (sample)
+1	the awk lint flags a plain pipe into an awk whose main rule exits, with or without a VAR=value prefix (sample)
+1	the awk lint flags a program over several lines on the line that holds the awk (sample)
+1	the awk lint flags an awk after a pipe that ends a line, before a backslash or a comment, and one on a line that starts with the pipe (sample)
+1	the awk lint flags an awk named through a variable whose name ends in AWK, bare, braced or quoted (sample)
+1	the awk lint flags an awk reached through command, env, nice, timeout N, if, ! or a leading backslash (sample)
+1	the awk lint flags exit N and exit !f in a main rule, an exit in BEGIN and one in a function body (sample)
+1	the awk lint flags gawk, mawk and nawk (sample)
+1	the awk lint leaves a pipe into an awk written in a trailing shell comment, and a pipe that only a comment ends with (sample)
+1	the awk lint leaves a quoted prefix before another reader, an awk inside a prefix's value, and a prefixed awk that exits only in END (sample)
+1	the awk lint leaves a variable whose name does not end in AWK, and an AWK variable whose program is not read or exits only in END (sample)
+1	the awk lint leaves an awk no pipe feeds, an || and an || that ends a line (sample)
+1	the awk lint leaves an exit in a string after a regex that holds a quote, a slash or a bracket, and reads a / after an operand as division (sample)
+1	the awk lint leaves an exit inside an END action, a multi-line END with braces nested inside it among them (sample)
+1	the awk lint reads a regex literal where an operand is expected as code, so an exit after a double quote inside one counts (sample)
+1	the awk lint reads code before a trailing comment and a # inside quotes or a word or an awk program as code (sample)
+1	the awk lint reads past -F with its argument attached, apart and quoted to the program (sample)
+1	the awk lint reads past -v with its argument apart and attached, and past -- (sample)
+1	the awk lint reads past VAR=value prefixes whose quoted values hold blanks, an escaped quote or a $( ), several in a row (sample)
+1	the awk lint's allowance list holds exactly one entry, each with its text and its reason
 1	the banner qualifies the retire claim when the fold is incomplete
 1	the banner still calls the constitution standing direction
 1	the base check, asked of a checkout whose red.tsv is the retraction, fails it, saying no red run was made (base -)

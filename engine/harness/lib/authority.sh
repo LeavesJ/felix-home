@@ -175,7 +175,7 @@ EOF
 # it, and so is every file felix sources); each directory PATH names and each program in one; the directory
 # `git --exec-path` prints for the git first on PATH, read as a PATH directory is (C2: on this Mac /usr/bin/git
 # runs Xcode's git, whose programs sit under /Applications, which the admin group writes); the lock with its
-# directory; and each directory above any of these (C3, _fa_above). Directories, and not a list of the tools'
+# directory; and each directory above any of these (C3, _fa_above), one of them that is not there yet with them. Directories, and not a list of the tools'
 # names: a list is the tools found so far, and the first one written here named twenty and left out one the
 # door runs. A link is read as itself and as what it points at. "Can write" is: owns it, or it is writable by
 # every login, or by a group a worker is in, or it carries an access-control entry that allows. A path a third
@@ -202,17 +202,32 @@ _fa_above() {   # DIR
     done
   done
 }
+# C3. Adds each line of LINES, a directory above the code, to the caller's ups (or upl, for a link) once.
+_fa_up_add() {   # LINES
+  local y
+  while IFS= read -r y; do
+    [ -n "$y" ] || continue
+    case "$seen" in *$'\n'"$y"$'\n'*) continue ;; esac
+    seen="$seen$y"$'\n'
+    if [ -L "$y" ]; then upl[${#upl[@]}]="$y"; else ups[${#ups[@]}]="$y"; fi
+  done <<EOF
+$1
+EOF
+}
 _fa_code_offenders_raw() {
-  local d w rest g u x p e="${SCRIPT_DIR:-/nonexistent}" r ifs="$IFS" seen=$'\n'
-  local -a a=() dirs=() grp=() own=() ups=() upl=() wr=()
+  local d w rest g u x p q e="${SCRIPT_DIR:-/nonexistent}" r ifs="$IFS" seen=$'\n'
+  local -a a=() dirs=() grp=() own=() ups=() upl=() wr=() m=() mq=()
   r="${FELIX_ROOT:-${e%/*}}"; [ -n "$r" ] || r=/
-  if [ -n "$_FA_LOCK" ]; then a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"; fi
+  if [ -n "$_FA_LOCK" ]; then
+    a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"
+    [ -e "${_FA_LOCK%/*}/" ] || m[${#m[@]}]="${_FA_LOCK%/*}"
+  fi
   case ":${PATH:-}:" in *::*) printf '%s\n' "PATH (an empty entry: the directory the command is run from)" ;; esac
   IFS=:
   for d in ${PATH:-}; do
     case "$d" in
       "") ;;
-      /*) [ ! -d "$d" ] || { dirs[${#dirs[@]}]="$d/"; a[${#a[@]}]="$d/"; } ;;
+      /*) if [ -d "$d" ]; then dirs[${#dirs[@]}]="$d/"; a[${#a[@]}]="$d/"; elif [ ! -e "$d" ]; then m[${#m[@]}]="$d"; fi ;;
       *)  printf '%s\n' "PATH (an entry that is not absolute: $d)" ;;
     esac
   done
@@ -220,7 +235,22 @@ _fa_code_offenders_raw() {
   # C2. The git that runs is the first on PATH, so it is asked, with --exec-path its first word. Printing nothing,
   # failing, or naming no directory adds nothing: a git that cannot run runs nothing from there.
   x="$(git --exec-path 2>/dev/null)" || x=""
-  case "$x" in /*) [ ! -d "$x" ] || { dirs[${#dirs[@]}]="$x/"; a[${#a[@]}]="$x/"; } ;; esac
+  case "$x" in /*) if [ -d "$x" ]; then dirs[${#dirs[@]}]="$x/"; a[${#a[@]}]="$x/"; elif [ ! -e "$x" ]; then m[${#m[@]}]="$x"; fi ;; esac
+  # C3, for a directory that is not there yet (review C3-missing-path): a login that can write the deepest one
+  # above it that is there can make it, and put a program in it, sticky bit or not, since no one owns that name
+  # yet. Each directory above it is read as for one that is there, and that deepest one, along the path as
+  # written and along its physical path, offends when a worker owns it or can write it.
+  for p in ${m[@]+"${m[@]}"}; do
+    q="$p"
+    while :; do
+      case "$q" in /) break ;; */) q="${q%/}"; continue ;; esac
+      [ ! -d "$q" ] || break
+      q="${q%/*}"; [ -n "$q" ] || q=/
+    done
+    x="$(cd -P -- "$q" 2>/dev/null && pwd -P)" || x=""
+    [ -L "$q" ] || mq[${#mq[@]}]="$q"
+    case "$x" in /*) mq[${#mq[@]}]="$x" ;; esac
+  done
   rest="$_FA_WORKERS,"
   while [ -n "$rest" ]; do
     w="${rest%%,*}"; rest="${rest#*,}"
@@ -252,17 +282,13 @@ _fa_code_offenders_raw() {
   # owner alone: its own mode says nothing (777 on Linux), and what it points at is on the physical path, read
   # too. Writable by every login or by a worker's group offends only without the sticky bit, which keeps a
   # login that can write the directory from renaming or removing what another login owns in it.
-  for p in "$r" ${a[@]+"${a[@]}"}; do
-    [ -d "$p" ] || continue
-    while IFS= read -r x; do
-      case "$seen" in *$'\n'"$x"$'\n'*) continue ;; esac
-      seen="$seen$x"$'\n'
-      if [ -L "$x" ]; then upl[${#upl[@]}]="$x"; else ups[${#ups[@]}]="$x"; fi
-    done <<EOF
-$(_fa_above "$p")
-EOF
-  done
+  # A directory not there (m) is read for the directories above it as written; the deepest one there (mq) is
+  # read as itself too, and along its physical path.
+  for p in "$r" ${a[@]+"${a[@]}"}; do [ ! -d "$p" ] || _fa_up_add "$(_fa_above "$p")"; done
+  for p in ${m[@]+"${m[@]}"}; do _fa_up_add "$(_fa_above "$p")"; done
+  for p in ${mq[@]+"${mq[@]}"}; do _fa_up_add "$p"$'\n'"$(_fa_above "$p")"; done
   { [ ${#upl[@]} -eq 0 ] || find "${upl[@]}" -prune \( "${own[@]}" \) -print 2>/dev/null
+    [ ${#mq[@]} -eq 0 ] || find "${mq[@]}" -prune \( -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
     if [ ${#ups[@]} -gt 0 ]; then
       find "${ups[@]}" -prune \( \( "${own[@]}" \) -o \( ! -perm -1000 \( -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) \) \) -print 2>/dev/null
       if ls -lde / >/dev/null 2>&1; then

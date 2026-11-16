@@ -96,10 +96,12 @@ if (loaded && $.dlsym(-2, "SACLockScreenImmediate") != 0) {
 }
 r' < /dev/null 2>/dev/null)"
 [ "$r" = called ] || { echo "lock-macos: the system's lock call was not found" >&2; exit 1; }
-# Read every 0.2 s until 5 s have passed since the call, by the shell's own clock (whole seconds, so at most one
-# more read of a sixth): the count of reads alone would wait as long as the reads take.
+# Read every 0.2 s until 5 s have passed since the call, by the shell's own clock: the count of reads alone would
+# wait as long as the reads take. That clock counts whole seconds, so it is read until it has moved on by more
+# than 5: the wait is then at least 5 s and less than 6 (review F5; "less than 5" ended after 4 s when the call
+# returned late in a second).
 t0=$SECONDS
-while [ $((SECONDS - t0)) -lt 5 ]; do
+while [ $((SECONDS - t0)) -le 5 ]; do
   [ "$(read_console)" != locked ] || exit 0
   /bin/sleep 0.2
 done

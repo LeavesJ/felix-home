@@ -110,6 +110,18 @@ chmod o+w "$TS4L_E/harness" 2>/dev/null; TS4L_V="$(_ts4l_now)"; chmod o-w "$TS4L
 _ts4_is "ts4 setup C1: the engine's root itself is read: made writable by every login, it is the first offender" \
   "$(R="$TS4L_E/harness" LC_ALL=C awk -v w="$TS4L_V" 'BEGIN { a = "not the authority\047s alone: it runs " ENVIRON["R"]; print ((index(w, a ", which ") == 1 || index(w, a " (a directory above the code), which ") == 1) ? "the root first" : "[" w "]") }'), then $(_ts4l_after)" \
   "the root first, then cd" "$(_ts4_why)"
+# Review F2: the staging above makes harness/ writable, a directory under the root; FELIX_ROOT is the one above it.
+chmod o+w "$TS4L_E" 2>/dev/null; TS4L_V="$(_ts4l_now)"; chmod o-w "$TS4L_E" 2>/dev/null
+_ts4_is "ts4 setup C1 (review): the engine's root, the directory above the one felix is in, is read itself: made writable by every login, it is the one offender, and is gone once the mode is taken back" \
+  "$TS4L_V, then $(_ts4l_after)" "$(_ts4u_eline "$TS4L_E" 1), then cd" "$(_ts4_why)"
+# Review F3: a directory above the engine's root, which the system's PATH does not share. The copy is moved under
+# $TS4/up for this, and back.
+mkdir -p "$TS4/up"; chmod 755 "$TS4/up"; mv "$TS4L_E" "$TS4/up/eng" 2>/dev/null; FELIX="$TS4/up/eng/harness/felix"
+chmod 777 "$TS4/up"; TS4L_V="$(_ts4l_now)"; chmod 1777 "$TS4/up"; TS4L_W="$(_ts4l_after)"; chmod 755 "$TS4/up"
+mv "$TS4/up/eng" "$TS4L_E" 2>/dev/null; FELIX="$TS4L_E/harness/felix"
+_ts4_is "ts4 setup C3 (review): a directory above the engine's root that every login can write, without the sticky bit, offends as a directory above the code, and with the sticky bit does not" \
+  "$TS4L_V, then with the sticky bit: $TS4L_W; moved back: $(_ts4_yn test -f "$TS4L_E/harness/felix")" \
+  "$(_ts4u_eline "$TS4/up (a directory above the code)" 1), then with the sticky bit: cd; moved back: yes" "$(_ts4_why)"
 
 # ------------------------------------------------------------------ the git that runs (C2) ---
 chmod 777 "$TS4/xp"; TS4_ENV=(PATH="$TS4/gbin:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; chmod 755 "$TS4/xp"; TS4L_W="$(_ts4l_after)"; TS4_ENV=()
@@ -129,6 +141,13 @@ chmod 777 "$TS4/phys/pp2"; TS4_ENV=(PATH="$TS4/zl:$TS4_PATH"); TS4L_V="$(_ts4l_n
 _ts4_is "ts4 setup C3: the directories above are read along the physical path too: a PATH entry that is a link into a directory every login can write names that directory first" \
   "$(F="$(_ts4u_eline "$TS4/phys/pp2 (a directory above the code)" 0)" LC_ALL=C awk -v w="$TS4L_V" 'BEGIN { f = ENVIRON["F"]; sub(/\(0 such\)$/, "", f); print (index(w, f) == 1 ? "named first" : "[" w "]") }'), then $TS4L_W" \
   "named first, then cd" "$(_ts4_why)"
+# Review C3-missing-path: a PATH entry that is not there yet. A worker that can write the deepest directory above it
+# that is there can make it and put a git in it, and the sticky bit does not stop that: no one owns the name yet.
+mkdir -p "$TS4/ww"; chmod 777 "$TS4/ww"; TS4_ENV=(PATH="$TS4/ww/bin:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; chmod 1777 "$TS4/ww"
+TS4L_W="$(_ts4l_now)"; chmod 755 "$TS4/ww"; TS4L_U="$(_ts4l_after)"; TS4_ENV=()
+_ts4_is "ts4 setup C3 (review): a PATH entry that is not there, under a directory every login can write, offends as that directory above the code, with the sticky bit and without it, and under one only its owner writes does not" \
+  "$TS4L_V; with the sticky bit: $TS4L_W; then $TS4L_U; made: $(_ts4_yn test -e "$TS4/ww/bin")" \
+  "$(_ts4u_eline "$TS4/ww (a directory above the code)" 1); with the sticky bit: $(_ts4u_eline "$TS4/ww (a directory above the code)" 1); then cd; made: no" "$(_ts4_why)"
 TS4L_N="ts4 setup C3: on macOS, a directory above the code that carries an access-control entry that allows offends, and one whose only entry denies does not"
 if [ "$TS4U_OS" != Darwin ]; then skip "$TS4L_N" "this is not macOS"
 elif [ -z "$TS4_SKIP" ] && ! chmod +a "everyone allow add_file,add_subdirectory" "$TS4/pp" 2>/dev/null; then skip "$TS4L_N" "chmod +a put no access-control entry on a directory here"
@@ -145,5 +164,5 @@ _ts4_is "ts4 setup C4: with two offenders, the why names the first as sorted and
 FELIX="$TS4L_F0"; TS4_SKIP=""
 
 _ts4u_end
-unset TS4L_X TS4L_N1 TS4L_N2 TS4L_N3 TS4L_N4 TS4L_N5 TS4L_N6 TS4L_N TS4L_B TS4L_A TS4L_S TS4L_V TS4L_W TS4L_E TS4L_F0 TS4L_Q TS4L_BF TS4L_DF TS4L_G
+unset TS4L_U TS4L_X TS4L_N1 TS4L_N2 TS4L_N3 TS4L_N4 TS4L_N5 TS4L_N6 TS4L_N TS4L_B TS4L_A TS4L_S TS4L_V TS4L_W TS4L_E TS4L_F0 TS4L_Q TS4L_BF TS4L_DF TS4L_G
 # <<< trust-step4-setup-lock-and-e

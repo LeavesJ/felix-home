@@ -40,13 +40,14 @@ felix_authority_publish() {   # DIR|"" REPO|""
   while :; do case "$to" in /) break ;; */) to="${to%/}" ;; *) break ;; esac; done
   up="${to%/*}"; [ -n "$up" ] || up=/
   if [ -e "$to" ] || [ -L "$to" ]; then
-    [ -d "$to" ] && [ ! -L "$to" ] || { _FA_WHY="$to is not a directory"; return 1; }
+    [ -d "$to" ] && [ ! -L "$to" ] || { _FA_WHY="$(_fa_show "$to") is not a directory"; return 1; }
     # The authority's login reads the drop as "other": a directory it cannot read and search hides the drop.
-    [ -n "$(find "$to" -prune -perm -005 2>/dev/null)" ] || { _FA_WHY="$to cannot be read by another login"; return 1; }
+    [ -n "$(find "$to" -prune -perm -005 2>/dev/null)" ] || { _FA_WHY="$(_fa_show "$to") cannot be read by another login"; return 1; }
   else
-    [ -d "$up" ] || { _FA_WHY="$up is not a directory"; return 1; }
+    [ -d "$up" ] || { _FA_WHY="$(_fa_show "$up") is not a directory"; return 1; }
   fi
-  # P2. The repository: REPO, or the current directory. Shown as given, escaped by section 0's rule.
+  # P2. The repository: REPO, or the current directory. Shown as given, escaped by section 0's rule, as DIR is
+  # (review F6).
   [ -n "$from" ] || from="$PWD"
   shown="$(_fa_show "$from")"
   git -C "$from" rev-parse --git-dir >/dev/null 2>&1 || { _FA_WHY="$shown is not inside a git repository"; return 1; }
@@ -60,7 +61,7 @@ $refs
 EOF
   # P1. Made one level, 755 whatever the umask: the authority's login reads it as another login.
   if [ ! -d "$to" ]; then
-    mkdir -- "$to" 2>/dev/null && chmod 755 "$to" || { _FA_WHY="the bundle could not be written in $to"; return 1; }
+    mkdir -- "$to" 2>/dev/null && chmod 755 "$to" || { _FA_WHY="the bundle could not be written in $(_fa_show "$to")"; return 1; }
   fi
   # P4. Written whole under a name of this process's, then renamed: a reader sees the old bundle or the new one.
   # A directory (or a link to one) at source.bundle would take the rename into itself, so it is a failure to write.
@@ -70,12 +71,12 @@ EOF
      || ! git -C "$from" bundle create -q "$tmp" "${names[@]}" >/dev/null 2>&1 \
      || ! chmod 644 "$tmp" 2>/dev/null || ! mv -f "$tmp" "$to/source.bundle" 2>/dev/null; then
     rm -f "$tmp" "$tmp.lock" 2>/dev/null
-    _FA_WHY="the bundle could not be written in $to"; return 1
+    _FA_WHY="the bundle could not be written in $(_fa_show "$to")"; return 1
   fi
   # P5.
   sm=-
   if [ -n "$om" ]; then sm=refs/remotes/origin/main; elif [ -n "$main" ]; then sm=refs/heads/main; fi
   n="$(wc -c < "$to/source.bundle" 2>/dev/null | tr -d ' ')"
   printf 'published: %s\nbytes: %s\nbranches: %s\nmain: %s\norigin-main: %s\nsource: %s\nsource-main: %s\n' \
-    "$to/source.bundle" "${n:-?}" "$k" "${main:--}" "${om:--}" "$to/source.bundle" "$sm"
+    "$(_fa_show "$to/source.bundle")" "${n:-?}" "$k" "${main:--}" "${om:--}" "$(_fa_show "$to/source.bundle")" "$sm"
 }

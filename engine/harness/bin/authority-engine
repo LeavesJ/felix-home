@@ -40,9 +40,12 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
 
 # E1. The system's PATH, before any program runs. Every program below is still named by its absolute path, so
-# PATH decides nothing here; it is set for the programs those run. No function of the caller's (an exported
-# one is imported before the first line) stands in for a builtin, and nothing of the caller's reaches git or
-# the dynamic loader of a program run from here.
+# PATH decides nothing here; it is set for the programs those run. The caller's exported functions are imported
+# before the first line, and are removed on the line after `export PATH`, before any function of this program's
+# runs. NOT A WALL (review E1-builtin-fn, F7): a function of the caller's named set, export or unset runs on the
+# lines above, before that removal, and one named builtin or compgen stands in for the removal itself, which a
+# program cannot undo from inside. The caller is the authority's own Terminal; run under /usr/bin/env -i, it
+# imports none. Nothing of the caller's environment reaches git or the dynamic loader of a program run from here.
 case "$( { /usr/bin/uname -s || /bin/uname -s; } < /dev/null 2>/dev/null)" in
   Darwin) _AE_OS=Darwin; PATH=/Library/Developer/CommandLineTools/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin ;;
   *)      _AE_OS=other; PATH=/usr/bin:/bin:/usr/sbin:/sbin ;;
@@ -57,7 +60,7 @@ IFS=$' \t\n'; LC_ALL=C; export LC_ALL; umask 077
 # in /bin on another, the first that is there.
 _ae_bin() { if [ -x "/bin/$1" ]; then printf '/bin/%s' "$1"; else printf '/usr/bin/%s' "$1"; fi; }
 _AE_MKDIR="$(_ae_bin mkdir)"; _AE_CHMOD="$(_ae_bin chmod)"; _AE_MV="$(_ae_bin mv)"; _AE_RM="$(_ae_bin rm)"
-_AE_ID=/usr/bin/id; _AE_FIND=/usr/bin/find; _AE_AWK=/usr/bin/awk; _AE_SORT=/usr/bin/sort; _AE_WC=/usr/bin/wc
+_AE_ID=/usr/bin/id; _AE_FIND=/usr/bin/find; _AE_AWK=/usr/bin/awk; _AE_SORT=/usr/bin/sort; _AE_WC=/usr/bin/wc; _AE_LS="$(_ae_bin ls)"
 _AE_NEW=""
 
 _ae_no() { printf 'authority-engine: %s\n' "$1" >&2; exit "${2:-1}"; }   # LINE [STATUS]: a refusal
@@ -83,12 +86,28 @@ _ae_g() {   # ARG...: git, in the boot store
   GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_ATTR_NOSYSTEM=1 GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 \
     "$_AE_GIT" -c core.attributesFile=/dev/null -c core.hooksPath=/dev/null --git-dir="$_AE_B" "$@"
 }
-# A path that a group or every login can write, or that is a link or not a directory, is refused (E6).
+# A path that a group or every login can write, or that is a link or not a directory, is refused (E6). So is
+# one with an access-control entry that is not a deny (review E6-acl): it can let a login write what the mode
+# says it cannot. The entries are read where ls prints them (ls -lde, a line that starts with a space, a number
+# and a colon), as condition e reads them; where ls takes no -e, there is nothing more to read.
+_ae_acl() {   # PATH...: prints the first entry that is not a deny, of these paths and each path under them
+  "$_AE_LS" -lde / >/dev/null 2>&1 || return 0
+  "$_AE_FIND" "$@" -exec "$_AE_LS" -lde {} + 2>/dev/null | "$_AE_AWK" '/^ [0-9]+: / && $0 !~ / deny / { print; exit }'
+}
 _ae_dir_ok() {   # PATH
   if [ -e "$1" ] || [ -L "$1" ]; then
-    [ -d "$1" ] && [ ! -L "$1" ] || _ae_no "$1 is not a directory"
-    [ -z "$("$_AE_FIND" "$1" -prune \( -perm -020 -o -perm -002 \) -print 2>/dev/null)" ] || _ae_no "$1 can be written by another login"
+    [ -d "$1" ] && [ ! -L "$1" ] || _ae_no "$(_ae_show "$1") is not a directory"
+    [ -z "$("$_AE_FIND" "$1" -prune \( -perm -020 -o -perm -002 \) -print 2>/dev/null)" ] \
+      && [ -z "$(_ae_acl "$1" -prune)" ] || _ae_no "$(_ae_show "$1") can be written by another login"
   fi
+}
+# The next line is a command the founder types, so a word of it that holds a byte other than a letter, a digit
+# or one of _./:@%+=,- is put in single quotes for the shell, each single quote in it as '\'' (review
+# show-escaping): printed as it is, a source holding a space or a ; split, or ran a second command.
+_ae_sh() {   # WORD
+  local q="'\\''"
+  case "$1" in *[!A-Za-z0-9_./:@%+=,-]*) ;; *) printf '%s' "$1"; return ;; esac
+  printf "'%s'" "${1//\'/$q}"
 }
 
 # E2. The git only root can change. On macOS /usr/bin/git runs the git xcode-select points at, which on this
@@ -133,11 +152,14 @@ _ae_tree() {
 }
 
 # E10. A copy already at C is read, and nothing in it is written: each file's bytes against its blob and its
-# mode against the entry's (600 for 100644, 700 for 100755), each directory 700, and no file, directory, link
+# mode against the entry's (600 for 100644, 700 for 100755), each directory 700, C with them, no access-control
+# entry that is not a deny, and no file, directory, link
 # or anything else more or less than the commit's entries and their directories.
 _ae_same() {   # -> 0 when C is the commit's copy
   local want got l ids x r d a
   [ -d "$_AE_C" ] && [ ! -L "$_AE_C" ] || return 1
+  # C itself is a directory of the copy, so 700 too, and no path in it carries an entry that allows (review E10).
+  [ -n "$("$_AE_FIND" "$_AE_C" -prune -perm 700 -print 2>/dev/null)" ] && [ -z "$(_ae_acl "$_AE_C")" ] || return 1
   [ -z "$("$_AE_FIND" "$_AE_C" ! -type f ! -type d -print 2>/dev/null)" ] || return 1
   want="$(printf '%s' "$_AE_E" | "$_AE_AWK" '{ m = ($1 == "100755") ? "700" : "600"; p = substr($0, length($1) + length($2) + 3)
            print "f " m " " $2 " " p; n = split(p, c, "/"); q = ""; for (i = 1; i < n; i++) { q = (i == 1) ? c[1] : q "/" c[i]; d[q] = 1 } }
@@ -166,20 +188,20 @@ _ae_copy() {
   local m id p d
   _AE_NEW="$_AE_H/.felix/engine/.new.$$"
   "$_AE_RM" -rf "$_AE_NEW" 2>/dev/null
-  "$_AE_MKDIR" "$_AE_NEW" && "$_AE_CHMOD" 700 "$_AE_NEW" || _ae_no "the copy could not be written at $_AE_NEW"
+  "$_AE_MKDIR" "$_AE_NEW" && "$_AE_CHMOD" 700 "$_AE_NEW" || _ae_no "the copy could not be written at $(_ae_show "$_AE_NEW")"
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     m="${p%% *}"; p="${p#* }"; id="${p%% *}"; p="${p#* }"
     d="${p%/*}"
-    [ "$d" = "$p" ] || [ -d "$_AE_NEW/$d" ] || "$_AE_MKDIR" -p "$_AE_NEW/$d" || _ae_no "the copy could not be written at $_AE_NEW"
-    _ae_g cat-file blob "$id" > "$_AE_NEW/$p" 2>/dev/null || _ae_no "the copy could not be written at $_AE_NEW"
+    [ "$d" = "$p" ] || [ -d "$_AE_NEW/$d" ] || "$_AE_MKDIR" -p "$_AE_NEW/$d" || _ae_no "the copy could not be written at $(_ae_show "$_AE_NEW")"
+    _ae_g cat-file blob "$id" > "$_AE_NEW/$p" 2>/dev/null || _ae_no "the copy could not be written at $(_ae_show "$_AE_NEW")"
     if [ "$m" = 100755 ]; then "$_AE_CHMOD" 700 "$_AE_NEW/$p"; else "$_AE_CHMOD" 600 "$_AE_NEW/$p"; fi \
-      || _ae_no "the copy could not be written at $_AE_NEW"
+      || _ae_no "the copy could not be written at $(_ae_show "$_AE_NEW")"
   done <<EOF
 $_AE_E
 EOF
   "$_AE_FIND" "$_AE_NEW" -type d -exec "$_AE_CHMOD" 700 {} + 2>/dev/null
-  "$_AE_MV" "$_AE_NEW" "$_AE_C" 2>/dev/null || _ae_no "the copy could not be put in place at $_AE_C"
+  "$_AE_MV" "$_AE_NEW" "$_AE_C" 2>/dev/null || _ae_no "the copy could not be put in place at $(_ae_show "$_AE_C")"
   _AE_NEW=""
 }
 
@@ -191,7 +213,7 @@ _ae_launcher() {   # NAME PROGRAM (under C/engine/harness)
   printf '#!/bin/sh\n# the engine of commit %s, copied by authority-engine\nexec /usr/bin/env -i HOME='"'"'%s'"'"' USER='"'"'%s'"'"' LOGNAME='"'"'%s'"'"' TERM="${TERM:-dumb}" PATH='"'"'%s'"'"'%s /bin/bash '"'"'%s'"'"' "$@"\n' \
     "$_AE_K" "$_AE_H" "$_AE_ME" "$_AE_ME" "$PATH" "$dev" "$_AE_C/engine/harness/$2" > "$t" 2>/dev/null \
     && "$_AE_CHMOD" 700 "$t" && "$_AE_MV" -f "$t" "$f" 2>/dev/null \
-    || { "$_AE_RM" -f "$t" 2>/dev/null; _ae_no "the launcher $f could not be written"; }
+    || { "$_AE_RM" -f "$t" 2>/dev/null; _ae_no "the launcher $(_ae_show "$f") could not be written"; }
 }
 
 _ae_main() {
@@ -223,10 +245,10 @@ _ae_main() {
   _AE_B="$_AE_H/.felix/engine/boot.git"; _AE_C="$_AE_H/.felix/engine/$_AE_K"
   _ae_dir_ok "$_AE_H/.felix"; _ae_dir_ok "$_AE_H/.felix/engine"; _ae_dir_ok "$_AE_B"; _ae_dir_ok "$_AE_H/.felix/bin"
   for _ae_d in "$_AE_H/.felix" "$_AE_H/.felix/engine" "$_AE_H/.felix/bin"; do
-    [ -d "$_ae_d" ] || { "$_AE_MKDIR" "$_ae_d" && "$_AE_CHMOD" 700 "$_ae_d"; } || _ae_no "$_ae_d could not be made"
+    [ -d "$_ae_d" ] || { "$_AE_MKDIR" "$_ae_d" && "$_AE_CHMOD" 700 "$_ae_d"; } || _ae_no "$(_ae_show "$_ae_d") could not be made"
   done
   if [ ! -d "$_AE_B" ]; then
-    _ae_g init -q --bare --template= "$_AE_B" >/dev/null 2>&1 && "$_AE_CHMOD" 700 "$_AE_B" || _ae_no "$_AE_B could not be made"
+    _ae_g init -q --bare --template= "$_AE_B" >/dev/null 2>&1 && "$_AE_CHMOD" 700 "$_AE_B" || _ae_no "$(_ae_show "$_AE_B") could not be made"
   fi
   # E7. The fetch: every object checked as it arrives, three transports and no other, no submodule.
   _ae_g -c transfer.fsckObjects=true -c fetch.fsckObjects=true -c protocol.allow=never -c protocol.file.allow=always \
@@ -242,7 +264,7 @@ _ae_main() {
   _ae_tree
   # E10, or E9.
   if [ -e "$_AE_C" ] || [ -L "$_AE_C" ]; then
-    _ae_same || _ae_no "$_AE_C is there and differs from the commit; it is left as it is"
+    _ae_same || _ae_no "$(_ae_show "$_AE_C") is there and differs from the commit; it is left as it is"
     state="in place"
   else
     _ae_copy; state=made
@@ -255,11 +277,13 @@ _ae_main() {
   subject="${subject:0:200}"
   date="$(_ae_g show -s --no-show-signature --format=%cI "$_AE_K" 2>/dev/null)"
   version="$("$_AE_AWK" -F'"' '$2 == "version" { print $4; exit }' "$_AE_C/engine/.claude-plugin/plugin.json" 2>/dev/null)"
-  next="$_AE_H/.felix/bin/felix authority init --user $_AE_ME --workers WORKERS --source $(_ae_show "$_AE_S") --source-main refs/remotes/origin/main"
-  [ "$lock" = - ] || next="$next --lock $lock"
+  # Section 0 for the paths, which hold HOME; the next line's words quoted for the shell, which types it.
+  next="$(_ae_sh "$_AE_H/.felix/bin/felix") authority init --user $_AE_ME --workers WORKERS --source $(_ae_sh "$_AE_S") --source-main refs/remotes/origin/main"
+  [ "$lock" = - ] || next="$next --lock $(_ae_sh "$lock")"
+  [ "$lock" = - ] || lock="$(_ae_show "$lock")"
   printf 'engine: %s\nstate: %s\nsubject: %s\ndate: %s\nversion: %s\nfiles: %s\ncopy: %s\nfelix: %s\nlock: %s\nreach-witness: %s\nnext: %s\n' \
     "$_AE_K" "$state" "$(_ae_show "$subject")" "${date:--}" "$( [ -n "$version" ] && _ae_show "$version" || printf -)" "$_AE_N" \
-    "$_AE_C" "$_AE_H/.felix/bin/felix" "$lock" "$_AE_H/.felix/bin/reach-witness" "$next"
+    "$(_ae_show "$_AE_C")" "$(_ae_show "$_AE_H/.felix/bin/felix")" "$lock" "$(_ae_show "$_AE_H/.felix/bin/reach-witness")" "$next"
 }
 
 trap '[ -z "$_AE_NEW" ] || "$_AE_RM" -rf "$_AE_NEW" 2>/dev/null' EXIT

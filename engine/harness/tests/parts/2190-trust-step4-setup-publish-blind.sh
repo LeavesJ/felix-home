@@ -120,6 +120,8 @@ _ts4p_no "a --to that is a file" "exit 1; stderr: felix: $TS4P_X/afile is not a 
 _ts4p_no "a --to that is a link to a directory" "exit 1; stderr: felix: $TS4P_X/dlink is not a directory" "$TS4P_X" --to "$TS4P_X/dlink" --from "$TS4P_R"
 _ts4p_no "a --to whose parent is not there" "exit 1; stderr: felix: $TS4P_X/none is not a directory" "$TS4P_X" --to "$TS4P_X/none/drop" --from "$TS4P_R"
 _ts4p_no "a --to whose parent is a file" "exit 1; stderr: felix: $TS4P_X/afile is not a directory" "$TS4P_X" --to "$TS4P_X/afile/drop" --from "$TS4P_R"
+: > "$TS4P_X/q\"f"
+_ts4p_no "a --to that is a file whose name holds a double quote, printed escaped as section 0 says (review)" "exit 1; stderr: felix: \"$TS4P_X/q\\x22f\" is not a directory" "$TS4P_X" --to "$TS4P_X/q\"f" --from "$TS4P_R"
 for TS4P_V in 700 750 711; do
   mkdir -p "$TS4P_X/m$TS4P_V"; chmod "$TS4P_V" "$TS4P_X/m$TS4P_V"
   _ts4p_no "a --to that exists with mode $TS4P_V" "exit 1; stderr: felix: $TS4P_X/m$TS4P_V cannot be read by another login" "$TS4P_X/m$TS4P_V" --to "$TS4P_X/m$TS4P_V" --from "$TS4P_R"
@@ -130,7 +132,7 @@ _ts4p_no "a repository with no branch, its one ref refs/remotes/origin/main" "ex
 _ts4p_no "a repository with no commit" "exit 1; stderr: felix: $TS4P_R5 has no branch to publish" "$TS4/d8" --to "$TS4/d8" --from "$TS4P_R5"
 _ts4u_pub "$TS4/t" --to "$TS4/d8"
 _ts4_is "ts4 setup P2: with no --from, run in a directory that is in no git repository, publish refuses with one line on stderr naming that, exits 1 and makes no directory" \
-  "exit $TS4_RC; one line: $(_ts4_yn test "$(_ts4_rows "$TS4/e")" = 1); $(LC_ALL=C awk 'NR == 1 { print ((index($0, "felix: ") == 1 && substr($0, length($0) - 31) == " is not inside a git repository") ? "the line P2 gives" : "another line") }' "$TS4/e"); made: $(_ts4_yn test -e "$TS4/d8")" \
+  "exit $TS4_RC; one line: $(_ts4_yn test "$(_ts4_rows "$TS4/e")" = 1); $(LC_ALL=C awk 'NR == 1 { print ((index($0, "felix: ") == 1 && substr($0, length($0) - 30) == " is not inside a git repository") ? "the line P2 gives" : "another line") }' "$TS4/e"); made: $(_ts4_yn test -e "$TS4/d8")" \
   "exit 1; one line: yes; the line P2 gives; made: no" "$(_ts4_why)"
 if [ "$TS4U_UID" = 0 ]; then
   skip "ts4 setup P: publish refuses a directory of mode 555, where the bundle cannot be written (P4), and leaves the directory as it was" "this test runs as root, who can write a directory of mode 555"

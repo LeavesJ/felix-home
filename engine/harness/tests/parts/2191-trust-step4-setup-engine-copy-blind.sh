@@ -169,6 +169,11 @@ chmod 700 "$TS4E_XS" 2>/dev/null; _ts4e_differ "in which a file of mode 100644 h
 mkdir -p "$TS4E_C1/engine/harness/empty"; _ts4e_differ "that holds a directory the commit lacks"; rmdir "$TS4E_C1/engine/harness/empty" 2>/dev/null
 mv "$TS4E_XS" "$TS4E_X/x.moved" 2>/dev/null; _ts4e_differ "that lacks one of the commit's files"; mv "$TS4E_X/x.moved" "$TS4E_XS" 2>/dev/null
 mv "$TS4E_XS" "$TS4E_X/x.moved" 2>/dev/null; ln -s "$TS4E_X/x.moved" "$TS4E_XS" 2>/dev/null; _ts4e_differ "in which a file is a link to a file of the same bytes"; rm -f "$TS4E_XS"; mv "$TS4E_X/x.moved" "$TS4E_XS" 2>/dev/null
+chmod 777 "$TS4E_C1" 2>/dev/null; _ts4e_differ "whose own top directory has mode 777 (review)"; chmod 700 "$TS4E_C1" 2>/dev/null
+TS4E_RW="ts4 setup E10: a copy there before in which a file carries an access-control entry that allows (review) is refused, and left as it is"
+if [ "$TS4U_OS" != Darwin ]; then skip "$TS4E_RW" "this is not macOS"
+elif ! chmod +a "everyone allow write,append" "$TS4E_C1/engine/harness/felix" 2>/dev/null; then skip "$TS4E_RW" "chmod +a put no access-control entry on a file here"
+else _ts4e_differ "in which a file carries an access-control entry that allows (review)"; chmod -N "$TS4E_C1/engine/harness/felix" 2>/dev/null; fi
 _ts4u_ae "$TS4E_H1" "$TS4E_K1" "$TS4E_B"
 _ts4_is "ts4 setup E10 (control): with each change undone, the copy is in place again" "exit $TS4_RC; $(_ts4_line 'state: ' "$TS4/o"); $(_ts4u_cmp "$TS4E_S" "$TS4E_K1" "$TS4E_C1")" "exit 0; state: in place; same" "$(_ts4_why)"
 
@@ -206,6 +211,18 @@ if [ "$(_ts4_sg "$TS4E_X/u.git" rev-parse -q --verify refs/x/main)" = "$TS4E_K1"
 else
   skip "ts4 setup E5: a source that is a file:// URL of a repository is taken, and the next line names it" "this git does not fetch from a file:// URL of a repository"
 fi
+# Review show-escaping: the next line is typed, so a source holding a space or a ; is quoted for the shell there.
+mkdir -p "$TS4E_X/my drop" "$TS4/h/six"; cp "$TS4E_B" "$TS4E_X/my drop/x;echo INJECTED" 2>/dev/null; _ts4u_ae "$TS4/h/six" "$TS4E_K1" "$TS4E_X/my drop/x;echo INJECTED"
+_ts4_is "ts4 setup E12 (review): a source holding a space and a ; is put in single quotes on the next line, which then names it as one word" \
+  "exit $TS4_RC; $(_ts4_count "next: $TS4/h/six/.felix/bin/felix authority init --user $TS4_ME --workers WORKERS --source '$TS4E_X/my drop/x;echo INJECTED' --source-main " "$TS4/o")" \
+  "exit 0; 1" "$(_ts4_why)"
+# Review F4: E1's unsetting of each GIT_ variable, which no run above passes. With the caller's GIT_OBJECT_DIRECTORY
+# kept, the fetched objects went there, outside HOME.
+mkdir -p "$TS4/h/genv" "$TS4E_X/gobj"
+TS4_ENV=(GIT_OBJECT_DIRECTORY="$TS4E_X/gobj" GIT_DIR="$TS4E_X/gdir" GIT_INDEX_FILE="$TS4E_X/gidx"); _ts4u_ae "$TS4/h/genv" "$TS4E_K1" "$TS4E_B"; TS4_ENV=()
+_ts4_is "ts4 setup E1 (review): a caller's GIT_OBJECT_DIRECTORY, GIT_DIR and GIT_INDEX_FILE reach no git of the run: the copy is made from the boot store, which holds the objects, and nothing is written where they point" \
+  "exit $TS4_RC; $(_ts4_line 'state: ' "$TS4/o"); boot objects: $(find "$TS4/h/genv/.felix/engine/boot.git/objects" -type f 2>/dev/null | LC_ALL=C awk 'END { print (NR > 0 ? "yes" : "no") }'); written where they point: $(find "$TS4E_X/gobj" "$TS4E_X/gdir" "$TS4E_X/gidx" -mindepth 1 2>/dev/null | LC_ALL=C awk 'END { print NR }') and $(_ts4_yn test -e "$TS4E_X/gdir") $(_ts4_yn test -e "$TS4E_X/gidx")" \
+  "exit 0; state: made; boot objects: yes; written where they point: 0 and no no" "$(_ts4_why)"
 
 # ------------------------------------------------------------------ HOME and the four directories (E6) ---
 mkdir -p "$TS4/h/it's" "$TS4/h/caf$(printf '\303\251')"; : > "$TS4/h/afile"
@@ -230,6 +247,11 @@ mkdir -p "$TS4/h/w2/.felix/engine"; chmod 700 "$TS4/h/w2/.felix"; chmod 702 "$TS
 _ts4e_dir "a .felix/engine that every login can write" "exit 1; stderr: authority-engine: $TS4/h/w2/.felix/engine can be written by another login" "$TS4/h/w2"
 mkdir -p "$TS4/h/w3/.felix/bin"; chmod 700 "$TS4/h/w3/.felix"; chmod 720 "$TS4/h/w3/.felix/bin"
 _ts4e_dir "a .felix/bin its group can write" "exit 1; stderr: authority-engine: $TS4/h/w3/.felix/bin can be written by another login" "$TS4/h/w3"
+mkdir -p "$TS4/h/w4/.felix/bin"; chmod 700 "$TS4/h/w4/.felix" "$TS4/h/w4/.felix/bin"
+TS4E_RW="ts4 setup E6: authority-engine refuses a .felix/bin with an access-control entry that allows (review), and makes no copy"
+if [ "$TS4U_OS" != Darwin ]; then skip "$TS4E_RW" "this is not macOS"
+elif ! chmod +a "everyone allow add_file,delete_child" "$TS4/h/w4/.felix/bin" 2>/dev/null; then skip "$TS4E_RW" "chmod +a put no access-control entry on a directory here"
+else _ts4e_dir "a .felix/bin with an access-control entry that allows (review)" "exit 1; stderr: authority-engine: $TS4/h/w4/.felix/bin can be written by another login" "$TS4/h/w4"; fi
 if [ "$TS4U_UID" = 0 ]; then
   mkdir -p "$TS4/h/root"; _ts4e_dir "a run as uid 0" "exit 1; stderr: authority-engine: not as root" "$TS4/h/root"
 else
@@ -283,5 +305,5 @@ TS4_SKIP=""
 
 _ts4u_end
 unset TS4E_X TS4E_S TS4E_B TS4E_F TS4E_FB TS4E_RS TS4E_RB TS4E_K1 TS4E_K2 TS4E_K3 TS4E_K4 TS4E_KN TS4E_KM TS4E_KL TS4E_KS TS4E_KA TS4E_KC TS4E_KO TS4E_KF TS4E_KR \
-  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4U_RN
+  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_RW TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4U_RN
 # <<< trust-step4-setup-engine-copy

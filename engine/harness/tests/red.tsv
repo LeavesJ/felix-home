@@ -8,5 +8,6 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	c9bff19bb1080561b1cbafda5518373f9428d64e	0.49.346
-run	0	17610	48
+base	origin/main	bd10d061b6f0082d0efb1d0b669ce9f85fee1d28	0.49.348
+run	1	17609	48
+ts3f: A14: within a few seconds of the judge KILLed, no run tree is under TMPDIR, no unit sleeps on, and no felix-instrument* name under /tmp or /var/tmp holds this run's token	1

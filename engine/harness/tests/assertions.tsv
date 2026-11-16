@@ -122,7 +122,7 @@
 1	2400 the seed's classes and their applies are C12's list as committed, so four classes are HTTP-keyed
 1	2400 the shipped templates/situations.tsv exists, is not empty and ends in a newline
 1	2400 the table holds the comment line # class<TAB>applies<TAB>owes<TAB>class_by_maturity<TAB>source
-1	2400 the table names no project under the projects/ beside this harness but felix, comments included, without regard to case (8 name(s) read)
+1	2400 the table names no project under the projects/ beside this harness but felix, comments included, without regard to case
 1	2410 --at --tsv reads the tree --tsv, which has no run: exit 3
 1	2410 --at a recorded tree the checkout is not at, in the same log, does not run the detector: commit -
 1	2410 --at a tree only a 7-field line names, beside unknown-tree rows, exits 3

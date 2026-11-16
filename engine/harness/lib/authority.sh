@@ -221,8 +221,9 @@ _fa_code_offenders_raw() {
   if [ -n "$_FA_LOCK" ]; then
     a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"
     [ -e "${_FA_LOCK%/*}/" ] || m[${#m[@]}]="${_FA_LOCK%/*}"
-    # rev 3: a lock that is a link to nothing runs whatever is later made where it points (security review).
-    [ ! -L "$_FA_LOCK" ] || [ -e "$_FA_LOCK" ] || printf '%s\n' "$_FA_LOCK (a link on the way to the code that leads to nothing)"
+    # rev 3 (security review): a lock that is a link runs whatever is at the end of it, in a directory not read
+    # here, or made later where a link to nothing points. The lock authority-engine writes is a file.
+    [ ! -L "$_FA_LOCK" ] || printf '%s\n' "$_FA_LOCK (a lock that is a link: it runs wherever the link points)"
   fi
   case ":${PATH:-}:" in *::*) printf '%s\n' "PATH (an empty entry: the directory the command is run from)" ;; esac
   IFS=:

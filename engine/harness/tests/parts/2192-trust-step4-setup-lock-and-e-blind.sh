@@ -159,11 +159,15 @@ _ts4_is "ts4 setup C3 (security review): a PATH entry that is a link to a file, 
 TS4_ENV=(PATH="$TS4/sv/wk/f:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; chmod 755 "$TS4/sv/wk"; TS4L_W="$(_ts4l_after)"; TS4_ENV=()
 _ts4_is "ts4 setup C3 (security review): a PATH entry that is a plain file, in a directory every login can write, names that directory above the code, and in one only its owner writes does not" \
   "$TS4L_V, then $TS4L_W" "$(_ts4u_eline "$TS4/sv/wk (a directory above the code)" 1), then cd" "$(_ts4_why)"
+# A lock that is a link runs whatever is at its end: a file in wk/, whose directory is not read, or one made later
+# where a link to nothing points. Each is named, and a lock that is a file only its owner writes is not.
 cp "$TS4L_Q/authority.conf" "$TS4/x/conf.keep" 2>/dev/null; ln -s "$TS4/sv/wk/later-lock" "$TS4/sv/rt/lk" 2>/dev/null
-_ts4_conf "$TS4L_Q" lock "$TS4/sv/rt/lk"; TS4L_V="$(_ts4l_now)"; rm -f "$TS4/sv/rt/lk"; printf '#!/bin/sh\nexit 0\n' > "$TS4/sv/rt/lk"; chmod 755 "$TS4/sv/rt/lk"
+printf '#!/bin/sh\nexit 0\n' > "$TS4/sv/wk/lockprog"; chmod 755 "$TS4/sv/wk/lockprog"; ln -s "$TS4/sv/wk/lockprog" "$TS4/sv/rt/lk2" 2>/dev/null
+_ts4_conf "$TS4L_Q" lock "$TS4/sv/rt/lk"; TS4L_V="$(_ts4l_now)"; _ts4_conf "$TS4L_Q" lock "$TS4/sv/rt/lk2"; chmod 777 "$TS4/sv/wk"; TS4L_U="$(_ts4l_now)"; chmod 755 "$TS4/sv/wk"
+rm -f "$TS4/sv/rt/lk"; printf '#!/bin/sh\nexit 0\n' > "$TS4/sv/rt/lk"; chmod 755 "$TS4/sv/rt/lk"; _ts4_conf "$TS4L_Q" lock "$TS4/sv/rt/lk"
 TS4L_W="$(_ts4l_after)"; cat "$TS4/x/conf.keep" > "$TS4L_Q/authority.conf" 2>/dev/null; rm -f "$TS4/x/conf.keep"
-_ts4_is "ts4 setup C3 (security review): a lock that is a link to nothing is named as one, and a lock that is a file only its owner writes is not" \
-  "$TS4L_V, then $TS4L_W" "$(_ts4u_eline "$TS4/sv/rt/lk (a link on the way to the code that leads to nothing)" 1), then cd" "$(_ts4_why)"
+_ts4_is "ts4 setup C3 (security review): a lock that is a link is named as one, to nothing or to a file in a directory every login can write, and a lock that is a file only its owner writes is not" \
+  "$TS4L_V; to a file: $TS4L_U, then $TS4L_W" "$(_ts4u_eline "$TS4/sv/rt/lk (a lock that is a link: it runs wherever the link points)" 1); to a file: $(_ts4u_eline "$TS4/sv/rt/lk2 (a lock that is a link: it runs wherever the link points)" 1), then cd" "$(_ts4_why)"
 TS4L_N="ts4 setup C3: on macOS, a directory above the code that carries an access-control entry that allows offends, and one whose only entry denies does not"
 if [ "$TS4U_OS" != Darwin ]; then skip "$TS4L_N" "this is not macOS"
 elif [ -z "$TS4_SKIP" ] && ! chmod +a "everyone allow add_file,add_subdirectory" "$TS4/pp" 2>/dev/null; then skip "$TS4L_N" "chmod +a put no access-control entry on a directory here"

@@ -170,9 +170,18 @@ felix_classify_diff() {
   # reads stdout and drops the exit code. felix_classify_tier promotes this to
   # `unknown`, which outranks every tier — receipt.sh's stated precedence, since
   # a verdict computed from inputs nobody read is the confident wrong answer.
-  if [ -n "$base" ] && ! felix_base_resolves "$root" "$base"; then
-    printf 'unknown\t%s\tthis base names nothing here, so nothing was compared\n' "$base"
-    return 0
+  # A git that could not run is named GIT (2026-11-14): nothing was compared
+  # either way, and the remedy is git, not --base.
+  if [ -n "$base" ]; then
+    local brc=0 gwhy=""
+    felix_base_resolves "$root" "$base" gwhy || brc=$?
+    case "$brc" in
+      0) ;;
+      2) printf 'unknown\tGIT\t%s, so the base %s was not looked up and nothing was compared\n' "$gwhy" "$base"
+         return 0 ;;
+      *) printf 'unknown\t%s\tthis base names nothing here, so nothing was compared\n' "$(felix_base_subject "$base")"
+         return 0 ;;
+    esac
   fi
 
   # A change git could not read to the end is the same emptiness one step on

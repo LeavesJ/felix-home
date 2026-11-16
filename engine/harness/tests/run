@@ -59,8 +59,7 @@ ok()   { PASS=$((PASS+1)); _ran "$1"; printf '  ok    %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); _ran "$1"; printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
 is()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "expected [$3] got [$2]"; }
 has()  { case "$2" in *"$3"*) ok "$1" ;; *) bad "$1" "[$2] lacks [$3]" ;; esac; }
-# Some skips describe the machine (a real plugin needs the claude CLI), and a skip counts as REACHED for the manifest of what
-# ran: part 0001 says why, above the line that makes the ran file.
+# Some skips describe the machine (a real plugin needs the claude CLI), and a skip counts as REACHED for the manifest of what ran: part 0001 says why, above the line that makes the ran file.
 SKIP=0
 skip() { SKIP=$((SKIP+1)); _ran "$1"; printf '  skip  %s (%s)\n' "$1" "$2"; }
 has_claude() { command -v claude >/dev/null 2>&1; }
@@ -437,6 +436,7 @@ fi
 . "$HERE/parts/2460-situations-seed-siblings-blind.sh"
 . "$HERE/parts/2470-situations-review-focus-blind.sh"
 . "$HERE/parts/2480-deploy-window-blind.sh"
+. "$HERE/parts/2490-git-cannot-run-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 # The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion

@@ -447,9 +447,20 @@ felix_evidence_check() {
   # One row, not one per rule. The rules were never consulted, so reporting
   # each of them as unknown would imply they were each considered and found
   # unanswerable. Nothing was considered.
-  if [ -n "$base" ] && ! felix_base_resolves "$root" "$base"; then
-    printf 'unknown\t%s\tthis base names nothing here, so no rule was consulted\n' "$base"
-    return 0
+  #
+  # A git that could not run is not a base that names nothing (2026-11-14), and
+  # its row is named GIT, as a change git could not read is CHANGED-PATHS, so a
+  # caller tells the two apart by name and never by the reason's words.
+  if [ -n "$base" ]; then
+    local brc=0 gwhy=""
+    felix_base_resolves "$root" "$base" gwhy || brc=$?
+    case "$brc" in
+      0) ;;
+      2) printf 'unknown\tGIT\t%s, so the base %s was not looked up and no rule was consulted\n' "$gwhy" "$base"
+         return 0 ;;
+      *) printf 'unknown\t%s\tthis base names nothing here, so no rule was consulted\n' "$(felix_base_subject "$base")"
+         return 0 ;;
+    esac
   fi
 
   # The same one row when git could not list the change to the end (2026-10-08).

@@ -553,7 +553,7 @@ felix_verify_record() {
 felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
 
 # Is the receipt for this root a current green? One line, and 0 only for
-# `current`:
+# `current`; 2 only where git could not run, 1 for every other answer:
 #
 #   none                    no receipt
 #   red                     the receipt is not green
@@ -562,6 +562,9 @@ felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
 #                           component moved — the grounded facts, the table
 #                           set, the subject, the release target, in that
 #                           order of precedence
+#   stale <TAB> reason, 2   git could not run, so the receipt could not be
+#                           found or the tree has no id; the reason starts
+#                           with felix_git_runs's clause
 #   current
 #
 # Every reader that used to compare field 1 to the tree id and field 2 to
@@ -583,13 +586,34 @@ felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
 # C9-R3). Absent, it reads the file as it always did; an empty fourth argument
 # is a receipt of nothing, which is `none`.
 felix_verify_current() {
-  local root="$1" home="$2" proj="$3" tid receipt r_tid r_res r_epoch r_comps comps now_epoch
-  if [ $# -ge 4 ]; then receipt="$4"; else receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"; fi
+  local root="$1" home="$2" proj="$3" tid receipt r_tid r_res r_epoch r_comps comps now_epoch rpath gwhy=""
+  # The receipt's path is a hash git makes, so a git that could not run finds
+  # no receipt whatever the file holds, and `none` would be a fact nobody read
+  # (2026-11-14: an Xcode update left /usr/bin/git exiting 69, and felix next
+  # said this tree had no green receipt). The probe runs only when the hash
+  # came back empty. Status 2 tells it apart for a caller whose remedy differs:
+  # no gate can run until git does.
+  if [ $# -ge 4 ]; then receipt="$4"
+  else
+    rpath="$(_felix_receipt_path "$root" "$home")"
+    case "$rpath" in
+      */) if command -v felix_git_runs >/dev/null 2>&1 && ! felix_git_runs gwhy; then
+            printf 'stale\t%s, so this tree cannot be identified and no receipt can be confirmed for it\n' "$gwhy"; return 2
+          fi ;;
+    esac
+    receipt="$(cat "$rpath" 2>/dev/null)"
+  fi
   [ -n "$receipt" ] || { printf 'none\n'; return 1; }
   r_res="$(printf '%s' "$receipt" | LC_ALL=C cut -f2)"
   [ "$r_res" = "green" ] || { printf 'red\n'; return 1; }
   tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""
   r_tid="$(printf '%s' "$receipt" | LC_ALL=C cut -f1)"
+  # An empty id from a git that could not run is no news about the tree either,
+  # and "the tree changed" would be the same unread fact. A receipt handed in
+  # reaches this line with git never asked.
+  if [ -z "$tid" ] && command -v felix_git_runs >/dev/null 2>&1 && ! felix_git_runs gwhy; then
+    printf 'stale\t%s, so this tree cannot be identified and no receipt can be confirmed for it\n' "$gwhy"; return 2
+  fi
   if [ -z "$tid" ] || [ "$r_tid" != "$tid" ]; then
     printf 'stale\tthe tree changed since the receipt\n'; return 1
   fi

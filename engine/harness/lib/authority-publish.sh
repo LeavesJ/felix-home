@@ -91,6 +91,7 @@ felix_authority_publish() {   # DIR|"" REPO|""
   fi
   while IFS= read -r y; do
     [ -n "$y" ] || continue
+    case "$y" in *" (a link not followed)") _FA_WHY="$(_fa_show "${y% (a link not followed)}") is a link whose target was not read"; return 1 ;; esac
     _fap_above_ok "$y" "$me" || { _FA_WHY="$(_fa_show "$y") can be written by another login"; return 1; }
   done <<EOF
 $ups

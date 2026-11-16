@@ -175,13 +175,12 @@ EOF
 # it, and so is every file felix sources); each directory PATH names and each program in one; the directory
 # `git --exec-path` prints for the git first on PATH, read as a PATH directory is (C2: on this Mac /usr/bin/git
 # runs Xcode's git, whose programs sit under /Applications, which the admin group writes); the lock with its
-# directory; and each directory above any of these (C3, _fa_above), one of them that is not there yet with them. Directories, and not a list of the tools'
-# names: a list is the tools found so far, and the first one written here named twenty and left out one the
-# door runs. A link is read as itself and as what it points at. "Can write" is: owns it, or it is writable by
-# every login, or by a group a worker is in, or it carries an access-control entry that allows. A path a third
-# login owns (a system's role account) is not a worker's. Each path is printed with no trailing slash. NOT
-# READ: the libraries a program loads, what a link in a PATH directory points into beyond its own directories
-# above, and a login not named in workers; the setup slice's section 8 lists them.
+# directory; and each directory above any of these, or above what a link among them points at (C3, _fa_above),
+# one not there yet with them. Directories, not a list of the tools' names: the first list written here named
+# twenty and left out one the door runs. A link is read as itself and as what it points at. "Can write" is: owns
+# it, or every login or a group a worker is in can write it, or it carries an access-control entry that allows.
+# A path a third login owns (a system's role account) is not a worker's. Each path is printed with no trailing
+# slash. NOT READ: the libraries a program loads, and a login not named in workers (setup slice, section 8).
 _fa_code_offenders() {
   { _fa_code_offenders_raw; } | LC_ALL=C awk '
     substr($0, 1, 1) == "/" { s = $0; t = ""; i = index(s, " ("); if (i) { t = substr(s, i); s = substr(s, 1, i - 1) }
@@ -189,13 +188,13 @@ _fa_code_offenders() {
       $0 = s t }
     { print }'
 }
-# C3. Prints each directory above DIR up to /, along DIR as written and along its physical path (cd -P), one a
-# line. A path with a newline in it is read as two, and the directories above the real one are then not read.
-# 0.49.354 (review trust 3): a part met on either path that is a link adds the path its target names, one hop,
-# read against the link's directory; that path is printed and walked too, at most 40 such hops. cd -P goes to
-# the end of a chain at once, so without this the directory holding a link that a link points at was not read.
+# C3. Prints each directory above DIR up to /, along DIR as written and its physical path (cd -P), one a line (a
+# path with a newline is read as two). A part on the way that is a link adds its target, one hop, printed and
+# walked too, since cd -P skips the middle of a chain (0.49.354, review trust 3). Each link is followed once; one
+# not followed (a 41st, or one whose target cannot be read) is printed as "LINK (a link not followed)", which
+# each reader of this list refuses (security review of d1eecab1: fail closed, not silent).
 _fa_above() {   # DIR
-  local p q l i=0 j=0
+  local p q l i=0 j=0 sl=$'\n'
   local -a t
   t=("$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)")
   while [ "$j" -lt "${#t[@]}" ]; do
@@ -204,23 +203,29 @@ _fa_above() {   # DIR
     [ "$j" -le 2 ] || printf '%s\n' "$p"
     while :; do
       case "$p" in /) break ;; */) p="${p%/}"; continue ;; esac
-      if [ -L "$p" ] && [ "$i" -lt 40 ] && l="$(readlink -- "$p" 2>/dev/null)" && [ -n "$l" ]; then
-        case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
-        i=$((i + 1)); t[${#t[@]}]="$l"
+      if [ -L "$p" ]; then
+        case "$sl" in
+          *$'\n'"$p"$'\n'*) ;;
+          *) sl="$sl$p"$'\n'
+             if [ "$i" -lt 40 ] && l="$(readlink -- "$p" 2>/dev/null)" && [ -n "$l" ]; then
+               case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
+               i=$((i + 1)); t[${#t[@]}]="$l"
+             else
+               printf '%s (a link not followed)\n' "$p"
+             fi ;;
+        esac
       fi
       q="${p%/*}"; [ -n "$q" ] || q=/
       printf '%s\n' "$q"; p="$q"
     done
   done
 }
-# H11 (0.49.354, review trust 6). The physical path of what PATH, a link, points at: each link on the way
-# followed, at most 40, then its directory read with cd -P. Nothing, and 1, when it leads nowhere.
+# H11 (0.49.354). The physical path of what PATH, a link, points at (at most 40 hops); 1 when it leads nowhere.
 _fa_real() {   # PATH
   local p="$1" l d i=0
   while [ -L "$p" ] && [ "$i" -lt 40 ]; do
     l="$(readlink -- "$p" 2>/dev/null)" && [ -n "$l" ] || return 1
-    case "$l" in /*) p="$l" ;; *) p="${p%/*}/$l" ;; esac
-    i=$((i + 1))
+    case "$l" in /*) p="$l" ;; *) p="${p%/*}/$l" ;; esac; i=$((i + 1))
   done
   [ -e "$p" ] && [ ! -L "$p" ] || return 1
   if [ -d "$p" ]; then (cd -P -- "$p" 2>/dev/null && pwd -P); return; fi
@@ -232,6 +237,7 @@ _fa_up_add() {   # LINES
   local y
   while IFS= read -r y; do
     [ -n "$y" ] || continue
+    case "$y" in *" (a link not followed)") printf '%s\n' "${y% (a link not followed)} (a link on the way to the code whose target was not read)"; continue ;; esac
     case "$seen" in *$'\n'"$y"$'\n'*) continue ;; esac
     seen="$seen$y"$'\n'
     if [ -L "$y" ]; then upl[${#upl[@]}]="$y"; else ups[${#ups[@]}]="$y"; fi
@@ -246,13 +252,11 @@ _fa_code_offenders_raw() {
   if [ -n "$_FA_LOCK" ]; then
     a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"
     [ -e "${_FA_LOCK%/*}/" ] || m[${#m[@]}]="${_FA_LOCK%/*}"
-    # rev 3 (security review): a lock that is a link runs whatever is at the end of it, in a directory not read
-    # here, or made later where a link to nothing points. The lock authority-engine writes is a file.
+    # rev 3 (security review): a lock that is a link runs whatever it ends at; authority-engine writes a file.
     [ ! -L "$_FA_LOCK" ] || printf '%s\n' "$_FA_LOCK (a lock that is a link: it runs wherever the link points)"
   fi
   case ":${PATH:-}:" in *::*) printf '%s\n' "PATH (an empty entry: the directory the command is run from)" ;; esac
-  # H6 (0.49.354, review): each entry as written, with globbing off, since the shell runs programs from /x/[b]in
-  # itself and not from the /x/bin a glob would read. The shell's glob setting is put back as it was.
+  # H6 (0.49.354): each entry as written, globbing off (the shell runs /x/[b]in itself), then set back as it was.
   case "$-" in *f*) nf=1 ;; *) nf=0 ;; esac
   set -f; IFS=:
   for d in ${PATH:-}; do
@@ -267,6 +271,24 @@ _fa_code_offenders_raw() {
   # failing, or naming no directory adds nothing: a git that cannot run runs nothing from there.
   x="$(git --exec-path 2>/dev/null)" || x=""
   case "$x" in /*) if [ -d "$x" ]; then dirs[${#dirs[@]}]="$x/"; a[${#a[@]}]="$x/"; else m[${#m[@]}]="$x"; fi ;; esac
+  # H11, and the security review of d1eecab1 (0.49.354). What each link among these paths points at (lt) is read
+  # by its physical path for an entry that allows (macOS ls -lLde prints a link's own), and the directories above
+  # it as C3 reads them. A link that leads to nothing is read as a path not there yet (m), its target one hop on;
+  # one whose target cannot be read offends itself.
+  while IFS= read -r p; do
+    [ -n "$p" ] && [ -L "$p" ] || continue
+    if q="$(_fa_real "$p")" && [ -n "$q" ]; then
+      case "$seen" in *$'\n'"T$q"$'\n'*) continue ;; esac
+      seen="${seen}T$q"$'\n'; lt[${#lt[@]}]="$q"
+    elif l="$(readlink -- "$p" 2>/dev/null)" && [ -n "$l" ]; then
+      case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
+      m[${#m[@]}]="$l"
+    else
+      printf '%s\n' "$p (a link on the way to the code whose target was not read)"
+    fi
+  done <<EOF
+$(find -L "$r" -print 2>/dev/null; [ ${#a[@]} -eq 0 ] || printf '%s\n' "${a[@]%/}"; [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -print 2>/dev/null)
+EOF
   # C3, for a directory that is not there yet (review C3-missing-path): a login that can write the deepest one
   # above it that is there can make it, and put a program in it, sticky bit or not, since no one owns that name
   # yet. Each directory above it is read as for one that is there, and that deepest one, along the path as
@@ -322,6 +344,7 @@ _fa_code_offenders_raw() {
   for p in "$r" ${a[@]+"${a[@]}"}; do [ ! -d "$p" ] || _fa_up_add "$(_fa_above "$p")"; done
   for p in ${m[@]+"${m[@]}"}; do _fa_up_add "$(_fa_above "$p")"; done
   for p in ${mq[@]+"${mq[@]}"}; do _fa_up_add "$p"$'\n'"$(_fa_above "$p")"; done
+  for p in ${lt[@]+"${lt[@]}"}; do _fa_up_add "$(_fa_above "$p")"; done
   { [ ${#upl[@]} -eq 0 ] || find "${upl[@]}" -prune \( "${own[@]}" \) -print 2>/dev/null
     [ ${#mq[@]} -eq 0 ] || find "${mq[@]}" -prune \( -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
     if [ ${#ups[@]} -gt 0 ]; then
@@ -336,17 +359,8 @@ _fa_code_offenders_raw() {
     fi
   } | LC_ALL=C awk '$0 != "" { print $0 " (a directory above the code)" }'
   # An access-control entry that is not a deny can let a login write what the owner and the mode say it
-  # cannot, so the same paths are read for one. Whose entry it is is not read: any that allows is named.
-  # H11 (0.49.354, review trust 6): macOS ls -lLde prints a link's own entries, not its target's, so what each
-  # link among these paths points at is read by its physical path too, and named there.
-  while IFS= read -r p; do
-    [ -n "$p" ] && [ -L "$p" ] || continue
-    q="$(_fa_real "$p")" && [ -n "$q" ] || continue
-    case "$seen" in *$'\n'"T$q"$'\n'*) continue ;; esac
-    seen="${seen}T$q"$'\n'; lt[${#lt[@]}]="$q"
-  done <<EOF
-$(find -L "$r" -print 2>/dev/null; [ ${#a[@]} -eq 0 ] || printf '%s\n' "${a[@]%/}"; [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -print 2>/dev/null)
-EOF
+  # cannot, so the same paths are read for one. Whose entry it is is not read: any that allows is named. What
+  # each link among them points at is read too (lt, above), by its physical path, and named there.
   if ls -lLde "$r" >/dev/null 2>&1; then
     { find -L "$r" -exec ls -lLde {} + 2>/dev/null
       [ ${#a[@]} -eq 0 ] || ls -lLde "${a[@]}" 2>/dev/null

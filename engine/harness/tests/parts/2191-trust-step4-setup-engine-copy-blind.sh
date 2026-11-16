@@ -294,7 +294,7 @@ printf '%s\n' 'umask 077; G="$1"' \
   'export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1' \
   'export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null' \
   'B="$HOME/.felix/engine/boot.git"; S="$3"' \
-  '/bin/mkdir -m 700 "$HOME/.felix" "$HOME/.felix/engine" && "$G" init -q --bare --template= "$B" &&' \
+  '/bin/mkdir -m 700 "$HOME/.felix" && /bin/mkdir -m 700 "$HOME/.felix/engine" && "$G" init -q --bare --template= "$B" &&' \
   '"$G" --git-dir="$B" -c transfer.fsckObjects=true fetch -q -- "$S" '"'"'+refs/*:refs/boot/*'"'"' &&' \
   '"$G" --git-dir="$B" show "$2:engine/harness/bin/authority-engine" |' \
   '  /usr/bin/env -i HOME="$HOME" /bin/bash -s -- "$2" "$S"' > "$TS4E_X/boot.sh"
@@ -320,6 +320,13 @@ TS4_ENV=(HOME="$TS4E_HC" PATH="$TS4_PATH"); _ts4u_run "$TS4/t" bash "$TS4E_X/boo
 _ts4_is "ts4 setup 2 (review trust 2): the founder's lines stop when HOME/.felix is there already: no hook of a store left there runs, and no copy is made" \
   "exit $(if [ "$TS4_RC" = 0 ]; then printf 0; else printf 'not 0'; fi); hook runs: $(if [ -s "$TS4E_X/hook.out" ]; then LC_ALL=C awk 'END { print NR }' "$TS4E_X/hook.out"; else printf 0; fi); copy: $(_ts4_yn test -e "$TS4E_HC/.felix/engine/$TS4E_KR")" \
   "exit not 0; hook runs: 0; copy: no" "$(_ts4_why)"
+# Found by the rehearsal of d1eecab1 (not blind), shown red first with one mkdir of both: a .felix already there
+# gets nothing made in it, since one mkdir of two names makes the second after the first fails.
+TS4E_HE="$TS4/h/boot-felix"; mkdir -p "$TS4E_HE/.felix"; chmod 700 "$TS4E_HE" "$TS4E_HE/.felix"
+TS4_ENV=(HOME="$TS4E_HE" PATH="$TS4_PATH"); _ts4u_run "$TS4/t" bash "$TS4E_X/boot.sh" "$TS4U_GIT" "$TS4E_KR" "$TS4E_RB"; TS4_ENV=()
+_ts4_is "ts4 setup 2 (rehearsal of d1eecab1): the founder's lines make nothing in a HOME/.felix that is there already" \
+  "exit $(if [ "$TS4_RC" = 0 ]; then printf 0; else printf 'not 0'; fi); .felix holds: [$(ls -A "$TS4E_HE/.felix" 2>/dev/null | tr '\n' ' ')]" \
+  "exit not 0; .felix holds: []" "$(_ts4_why)"
 TS4_ENV=(FELIX_AUTHORITY_HOME="$TS4E_X/caller-ah"); _ts4u_run "$TS4/t" self "$TS4E_HB/.felix/bin/felix" authority status; TS4_ENV=()
 _ts4_is "ts4 setup E11 (section 6): the felix launcher runs the copied engine, whose felix authority status says no authority is set up at HOME/.felix/authority, whatever the caller's FELIX_AUTHORITY_HOME" \
   "exit $TS4_RC; names HOME/.felix/authority: $(_ts4_said "$TS4E_HB/.felix/authority" "$TS4/o" "$TS4/e"); the caller's home made: $(_ts4_yn test -e "$TS4E_X/caller-ah")" \
@@ -328,5 +335,5 @@ TS4_SKIP=""
 
 _ts4u_end
 unset TS4E_X TS4E_S TS4E_B TS4E_F TS4E_FB TS4E_RS TS4E_RB TS4E_K1 TS4E_K2 TS4E_K3 TS4E_K4 TS4E_KN TS4E_KM TS4E_KL TS4E_KS TS4E_KA TS4E_KC TS4E_KO TS4E_KF TS4E_KR \
-  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_RW TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4E_HC TS4U_RN
+  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_RW TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4E_HC TS4E_HE TS4U_RN
 # <<< trust-step4-setup-engine-copy

@@ -142,9 +142,11 @@ _ae_dir_ok() {   # PATH
 # Each directory above PATH up to /, along PATH as written and along its physical path, each once (condition e's
 # C3 walk, _fa_above in lib/authority.sh, written again here: this program sources nothing). A part met on either
 # path that is a link adds the path its target names, one hop, read against the link's directory; that path is
-# printed and walked too, at most 40 such hops (review trust 3: cd -P goes to the end of a chain at once).
+# printed and walked too (review trust 3: cd -P goes to the end of a chain at once). Each link is followed once.
+# One not followed (a 41st, or one whose target cannot be read) is printed as "LINK (a link not followed)", a
+# path that is not there, so each reader of this list refuses it (security review of d1eecab1: fail closed).
 _ae_above() {   # PATH
-  local p q l seen=$'\n' i=0 j=0
+  local p q l seen=$'\n' sl=$'\n' i=0 j=0
   local -a t
   t=("$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)")
   while [ "$j" -lt "${#t[@]}" ]; do
@@ -155,9 +157,17 @@ _ae_above() {   # PATH
     fi
     while :; do
       case "$p" in /) break ;; */) p="${p%/}"; continue ;; esac
-      if [ -L "$p" ] && [ "$i" -lt 40 ] && l="$("$_AE_READLINK" "$p" 2>/dev/null)" && [ -n "$l" ]; then
-        case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
-        i=$((i + 1)); t[${#t[@]}]="$l"
+      if [ -L "$p" ]; then
+        case "$sl" in
+          *$'\n'"$p"$'\n'*) ;;
+          *) sl="$sl$p"$'\n'
+             if [ "$i" -lt 40 ] && l="$("$_AE_READLINK" "$p" 2>/dev/null)" && [ -n "$l" ]; then
+               case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
+               i=$((i + 1)); t[${#t[@]}]="$l"
+             else
+               printf '%s (a link not followed)\n' "$p"
+             fi ;;
+        esac
       fi
       q="${p%/*}"; [ -n "$q" ] || q=/
       case "$seen" in *$'\n'"$q"$'\n'*) ;; *) seen="$seen$q"$'\n'; printf '%s\n' "$q" ;; esac
@@ -193,7 +203,7 @@ _ae_sh() {   # WORD
 # E2. The git only root can change. On macOS /usr/bin/git runs the git xcode-select points at, which on this
 # Mac is inside /Applications, a directory the admin group writes; the Command Line Tools' git is root's.
 _ae_git() {
-  local d x o p
+  local d x o p pd sd=$'\n'
   if [ "$_AE_OS" = Darwin ]; then _AE_GIT=/Library/Developer/CommandLineTools/usr/bin/git; else _AE_GIT=/usr/bin/git; fi
   if [ ! -e "$_AE_GIT" ] && [ ! -L "$_AE_GIT" ]; then
     [ "$_AE_OS" != Darwin ] || _ae_no "there is no $_AE_GIT; the Command Line Tools provide it"
@@ -219,10 +229,16 @@ _ae_git() {
     && o="$("$_AE_FIND" -L "$x" \( ! -user 0 -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print 2>/dev/null)" && [ -z "$o" ] \
     && [ -z "$(_ae_acl "$x")" ] && [ -z "$(_ae_acl -L "$x")" ] || _ae_no "$_AE_GIT is not a git only root can change"
   # What each link under X points at, at every depth find -L reaches (a link inside a directory a link points at,
-  # too: review trust 5), by its physical path, for its entries (and its owner and mode once more).
+  # too: review trust 5), by its physical path, for its entries (and its owner and mode once more); and the
+  # directory it sits in, as H1 reads G's: as itself, physical, and each directory above it (security review of
+  # d1eecab1: a login that can write one of them can put another file where the link leads). Each directory once.
   while IFS= read -r o; do
     [ -n "$o" ] && [ -L "$o" ] || continue
     p="$(_ae_real "$o")" && [ -n "$p" ] && _ae_rootly "$p" || _ae_no "$_AE_GIT is not a git only root can change"
+    pd="${p%/*}"; [ -n "$pd" ] || pd=/
+    case "$sd" in *$'\n'"$pd"$'\n'*) continue ;; esac
+    sd="$sd$pd"$'\n'
+    _ae_chain "$pd"; _ae_rootly "${_AE_L[@]}" || _ae_no "$_AE_GIT is not a git only root can change"
   done <<EOF
 $("$_AE_FIND" -L "$x" -print 2>/dev/null; "$_AE_FIND" "$x" -type l -print 2>/dev/null)
 EOF
@@ -247,6 +263,7 @@ _ae_home() {
     && [ -z "$(_ae_acl "$p" -prune)" ] || _ae_no "$(_ae_show "$h") can be written by another login"
   while IFS= read -r y; do
     [ -n "$y" ] || continue
+    case "$y" in *" (a link not followed)") _ae_no "$(_ae_show "${y% (a link not followed)}") is a link whose target was not read" ;; esac
     [ -n "$("$_AE_FIND" "$y" -prune \( -user 0 -o -user "$_AE_UID" \) \( -type l -o \( ! -perm -020 ! -perm -002 \) -o -perm -1000 \) -print 2>/dev/null)" ] \
       && [ -z "$(_ae_acl "$y" -prune)" ] || _ae_no "$(_ae_show "$y") can be written by another login"
   done <<EOF

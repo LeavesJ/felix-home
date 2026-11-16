@@ -74,8 +74,7 @@ while :; do case "${1:-}" in
   *)                   break ;;
 esac; done
 [ "$_rcp_reuse$FELIX_TEST_RECORD" = 11 ] && { printf 'tests/run: --reuse and --record-assertions do not go together\n' >&2; exit 2; }
-# The receipt (receipt.sh): --reuse answers from the last passed run on this tree, or runs. A red run and a part run load none:
-# FELIX_TEST_NO_MANIFEST and part mode are tested first: red stands in the base's tree, whose own receipt.sh would otherwise load.
+# The receipt (receipt.sh): --reuse answers from the last passed run on this tree, or runs. A red run and a part run load none: FELIX_TEST_NO_MANIFEST and part mode are tested first: red stands in the base's tree, whose own receipt.sh would otherwise load.
 _rcp_on=0; _rcp_cmp=0; _rcp_judged=0; _rcp_why=""
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then _rcp_why="this is a red run"
 elif [ -n "${_pm1:-}" ]; then _rcp_why="this is part mode"
@@ -438,6 +437,7 @@ fi
 . "$HERE/parts/2480-deploy-window-blind.sh"
 . "$HERE/parts/2490-git-cannot-run-blind.sh"
 . "$HERE/parts/2500-pipe-readers-read-to-the-end-blind.sh"
+. "$HERE/parts/2501-pipe-readers-lint-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 # The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion

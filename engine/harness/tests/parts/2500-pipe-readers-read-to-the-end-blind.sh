@@ -1,27 +1,25 @@
 # >>> pipe-readers-read-to-the-end
-printf '\na pipe'\''s reader reads to the end: _felix_instr_sha, _gt_detail, _gt_class, and a lint for an awk that exits early (contract 2026-11-16, blind)\n'
-# Blind, written on 2026-11-16 from docs/2026-11-16-pipe-readers-contract.md (rev 1, PR1 to PR8) alone. The engine
-# was read, as it stands on main, for how to call _felix_instr_sha, _gt_detail and _gt_class, for what they print
-# today, and for the suite's idiom (tests/run's helpers, part 0960's _spl_scan and its samples, part 0970's size
-# check, part 2490's opening); every expected value of the new behaviour comes from the contract's text. A name
-# ending (control) holds on the engine the contract was cut from, on purpose; the others are its new behaviour.
+printf '\na pipe'\''s reader reads to the end: _felix_instr_sha, _gt_detail and _gt_class over output past 256 KB (contract 2026-11-16, blind)\n'
+# Blind, written on 2026-11-16 from docs/2026-11-16-pipe-readers-contract.md (rev 1, PR1 to PR8) alone, and amended
+# the same day from rev 3 by a second blind author, who read the contract, this part, and the engine only as an
+# export of main from before the fix. The first author read that engine for how to call _felix_instr_sha,
+# _gt_detail and _gt_class, for what they print today, and for the suite's idiom (tests/run's helpers, part 0960's
+# _spl_scan and its samples, part 0970's size check, part 2490's opening); every expected value of the new
+# behaviour comes from the contract's text. A name ending (control) holds on main, on purpose. Of the others, the
+# new behaviour, three hold on main too: the two checks that the large inputs are large and in order, and _gt_detail
+# with SIGPIPE at its default, which PR2 says already reads clean there (its cut-off printf sits in an assignment
+# whose status is not the function's). The rest fail on main: the four first-match _felix_instr_sha cases and the
+# three other _gt_detail and _gt_class cases.
 #
 # Readings, where the contract leaves room:
 # - "Under set -o pipefail, with SIGPIPE ignored and at its default" is a child bash that sets pipefail, sources the
 #   one library and calls the function, started through perl with $SIG{PIPE} set to IGNORE or DEFAULT, since the
 #   suite's own shell may run with it ignored. A large argument is read by the child from a file, never handed on argv.
 # - "Writes nothing to standard error" is an empty stderr file, the library's sourcing excepted (sent to /dev/null).
-# - PR2's "_gt_class prints hourly and a newline when STATUS is not 3": today it prints hourly with no newline, and
-#   PR7 says the bytes do not change, so that case is compared with its trailing newlines dropped. The STATUS 3 words
-#   are compared exactly, newline included; _gt_detail exactly, with no newline.
+# - PR2's _gt_class with STATUS not 3 prints hourly with no newline (rev 2), compared exactly from rev 3. The STATUS 3
+#   words are compared exactly, newline included; _gt_detail exactly, with no newline.
 # - _gt_detail's "the last line that holds a non-blank character" over an OUTPUT with no such line is read as nothing.
 # - A felix merge block line is laid out as '  %-11s %-22s %s'; its fields are awk's blank-split fields.
-# - PR4: the program is also found past a backslash that ends the line inside awk's own arguments (bash reads one
-#   command), and the flagged line is still the awk's. A `#` "begins a program line" when it is the first byte of one
-#   (the byte after the opening quote is the first of the first line). END is a word at brace depth 0, followed by
-#   blanks or newlines and then `{`. Within a line, the pipe search resumes after the closing quote of a program it
-#   read, so an awk on a program's closing line is read too. An awk after `;` is not the pipe's reader.
-# - PR4's allowance is matched on the flagged line's text, which on the base engine holds the whole quoted phrase.
 # Everything this writes is under $TMP/_pra.
 
 PRA="$TMP/_pra"; mkdir -p "$PRA"
@@ -39,10 +37,9 @@ _pra_go() {
     for x in "$@"; do case "$x" in @*) a[n]="$(cat "${x#@}")" ;; *) a[n]="$x" ;; esac; n=$((n + 1)); done
     "$f" "${a[@]}"' _ "$REAL_HARNESS/$2" "$3" "${@:4}" > "$PRA/so" 2> "$PRA/se" || _pra_rc=$?
 }
-# NAME WANT [trim]: the last _pra_go printed WANT exactly (trim: with trailing newlines dropped), nothing on stderr,
-# and returned 0.
+# NAME WANT: the last _pra_go printed WANT exactly, nothing on stderr, and returned 0.
 _pra_is() {
-  if [ "${3:-}" = trim ]; then _pra_o="$(cat "$PRA/so")"; else _pra_o="$(cat "$PRA/so"; printf x)"; _pra_o="${_pra_o%x}"; fi
+  _pra_o="$(cat "$PRA/so"; printf x)"; _pra_o="${_pra_o%x}"
   _pra_e="$(sed -n 1p "$PRA/se")"
   if [ "$_pra_o" = "$2" ] && [ ! -s "$PRA/se" ] && [ "$_pra_rc" = 0 ]; then ok "$1"
   else bad "$1" "stdout [$_pra_o] want [$2]; stderr [$_pra_e]; status $_pra_rc (want empty and 0)"; fi
@@ -151,11 +148,11 @@ _pra_go IGNORE lib/green-install.sh _gt_class 1 "not merging
 $_pra_cl
 
 closing"
-_pra_is "_gt_class prints hourly when STATUS is 1, whatever the block (control)" "hourly" trim
+_pra_is "_gt_class prints hourly when STATUS is 1, whatever the block (control)" "hourly"
 _pra_go IGNORE lib/green-install.sh _gt_class 4 "not merging
 
 $_pra_es"
-_pra_is "_gt_class prints hourly when STATUS is 4, a blocker in the block notwithstanding (control)" "hourly" trim
+_pra_is "_gt_class prints hourly when STATUS is 4, a blocker in the block notwithstanding (control)" "hourly"
 _pra_cls 3 receipt "not merging
 
 $_pra_cl
@@ -220,276 +217,6 @@ $_pra_cl" "_gt_class prints final for an empty block, and reads nothing after it
 _pra_cls 3 final "  not merging
 $_pra_cl" "_gt_class prints final when no line is exactly not merging (control)"
 
-# ---------------------------------------------------------------- PR4 ----
-# _pra_scan FILE...: FILE:LINE for each line holding an awk that a pipe hands its output to and whose single-quoted
-# program holds exit outside any END action. The pipe rules are part 0960's: a | that is not half of ||, carried from
-# the end of a code line (before a comment, or a backslash) onto the next code line, a line may start with |, comment
-# lines skipped; the words that may stand before the reader are 0960's. Then options -F, -v (argument attached or
-# the next word, quoted or not) and --; -f, a program in a variable or in double quotes are not read.
-_pra_scan() {
-  LC_ALL=C awk '
-    function skipword(s,   i, n, c, k) {
-      n = length(s); i = 1
-      while (i <= n) {
-        c = substr(s, i, 1)
-        if (c == " " || c == "\t") break
-        if (c == "\\") { i += 2; continue }
-        if (c == "\047") { k = index(substr(s, i + 1), "\047"); if (!k) return ""; i += k + 1; continue }
-        if (c == "\"") { i++; while (i <= n && substr(s, i, 1) != "\"") { if (substr(s, i, 1) == "\\") i++; i++ }; i++; continue }
-        i++
-      }
-      return substr(s, i)
-    }
-    # Blanks off the front, and on to the next line past a backslash that ends this one.
-    function lead(s) {
-      sub(/^[ \t]+/, "", s)
-      while (s ~ /^\\[ \t]*$/ && LN < N) { LN++; s = L[LN]; sub(/^[ \t]+/, "", s) }
-      return s
-    }
-    # exit as a word outside double-quoted strings, comments and the braces of an END action.
-    function exits(p,   n, i, c, pc, d, e, pe, w) {
-      n = length(p); d = 0; e = 0; pe = 0; i = 1
-      while (i <= n) {
-        c = substr(p, i, 1); pc = (i > 1) ? substr(p, i - 1, 1) : "\n"
-        if (c == "\"") {
-          i++
-          while (i <= n) { c = substr(p, i, 1); if (c == "\\") { i += 2; continue }; if (c == "\"" || c == "\n") break; i++ }
-          i++; pe = 0; continue
-        }
-        if (c == "#" && (pc == "\n" || pc == " " || pc == "\t")) { while (i <= n && substr(p, i, 1) != "\n") i++; continue }
-        if (c ~ /[A-Za-z_]/) {
-          w = ""
-          while (i <= n && substr(p, i, 1) ~ /[A-Za-z0-9_]/) { w = w substr(p, i, 1); i++ }
-          if (w == "exit" && !e) return 1
-          pe = (w == "END" && d == 0); continue
-        }
-        if (c == "{") { d++; if (pe && d == 1) e = 1; pe = 0 }
-        else if (c == "}") { if (d > 0) d--; if (d == 0) e = 0; pe = 0 }
-        else if (c !~ /[ \t\n]/) pe = 0
-        i++
-      }
-      return 0
-    }
-    # s follows a pipe on line LN. 0: no awk; 1: an awk not flagged; 2: flagged, at line FL. AFTER is the shell
-    # text after it on line LN, which may have moved on.
-    function tryawk(s,   j, p) {
-      sub(/^[ \t]+/, "", s)
-      while (s ~ /^(command|env|nice|if|!)[ \t]/ || s ~ /^timeout[ \t]+[0-9.]+[smhd]?[ \t]/ ||
-             s ~ /^[A-Za-z_][A-Za-z0-9_]*=[^ \t]*[ \t]/) {
-        if (s ~ /^timeout[ \t]/) sub(/^timeout[ \t]+/, "", s)
-        sub(/^[^ \t]*[ \t]+/, "", s)
-      }
-      sub(/^\\/, "", s)
-      if (s !~ /^[gmn]?awk([ \t]|$)/) return 0
-      FL = LN; sub(/^[gmn]?awk/, "", s)
-      while (1) {
-        s = lead(s)
-        if (s ~ /^--([ \t]|$)/) { s = lead(substr(s, 3)); break }
-        if (s ~ /^-f/) { AFTER = s; return 1 }
-        if (s ~ /^-[Fv]/) { s = substr(s, 3); if (s == "" || s ~ /^[ \t]/) s = lead(s); s = skipword(s); continue }
-        break
-      }
-      if (substr(s, 1, 1) != "\047") { AFTER = s; return 1 }
-      s = substr(s, 2); p = ""
-      while (!(j = index(s, "\047"))) {
-        if (LN >= N) { AFTER = ""; return exits(p s) ? 2 : 1 }
-        p = p s "\n"; LN++; s = L[LN]
-      }
-      AFTER = substr(s, j + 1)
-      return exits(p substr(s, 1, j - 1)) ? 2 : 1
-    }
-    function scan(   i, k, rest, last, first, j, r, at, t, open) {
-      split("", F); open = 0; i = 1
-      while (i <= N) {
-        if (L[i] ~ /^[ \t]*(#|$)/) { i++; continue }
-        LN = i; rest = L[i]; last = rest; first = open
-        while (1) {
-          if (!first) {
-            while ((j = index(rest, "|")) > 0 && substr(rest, j + 1, 1) == "|") rest = substr(rest, j + 2)
-            if (!j) break
-            rest = substr(rest, j + 1)
-          }
-          first = 0; at = LN
-          r = tryawk(rest)
-          if (r == 2) F[FL] = 1
-          if (r > 0) { rest = AFTER; if (LN != at) last = AFTER }
-        }
-        t = last; sub(/[ \t]*(\\[ \t]*)?$/, "", t)
-        open = (t ~ /(^|[^|])[|]([ \t]+#.*)?$/)
-        i = LN + 1
-      }
-      for (k = 1; k <= N; k++) if (k in F) print NAME ":" k
-    }
-    FNR == 1 && NR > 1 { scan() }
-    FNR == 1 { NAME = FILENAME; N = 0; split("", L) }
-    { L[++N] = $0 }
-    END { if (N) scan() }
-  ' "$@"
-}
-mkdir -p "$PRA/s"
-_pra_s() { cat > "$PRA/s/sample"; }
-_pra_flags() { ( cd "$PRA/s" && _pra_scan sample ) | awk -F: '{ printf "%s%s", s, $NF; s = " " }'; }
-
-_pra_s <<'PRA_S1'
-x | awk '{ print; exit }'
-x | LC_ALL=C awk '/a/ { print; exit }'
-x |awk 'NR == 2 { exit }'
-PRA_S1
-is "the awk lint flags a plain pipe into an awk whose main rule exits, with or without a VAR=value prefix (sample)" "$(_pra_flags)" "1 2 3"
-_pra_s <<'PRA_S2'
-x | command awk '{ exit }'
-x | env LC_ALL=C awk '{ exit }'
-x | nice awk '{ exit }'
-x | timeout 5 awk '{ exit }'
-x | \awk '{ exit }'
-x | if awk '{ exit }'; then :; fi
-x | ! awk '{ exit }'
-PRA_S2
-is "the awk lint flags an awk reached through command, env, nice, timeout N, if, ! or a leading backslash (sample)" "$(_pra_flags)" "1 2 3 4 5 6 7"
-_pra_s <<'PRA_S3'
-x | awk -F: '{ exit }'
-x | awk -F : '{ exit }'
-x | awk -F'\t' '{ exit }'
-x | awk -F '\t' '{ exit }'
-x | awk -F"$t" '{ exit }'
-x | awk -F "$t" -- '{ exit }'
-PRA_S3
-is "the awk lint reads past -F with its argument attached, apart and quoted to the program (sample)" "$(_pra_flags)" "1 2 3 4 5 6"
-_pra_s <<'PRA_S4'
-x | awk -v p="$2" '{ exit }'
-x | awk -vp=1 '{ exit }'
-x | awk -v 'p=a b' -F'\t' '{ exit }'
-x | awk -- '{ exit }'
-PRA_S4
-is "the awk lint reads past -v with its argument apart and attached, and past -- (sample)" "$(_pra_flags)" "1 2 3 4"
-_pra_s <<'PRA_S5'
-x | gawk '{ exit }'
-x | mawk '{ exit }'
-x | nawk '{ exit }'
-PRA_S5
-is "the awk lint flags gawk, mawk and nawk (sample)" "$(_pra_flags)" "1 2 3"
-_pra_s <<'PRA_S6'
-x | awk '
-  /a/ { n++ }
-  /b/ { exit }
-'
-y | LC_ALL=C awk -v p="$2" '{ t = index($0, "\t"); if (!t) next
-    if (m[2] == "blob") { print m[3]; exit } }'
-z | awk -F: \
-  '{ exit }'
-PRA_S6
-is "the awk lint flags a program over several lines on the line that holds the awk (sample)" "$(_pra_flags)" "1 5 7"
-_pra_s <<'PRA_S7'
-x |
-  awk '{ exit }'
-x | \
-  awk '{ exit }'
-x |   # why it is piped
-
-  awk '{ exit }'
-x \
-| awk '{ exit }'
-PRA_S7
-is "the awk lint flags an awk after a pipe that ends a line, before a backslash or a comment, and one on a line that starts with the pipe (sample)" "$(_pra_flags)" "2 4 7 9"
-_pra_s <<'PRA_S8'
-x | awk '$1 == "a" { exit 1 }'
-x | awk '/a/ { f = 1; exit !f }'
-x | awk 'BEGIN { exit }'
-x | awk 'function q(s) { if (s) exit 2; return 0 } { q($1) }'
-PRA_S8
-is "the awk lint flags exit N and exit !f in a main rule, an exit in BEGIN and one in a function body (sample)" "$(_pra_flags)" "1 2 3 4"
-_pra_s <<'PRA_S9'
-x | awk '/a/ { n++; exit } END { print n }'
-x | awk 'END { print n }
-  /b/ { exit }'
-done 3< "$T/oi" | awk -v st="$T/oib" 'substr($0, 1, 1) == "\001" { b++; next } ++n > 2000 { p = 1; exit } { print }
-  END { printf "%d %d\n", b, p > st }' > "$T/oi1"
-x | awk '{ print }
-  ' | awk '{ exit }'
-PRA_S9
-is "the awk lint flags a main-rule exit beside an END action, and an awk on the closing line of another's program (sample)" "$(_pra_flags)" "1 2 4 7"
-_pra_s <<'PRA_S10'
-x | awk '{ n++ } END { print n; exit }'
-x | awk '{ n++ }
-  END {
-    if (n) { print n; exit 0 }
-    for (i = 1; i <= n; i++) { if (i > 3) { exit 1 } }
-    exit 2
-  }'
-x | awk 'END{exit !n}'
-PRA_S10
-is "the awk lint leaves an exit inside an END action, a multi-line END with braces nested inside it among them (sample)" "$(_pra_flags)" ""
-_pra_s <<'PRA_S11'
-awk '{ exit }' file
-a || awk '{ exit }'
-a ||
-  awk '{ exit }'
-x | grep y; awk '{ exit }' file
-PRA_S11
-is "the awk lint leaves an awk no pipe feeds, an || and an || that ends a line (sample)" "$(_pra_flags)" ""
-_pra_s <<'PRA_S12'
-x | awk '{ exitcode = 1; do_exit = 2 }'
-x | awk '{ print "do not exit here" }'
-x | awk '{ print "say \"exit\" now" }'
-x | awk '{ n++ } # exit early would break the pipe'
-x | awk '
-# exit at the first match
-{ n++ }
-    # exit, said an indented comment
-END { print n }'
-PRA_S12
-is "the awk lint does not count exitcode, do_exit, an exit in a double-quoted string or one in an awk comment (sample)" "$(_pra_flags)" ""
-_pra_s <<'PRA_S13'
-x | awk -f exit.awk
-x | awk -F: -f prog.awk -v exit=1
-x | awk "$prog"
-x | awk $prog
-x | awk "{ exit }"
-# x | awk '{ exit }'
-  # y | awk 'BEGIN { exit }'
-PRA_S13
-is "the awk lint does not read a program in a file, in a variable or in double quotes, nor a comment line (sample)" "$(_pra_flags)" ""
-
-# The allowance: PR3's one site, by file and by the text of its flagged line, with the reason beside it.
-_pra_allow="lib/inventory-orphans.sh${_pra_t}++n > 2000 { p = 1; exit }${_pra_t}the cost bound on the loop of find over ignored directories: find and /usr/bin/printf write the pipe, their errors go to a file read only for two messages, and the loop's status is not read (PR3)"
-_pra_na=0; _pra_bad=""
-while IFS="$_pra_t" read -r _pra_af _pra_at _pra_why; do
-  [ -n "$_pra_af" ] || continue
-  _pra_na=$((_pra_na + 1)); [ -n "$_pra_at" ] && [ -n "$_pra_why" ] || _pra_bad="$_pra_bad [$_pra_af]"
-done <<< "$_pra_allow"
-[ "$_pra_na" = 1 ] && [ -z "$_pra_bad" ] \
-  && ok  "the awk lint's allowance list holds exactly one entry, each with its text and its reason" \
-  || bad "the awk lint's allowance list holds exactly one entry, each with its text and its reason" \
-         "$_pra_na entries; without a text or a reason:$_pra_bad"
-
-_pra_sites="$( cd "$REAL_HARNESS" 2>/dev/null && [ -f felix ] \
-                 || { printf 'no-engine-to-scan-at:%s\n' "$REAL_HARNESS"; exit 0; }
-               set --
-               for _pra_x in felix lib/*.sh hooks/* bin/* tests/lib/* tests/run; do [ -f "$_pra_x" ] && set -- "$@" "$_pra_x"; done
-               _pra_scan "$@" || printf 'the-scan-itself-failed:%s\n' "$?" )"
-_pra_left=""; _pra_used=""
-while IFS= read -r _pra_x; do
-  [ -n "$_pra_x" ] || continue
-  _pra_f="${_pra_x%:*}"; _pra_n="${_pra_x##*:}"; _pra_ok=0
-  case "$_pra_n" in *[!0-9]*|"") _pra_text="" ;; *) _pra_text="$(sed -n "${_pra_n}p" "$REAL_HARNESS/$_pra_f" 2>/dev/null)" ;; esac
-  while IFS="$_pra_t" read -r _pra_af _pra_at _pra_why; do
-    [ -n "$_pra_af" ] && [ "$_pra_f" = "$_pra_af" ] || continue
-    case "$_pra_text" in *"$_pra_at"*) _pra_ok=1; _pra_used="$_pra_used$_pra_nl$_pra_af$_pra_t$_pra_at" ;; esac
-  done <<< "$_pra_allow"
-  [ "$_pra_ok" = 1 ] || _pra_left="$_pra_left $_pra_x"
-done <<< "$_pra_sites"
-_pra_stale=""
-while IFS="$_pra_t" read -r _pra_af _pra_at _pra_why; do
-  [ -n "$_pra_af" ] || continue
-  case "$_pra_used$_pra_nl" in *"$_pra_nl$_pra_af$_pra_t$_pra_at$_pra_nl"*) ;; *) _pra_stale="$_pra_stale [$_pra_af: $_pra_at]" ;; esac
-done <<< "$_pra_allow"
-[ -z "$_pra_stale" ] \
-  && ok  "every allowance of the awk lint matches a line the scan of the harness flags" \
-  || bad "every allowance of the awk lint matches a line the scan of the harness flags" \
-         "stale, so a moved or fixed site left its allowance behind:$_pra_stale"
-[ -z "$_pra_left" ] \
-  && ok  "no awk in the engine or the suite's library reads a pipe and exits outside its END action, the allowance aside" \
-  || bad "no awk in the engine or the suite's library reads a pipe and exits outside its END action, the allowance aside" \
-         "a writer can be left on a broken pipe at:$_pra_left"
-unset -f _pra_go _pra_is _pra_big _pra_size _pra_cls _pra_scan _pra_s _pra_flags
+# PR4, the lint (its matcher, samples, allowance and scan), is part 2501-pipe-readers-lint-blind.sh since rev 3.
+unset -f _pra_go _pra_is _pra_big _pra_size _pra_cls
 # <<< pipe-readers-read-to-the-end

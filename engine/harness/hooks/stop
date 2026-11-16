@@ -261,8 +261,10 @@ fi
 # path read as the clean commit's id and went unverified. It returns nothing
 # now, and this must not turn nothing back into a pass.
 TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || TID=""
-TREE_WHY=""
-[ -n "$TID" ] || TREE_WHY="$(felix_tree_why "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"
+TREE_WHY=""; GIT_WHY=""
+# A git that could not run is the reason itself (2026-11-14), not an unreadable path in the tree.
+[ -n "$TID" ] || ! command -v felix_git_runs >/dev/null 2>&1 || felix_git_runs GIT_WHY || :
+[ -n "$TID" ] || [ -n "$GIT_WHY" ] || TREE_WHY="$(felix_tree_why "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"
 
 # The override is the founder's, not the model's. It is read from the
 # environment the session was launched with, and an export inside a Bash tool
@@ -547,7 +549,11 @@ down describes what the code does now."
   exit 0
 fi
 
-if [ -z "$TID" ]; then
+if [ -z "$TID" ] && [ -n "$GIT_WHY" ]; then
+  # A git that could not run has read nothing, so no path in the tree is to blame, and no gate run can record a receipt until it does.
+  why="Felix cannot identify this tree, so no receipt can stand for it: $GIT_WHY. Until git runs here, no gate run can record a receipt for this tree. Make git run here, and then run the gate."
+  detail="tree unknown"
+elif [ -z "$TID" ]; then
   # First, because a receipt of any colour is about some other tree. Git's own
   # line names the path; the remedy is the path, not a gate run, since a gate
   # over this tree has no id to record a receipt under.

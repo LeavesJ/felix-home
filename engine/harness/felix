@@ -25,7 +25,7 @@
 #   felix pulse          back up memory and report what waits; --install schedules it daily
 #   felix status [--tsv] read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
 #   felix lane [--tsv]   read-only: each lane's share of engine landings, against its target
-#   felix authority      the authority that holds main, in shadow: init, status, tick, decide, log, verify
+#   felix authority      the authority that holds main, in shadow: init, publish, status, tick, decide, log, verify
 #   felix door           the founder's door: one statement to the authority, at its own desktop
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
@@ -400,6 +400,7 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/door-read.sh"
 . "${SCRIPT_DIR}/lib/authority-tick.sh"
 . "${SCRIPT_DIR}/lib/door.sh"
+. "${SCRIPT_DIR}/lib/authority-publish.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -456,6 +457,7 @@ specific project, language, or toolchain.
                            the authority that holds main, in shadow until it runs as its own login:
                            its standing, what the founder's word makes of each candidate, and the
                            reader's check of the log; felix authority init --user U --workers W --source S sets one up
+                           felix authority publish [--to DIR] [--from REPO], beside init: the drop that login reads
     felix door             the founder's door: one statement to the authority, typed at its own desktop
     felix door stop        the brake: his stop, with no fetch and no list before it
     felix gate [args]      run this project's gate; exits with the gate's status
@@ -6845,7 +6847,8 @@ cmd_status() {
 # usage error, a directory no project governs, or a resolution that did not finish (C2, C5); 1 when the count did not
 # finish (C3): nothing on stdout, "felix: the lane count did not finish in <repo>" on stderr.
 # The authority that holds main (lib/authority.sh), in shadow until it runs as its own login. Each subcommand
-# but init needs one set up at $FELIX_AUTHORITY_HOME; with none, one line on stderr and exit 1, and nothing written.
+# but init and publish needs one set up at $FELIX_AUTHORITY_HOME; with none, one line on stderr and exit 1, and
+# nothing written. publish reads no authority's home.
 cmd_authority() {
   local sub="${1:-}" user="" workers="" source="" srcmain="" store="" door="" lock="" mem=""
   [ $# -eq 0 ] || shift
@@ -6894,7 +6897,20 @@ cmd_authority() {
       if [ -z "$store" ]; then felix_authority_load || die "$_FA_WHY"; store="$_FA_STORE"; fi
       [ -d "$store" ] || die "the store, $store, is not a directory"
       felix_authority_verify "$store" "$mem" ;;
-    *) die "felix authority: init, status, tick, decide COMMIT, log or verify. Try 'felix help'." 2 ;;
+    # The drop (lib/authority-publish.sh), run by a worker's login. A missing value is a usage error here, status 2,
+    # as section 5 of the setup slice says; need_value's status is 1, so it is not used.
+    publish)
+      local to="" from=""
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --to|--from) [ $# -ge 2 ] && [ -n "$2" ] || die "felix authority publish: $1 needs a value" 2
+                       if [ "$1" = --to ]; then to="$2"; else from="$2"; fi; shift 2 ;;
+          *) die "felix authority publish: unknown argument: $1" 2 ;;
+        esac
+      done
+      felix_authority_gitenv
+      felix_authority_publish "$to" "$from" || die "$_FA_WHY" "$?" ;;
+    *) die "felix authority: init, publish, status, tick, decide COMMIT, log or verify. Try 'felix help'." 2 ;;
   esac
 }
 

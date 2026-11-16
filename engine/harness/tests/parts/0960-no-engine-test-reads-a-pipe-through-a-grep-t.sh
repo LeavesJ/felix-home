@@ -34,7 +34,7 @@ printf '\nno engine test reads a pipe through a grep that can stop early\n'
 # is tested (there were two, felix_overnight_field's `cut | head -1` read with
 # `|| return 1` and felix_marketplace_root's `sed | sed | head -1` read with
 # `|| mroot=""`, safe only because each reads one line, and both now read to the
-# end; a new one would pass this lint; an awk that exits early is part 2500's); a
+# end; a new one would pass this lint; an awk that exits early is part 2501's); a
 # grep whose standard output reaches /dev/null only through a redirect on its
 # caller, on a brace group around it, on a subshell that closes on a later line
 # (one that closes on grep's own line is named), or through exec; a quoted

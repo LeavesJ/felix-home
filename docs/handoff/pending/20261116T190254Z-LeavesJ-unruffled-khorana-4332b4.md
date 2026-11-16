@@ -15,7 +15,8 @@
 - Part 2500 (written blind from rev 1, 50 assertions): main's engine 42 ok, 8 FAIL; the first fix 50 ok. Four mutants, each with one fix undone, failed 5, 3, 1 and 1, each naming its site.
 - Three adversarial reviewers (byte-identity, completeness, test quality) found no blocker. They found two missed awks in bin/authority-engine, three matcher gaps, and a false claim in the allowance's reasoning. A second blind author amended the part from rev 3 and found the third authority-engine awk (line 157).
 - Parts 2500 and 2501 (rev 3, 34 and 24 assertions): main's engine 27 ok and 7 FAIL, and 23 ok and 1 FAIL. The one 2501 FAIL is the scan, naming 31 lines past the allowance. The fixed tree passes 34 and 24.
-- The record, the gate and the merge dry run are in the pull request.
+- The record (62a72b04, signals reset, alone on the Mac): 17,888 passed, 2 failed, 33 skipped. Its red pass names 8 of 17,919 assertions failing against origin/main a4dc4b6c, the seven of part 2500 and the one of part 2501 above. Neither failure was in a part this change touches, and each was run again alone. Part 0220's untracked-files bound took 444 s while the load average stood near 12; alone, the part ran in 9 s and passed. Part 2183's A14 found bind.sh's `felix-objects.*` left under TMPDIR after the judge was KILLed. It failed again alone at 22:15Z, beside another session's niced part runs, and then passed five times: on main's tree and on the branch's, from plain copies, from clones and from this checkout. Counting all seven runs, it failed 2 of 5 on this branch's engine and 0 of 2 on main's.
+- The gate and the merge dry run are in the pull request.
 
 **Open.**
 - Program-fed `head`, about thirty sites (`sed -n ... FILE | head -1`, `git ... | head`, `find ... | head -n 1`, `git cat-file blob | head -c 8000`). Under SIGPIPE ignored, a GNU tool among them prints its own write error where its stderr is not redirected.
@@ -23,3 +24,4 @@
 - The allowance's find loop: where SIGPIPE is ignored, the cut does not bound its walk, and its unreadable count reads directories past the cut that the default would not reach.
 - A lint for the shell-fed `head` and `sed q` shapes; part 0960's grep scan over tests/lib and tests/run; awk programs held in variables or files, which the lint does not read.
 - Whether CI should run with SIGPIPE at its default. The engine runs on hosts that ignore it, so the code is what was fixed.
+- Part 2183's A14 is intermittent. A KILLed judge sometimes leaves bind.sh's `felix-objects.*` under TMPDIR while the rest of its run tree is removed. That suggests the watchdog was started without the bind directory: lib/instrument-run.sh hands it over only when `_FELIX_BIND_OWNER` equals `_FELIX_INSTR_OWNER`. The cause has not been found. A red run against main 212830c4 held the same name as a foreign row (docs/handoff/0gk.md), so it is not new with this change.

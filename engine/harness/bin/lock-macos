@@ -39,6 +39,16 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
 PATH=/usr/bin:/bin:/usr/sbin:/sbin; LC_ALL=C; export PATH LC_ALL
 unset BASH_ENV ENV _FELIX_CALLER_CDPATH
 
+# Git's colour stays off for every git this runs, whatever colour settings the
+# caller made, except what is out of reach. Why, which keys, and what is out
+# of reach: the comment above the same lines in engine/harness/felix. This
+# program runs no git; every executable of the engine carries the pin (part 1500).
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
+case " ${GIT_CONFIG_PARAMETERS-}" in
+  *" $_felix_git_pin") ;;
+  *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
+esac
+
 # L1. Read before the arguments: off macOS, every call is the same refusal. A uname that cannot run is no macOS.
 [ "$( { /usr/bin/uname -s || /bin/uname -s; } 2>/dev/null)" = Darwin ] || { echo "lock-macos: not macOS" >&2; exit 2; }
 case "$#:${1:-}" in

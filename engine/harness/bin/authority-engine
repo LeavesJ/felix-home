@@ -56,6 +56,16 @@ for _ae_v in ${!GIT_@} ${!DYLD_@} ${!LD_@}; do unset "$_ae_v"; done
 unset BASH_ENV ENV CDPATH _ae_v _FELIX_CALLER_CDPATH
 IFS=$' \t\n'; LC_ALL=C; export LC_ALL; umask 077
 
+# Git's colour stays off for every git this runs, whatever colour settings the
+# caller made, except what is out of reach. Why, which keys, and what is out
+# of reach: the comment above the same lines in engine/harness/felix. It comes
+# after the unset of each GIT_ variable above, which would take it away again.
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
+case " ${GIT_CONFIG_PARAMETERS-}" in
+  *" $_felix_git_pin") ;;
+  *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
+esac
+
 # The few programs this runs besides git, each by its absolute path; where one is in /usr/bin on one system and
 # in /bin on another, the first that is there.
 _ae_bin() { if [ -x "/bin/$1" ]; then printf '/bin/%s' "$1"; else printf '/usr/bin/%s' "$1"; fi; }

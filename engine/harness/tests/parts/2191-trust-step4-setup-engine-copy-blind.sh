@@ -105,7 +105,7 @@ is "ts4 setup E (control): the refused commits hold what their cases say: no fel
 is "ts4 setup E (control): the bundle lists each branch of the source, and git reads the subjects of K3 and K4 as made" \
   "$(_fx_git "$TS4E_X" bundle list-heads "$TS4E_B" 2>/dev/null | LC_ALL=C awk 'index($2, "refs/heads/") == 1 { print $2 }' | LC_ALL=C sort | tr '\n' ' ')$(_fx_git "$TS4E_S" log -1 --format=%s "$TS4E_K3" 2>/dev/null | LC_ALL=C awk '{ print length($0) }') $( [ "$(_fx_git "$TS4E_S" log -1 --format=%s "$TS4E_K4" 2>/dev/null)" = "$TS4E_SUB4" ] && printf same)" \
   "refs/heads/k3 refs/heads/k4 refs/heads/ka refs/heads/kc refs/heads/kl refs/heads/km refs/heads/kn refs/heads/ko refs/heads/ks refs/heads/main refs/heads/two 205 same"
-_fx_git "$TS4E_S" archive "$TS4E_K1" engine/harness/lib/id.txt 2>/dev/null | ( cd "$TS4E_X" && tar -xf - ) 2>/dev/null
+_fx_git "$TS4E_S" archive -o "$TS4E_X/k1.tar" "$TS4E_K1" engine/harness/lib/id.txt 2>/dev/null; ( cd "$TS4E_X" && tar -xf k1.tar ) 2>/dev/null   # a file, not a pipe into tar (part 1296, R42)
 is "ts4 setup E9 (control): the attributes file of K1 changes lib/id.txt when git archive writes it, so a copy taken that way would differ from the blob" \
   "$(if [ -f "$TS4E_X/engine/harness/lib/id.txt" ] && [ "$(cksum < "$TS4E_X/engine/harness/lib/id.txt")" != "$(_fx_git "$TS4E_S" cat-file blob "$TS4E_K1:engine/harness/lib/id.txt" | cksum)" ]; then printf changed; else printf 'the same, or not written'; fi)" changed
 ( export GIT_CONFIG_GLOBAL=/dev/null; _fx_git "$TS4E_X" init -q --bare p.git && _fx_git "$TS4E_X" init -q --bare q.git && _fx_git "$TS4E_X/p.git" fetch -q "$TS4E_FB" '+refs/*:refs/x/*'; _fx_git "$TS4E_X/q.git" -c fetch.fsckObjects=true fetch -q "$TS4E_FB" '+refs/*:refs/x/*' ) >/dev/null 2>&1

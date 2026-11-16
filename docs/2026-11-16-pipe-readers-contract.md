@@ -1,4 +1,4 @@
-# Contract: a pipe's reader reads to the end (rev 1, 2026-11-16)
+# Contract: a pipe's reader reads to the end (rev 2, 2026-11-16)
 
 **Scope.** The pipes in the engine's code (`engine/harness/felix`, `lib/*.sh`,
 `bin/*`, `hooks/*`, and the suite's own `tests/run` and `tests/lib/*`) whose
@@ -71,7 +71,7 @@ holds about a hundred lines when a judgement has escapes.
 first line of OUTPUT that begins with two spaces; when there is none, the last
 line that holds a non-blank character.
 
-`_gt_class STATUS OUTPUT` (lib/green-install.sh) prints `hourly` and a newline
+`_gt_class STATUS OUTPUT` (lib/green-install.sh) prints `hourly`, with no newline,
 when STATUS is not `3`. Otherwise it reads the block that follows the first line
 that is exactly `not merging`: past one empty line if the next line is empty, to
 the next empty line. Over the block's lines: a line whose first two fields are
@@ -84,10 +84,13 @@ line and b is unset and h is set, and `final` otherwise. Lines after the block
 are not read as part of it, whatever they hold, including a second `not
 merging`.
 
-For each: the same as PR1's second paragraph, with an OUTPUT of 256 KB or more
-whose deciding line comes first (the first two-space line; the block right
-after a first-line `not merging`) and the bulk after it. The output stays as
-above.
+For each, with an OUTPUT of 256 KB or more whose deciding line comes first (the
+first two-space line; the block right after a first-line `not merging`) and the
+bulk after it: under `set -o pipefail`, with SIGPIPE ignored and at its default,
+nothing on standard error and status 0, and the output as above. On the base
+engine `_gt_class` fails both ways. `_gt_detail` fails only with SIGPIPE
+ignored: its cut-off printf sits in an assignment whose status is not the
+function's, so at the default it already reads clean.
 
 ## PR3. No awk reached through a pipe exits before its input ends
 
@@ -118,13 +121,15 @@ an awk whose program holds `exit` outside any END action. It reads like part
   the next word, quoted or not, and `--`. `-f` means the program is in a file,
   which is not read;
 - the program is the first argument after the options, single-quoted, and may
-  run over several lines to its closing quote; a program held in a variable or
-  in double quotes is not read;
+  run over several lines to its closing quote; awk's own arguments may carry
+  past a backslash that ends a line; a program held in a variable or in double
+  quotes is not read;
 - inside it, `exit` as a word. Not a word: `exitcode`, `do_exit`. Not counted:
   text in a double-quoted awk string; an awk comment, from a `#` that begins a
   program line or follows a blank to the end of that line; anything inside the
   braces of an action whose pattern is `END`. Counted: an exit in a BEGIN action
-  (awk then reads no input at all), in a function body, or in any other rule.
+  (awk then reads no input at all), in a function body, or in any other rule; a
+  regex literal is read as code, so `/exit/` counts.
 The flagged line is the one that holds the awk word.
 
 Scan set: `felix`, `lib/*.sh`, `hooks/*`, `bin/*`, `tests/lib/*` and `tests/run`
@@ -181,9 +186,24 @@ Found in the sweep and not changed here, each for its own change:
 - Whether CI should run with SIGPIPE at its default. The engine runs on hosts
   that ignore it, so the code is fixed and not the runner.
 
+## Revisions
+
+Rev 2: the blind author of part 2500 found two clauses that did not hold on the
+base engine and asked about two readings. `_gt_class` prints `hourly` with no
+newline when STATUS is not 3 (rev 1 said a newline). `_gt_detail` at the default
+SIGPIPE already passes (rev 1 said it failed). PR4 now says that awk's arguments
+carry past a backslash-newline and that a regex literal is read as code, as the
+part reads them. No assertion changes: the part pinned neither rev 1 clause.
+
 ## Tests
 
-One blind part, `tests/parts/2500-pipe-readers-read-to-the-end-blind.sh`, red
-on the base engine: PR1's and PR2's large-input cases (SIGPIPE ignored and at
-default), with their controls, and PR4's matcher on written-out samples, its
-allowance and its scan of the harness. Engine 0.49.353.
+One blind part, `tests/parts/2500-pipe-readers-read-to-the-end-blind.sh`: PR1's
+and PR2's large-input cases (SIGPIPE ignored and at default), with their
+controls, and PR4's matcher on written-out samples, its allowance and its scan
+of the harness. 50 assertions. Run alone through a one-part runner, not
+`tests/run`, on this Mac: on the base engine 42 ok and 8 FAIL (the seven
+large-input cases PR1 and PR2 expect to fail there, and the scan); on the fixed
+tree 50 ok. Four copies of the fixed tree, each with one fix undone (base's
+lib/instrument.sh, base's lib/green-install.sh, the exit put back in
+lib/bootstrap-gh.sh, the exit put back in bin/obligations-check), fail 5, 3, 1
+and 1 assertions, each naming its site. Engine 0.49.353.

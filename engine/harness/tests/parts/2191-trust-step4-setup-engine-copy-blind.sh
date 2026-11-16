@@ -303,6 +303,16 @@ _ts4_is "ts4 setup 2: the program read with git show from the bundle's commit an
 _ts4_is "ts4 setup 2 (review E1-builtin-fn): run under env -i with HOME alone, the program reads no BASH_ENV of the caller's" \
   "inner runs: $(if [ -s "$TS4E_X/benv.out" ]; then LC_ALL=C awk 'END { print NR }' "$TS4E_X/benv.out"; else printf 0; fi)" "inner runs: 0" "$(_ts4_why)"
 _ts4_is "ts4 setup 2, E9: that copy holds the engine under test, each file its blob's bytes and mode" "$(_ts4u_cmp "$TS4E_RS" "$TS4E_KR" "$TS4E_HB/.felix/engine/$TS4E_KR")" same
+# After the hardening's build review (not blind; trust 2), shown red on d4ac2338 first: the founder's lines stop
+# when HOME/.felix is there already, before git runs anything out of a store someone left there.
+TS4E_HC="$TS4/h/boot-pre"; mkdir -p "$TS4E_HC/.felix/engine"; chmod 700 "$TS4E_HC" "$TS4E_HC/.felix" "$TS4E_HC/.felix/engine"
+_fx_git "$TS4E_HC/.felix/engine" init -q --bare boot.git >/dev/null 2>&1; mkdir -p "$TS4E_HC/.felix/engine/boot.git/hooks"
+printf '#!/bin/sh\necho ran >> "%s"\n' "$TS4E_X/hook.out" > "$TS4E_HC/.felix/engine/boot.git/hooks/reference-transaction"
+chmod 755 "$TS4E_HC/.felix/engine/boot.git/hooks/reference-transaction"
+TS4_ENV=(HOME="$TS4E_HC" PATH="$TS4_PATH"); _ts4u_run "$TS4/t" bash "$TS4E_X/boot.sh" "$TS4U_GIT" "$TS4E_KR" "$TS4E_RB"; TS4_ENV=()
+_ts4_is "ts4 setup 2 (review trust 2): the founder's lines stop when HOME/.felix is there already: no hook of a store left there runs, and no copy is made" \
+  "exit $(if [ "$TS4_RC" = 0 ]; then printf 0; else printf 'not 0'; fi); hook runs: $(if [ -s "$TS4E_X/hook.out" ]; then LC_ALL=C awk 'END { print NR }' "$TS4E_X/hook.out"; else printf 0; fi); copy: $(_ts4_yn test -e "$TS4E_HC/.felix/engine/$TS4E_KR")" \
+  "exit not 0; hook runs: 0; copy: no" "$(_ts4_why)"
 TS4_ENV=(FELIX_AUTHORITY_HOME="$TS4E_X/caller-ah"); _ts4u_run "$TS4/t" self "$TS4E_HB/.felix/bin/felix" authority status; TS4_ENV=()
 _ts4_is "ts4 setup E11 (section 6): the felix launcher runs the copied engine, whose felix authority status says no authority is set up at HOME/.felix/authority, whatever the caller's FELIX_AUTHORITY_HOME" \
   "exit $TS4_RC; names HOME/.felix/authority: $(_ts4_said "$TS4E_HB/.felix/authority" "$TS4/o" "$TS4/e"); the caller's home made: $(_ts4_yn test -e "$TS4E_X/caller-ah")" \
@@ -311,5 +321,5 @@ TS4_SKIP=""
 
 _ts4u_end
 unset TS4E_X TS4E_S TS4E_B TS4E_F TS4E_FB TS4E_RS TS4E_RB TS4E_K1 TS4E_K2 TS4E_K3 TS4E_K4 TS4E_KN TS4E_KM TS4E_KL TS4E_KS TS4E_KA TS4E_KC TS4E_KO TS4E_KF TS4E_KR \
-  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_RW TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4U_RN
+  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_RW TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4E_HC TS4U_RN
 # <<< trust-step4-setup-engine-copy

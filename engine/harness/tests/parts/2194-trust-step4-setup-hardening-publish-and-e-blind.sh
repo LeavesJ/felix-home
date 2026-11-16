@@ -106,6 +106,26 @@ _ts4_is "ts4 harden H9: the setup document's step 3 has that commit read on anot
   "$(T="$TS4H_S3" LC_ALL=C awk 'BEGIN { t = tolower(ENVIRON["T"]); print ((index(t, "phone") || index(t, "device")) ? "names another device" : "names none") }')" \
   "names another device" "step 3: $TS4H_S3"
 
+# After the build review (not blind; clauses 2, 3 and 9, trust 2), shown red on d4ac2338 first. Step 3 names the
+# pull request by a number he fixed himself, has all forty characters read on the commit's own page and never a
+# short id completed on this Mac, and names the version COMMIT must hold. Step 4's lines are pinned: they set no
+# system or global configuration, no hook and no replacement object for git, and make HOME/.felix fresh, so a
+# .felix someone else left stops them before git runs.
+_ts4_is "ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.354" \
+  "$(T="$TS4H_S3" LC_ALL=C awk 'BEGIN { t = tolower(ENVIRON["T"]); printf "%s %s %s %s", (index(t, "number") ? "number" : "-"), (index(t, "own page") ? "own-page" : "-"), (index(t, "short id") ? "short-id" : "-"), (index(t, "0.49.354") ? "0.49.354" : "-") }')" \
+  "number own-page short-id 0.49.354" "step 3: $TS4H_S3"
+TS4H_BLK="$(LC_ALL=C awk 'index($0, "**Step 4.") == 1 { s = 1 } s && /^```/ { b++; next } s && b == 1 { print }' "$TS4H_DOC" 2>/dev/null)"
+TS4H_WANT='umask 077; G=/Library/Developer/CommandLineTools/usr/bin/git
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null
+B=~/.felix/engine/boot.git; S=/Users/Shared/felix-authority/source.bundle
+/bin/mkdir -m 700 ~/.felix ~/.felix/engine && $G init -q --bare --template= $B
+$G --git-dir=$B -c transfer.fsckObjects=true fetch -q -- $S '"'"'+refs/*:refs/boot/*'"'"'
+$G --git-dir=$B show COMMIT:engine/harness/bin/authority-engine |
+  /usr/bin/env -i HOME="$HOME" /bin/bash -s -- COMMIT $S'
+_ts4_is "ts4 harden H9 (review trust 2): step 4's lines set no configuration, hook or replacement object of the system's or the login's for git, and make HOME/.felix fresh" \
+  "$(if [ "$TS4H_BLK" = "$TS4H_WANT" ]; then printf 'the hardened lines'; else printf 'other lines'; fi)" "the hardened lines" "step 4's block: $(printf '%s' "$TS4H_BLK" | tr '\n' '|')"
+
 # ------------------------------------------------------------------ H5: the fixture and its controls ---
 mkdir -p "$TS4/w755" "$TS4/d775" "$TS4/d777" "$TS4/d1777" "$TS4/dacl" "$TS4/ddeny" "$TS4/d770" "$TS4/o777/old" "$TS4/g777/mid" "$TS4/uacl" "$TS4/open/in" "$TS4/s1777"
 chmod 755 "$TS4/w755" "$TS4/dacl" "$TS4/ddeny" "$TS4/o777/old" "$TS4/g777/mid" "$TS4/uacl" "$TS4/open/in"
@@ -163,6 +183,23 @@ else
     "$(_ts4h_wr "$TS4/open")" "$TS4/open/in" "$TS4/hl/new"
 fi
 _ts4h_yes "ts4 harden H5: a DIR publish makes under a directory of mode 1777 is written: exit 0, DIR 755, the bundle lists r's main" "$TS4/s1777/new"
+
+# ------------------------------------------------------------------ H5, after the build review (not blind) ---
+# Written by the builder from the review of d4ac2338 (audits/.../review/build-review-2026-11-16.md, trust 1 and 3,
+# clauses 1), each shown red on d4ac2338 first. A DIR that is not there when H5 reads it is made by one mkdir that
+# fails when anything stands at that name by then, so a directory another login makes in between is never taken.
+# A link to a link: the directory holding the second link is read too.
+TS4H_RG="$(PATH="$TS4_PATH" command -v git 2>/dev/null)"; mkdir -p "$TS4/race/bin" "$TS4/race/p"; chmod 755 "$TS4/race" "$TS4/race/bin"; chmod 1777 "$TS4/race/p"
+printf '#!/bin/sh\ncase " $* " in *" -C %s rev-parse --git-dir "*) [ -e "%s" ] || /bin/mkdir -m 777 "%s" ;; esac\nexec "%s" "$@"\n' \
+  "$TS4H_R" "$TS4/race/p/drop" "$TS4/race/p/drop" "$TS4H_RG" > "$TS4/race/bin/git"; chmod 755 "$TS4/race/bin/git"
+TS4_ENV=(PATH="$TS4/race/bin:$TS4_PATH"); _ts4u_pub "$TS4/t" --to "$TS4/race/p/drop" --from "$TS4H_R"; TS4_ENV=()
+_ts4_is "ts4 harden H5: a DIR another login makes, of mode 777, after H5 has read that it is not there, is not taken: publish refuses, and writes nothing in it (review trust 1)" \
+  "$(_ts4u_ref); planted: $(_ts4u_m "$TS4/race/p/drop"); holds: $(_ts4u_ls "$TS4/race/p/drop")" \
+  "exit 1; stderr: felix: the bundle could not be written in $TS4/race/p/drop; planted: drwxrwxrwx; holds: " "$(_ts4_why)"
+mkdir -p "$TS4/pc/a" "$TS4/pc/b" "$TS4/pc/c/real"; chmod 755 "$TS4/pc" "$TS4/pc/a" "$TS4/pc/c" "$TS4/pc/c/real"; chmod 777 "$TS4/pc/b"
+ln -s "$TS4/pc/c/real" "$TS4/pc/b/l2" 2>/dev/null; ln -s "$TS4/pc/b/l2" "$TS4/pc/a/l1" 2>/dev/null
+_ts4h_no "a DIR not there under a link to a link that sits in a directory of mode 777 without the sticky bit, naming that directory (review trust 3)" \
+  "$(_ts4h_wr "$TS4/pc/b")" "$TS4/pc/c/real" "$TS4/pc/a/l1/new"
 TS4_SKIP=""
 
 # ------------------------------------------------------------------ H6: condition e, the fixture ---
@@ -204,8 +241,20 @@ _ts4_is "ts4 harden H6: for a PATH entry gl/[b]in, the directory the glob would 
 chmod 777 "$TS4H_G/bin"; TS4_ENV=(PATH="$TS4H_G/b*:$TS4H_G/b?n:$TS4_PATH"); TS4H_V="$(_ts4h_after)"; chmod 755 "$TS4H_G/bin"; TS4_ENV=()
 _ts4_is "ts4 harden H6: PATH entries gl/b* and gl/b?n, each of whose globs would match gl/bin, writable by every login, do not name it: status prints the why lines of c and d alone" \
   "$TS4H_V" "cd; none" "$(_ts4_why)"
+# After the build review (not blind; trust 6), shown red on d4ac2338 first: a program in a PATH directory that is a
+# link to a file carrying an entry that allows. macOS ls -lLde prints a link's own entries, so the file is read by
+# its physical path.
+TS4H_N5="ts4 harden H6 (review trust 6): a program in a PATH directory that is a link to a file carrying an entry that allows is named by condition e, at that file"
+mkdir -p "$TS4/ev/bin" "$TS4/ev/t"; chmod 755 "$TS4/ev" "$TS4/ev/bin" "$TS4/ev/t"; printf '#!/bin/sh\n' > "$TS4/ev/t/prog"; chmod 755 "$TS4/ev/t/prog"; ln -s "$TS4/ev/t/prog" "$TS4/ev/bin/prog" 2>/dev/null
+if [ -n "$TS4_SKIP" ]; then skip "$TS4H_N5" "$TS4_SKIP"
+elif [ "$TS4U_OS" != Darwin ]; then skip "$TS4H_N5" "this is not macOS: an entry is put with chmod +a and read with ls -e"
+elif ! chmod +a "everyone allow write" "$TS4/ev/t/prog" 2>/dev/null || [ "$(_ts4u_allows "$TS4/ev/t/prog")" != yes ]; then skip "$TS4H_N5" "chmod +a put no entry that allows on a file here"
+else
+  TS4_ENV=(PATH="$TS4/ev/bin:$TS4_PATH"); TS4H_V="$(_ts4h_e)"; TS4_ENV=(); chmod -N "$TS4/ev/t/prog" 2>/dev/null
+  _ts4_is "$TS4H_N5" "$(case "$TS4H_V" in (*"/ev/t/prog"*) printf 'named at the file' ;; (*) printf 'not named: %s' "$TS4H_V" ;; esac)" "named at the file" "$(_ts4_why)"
+fi
 FELIX="$TS4H_F0"; TS4_SKIP=""
 
 _ts4u_end
-unset TS4H_R TS4H_DOC TS4H_E TS4H_C TS4H_S3 TS4H_V TS4H_W TS4H_N1 TS4H_N2 TS4H_N3 TS4H_N4 TS4H_EN TS4H_F0 TS4H_Q TS4H_G
+unset TS4H_R TS4H_DOC TS4H_E TS4H_C TS4H_S3 TS4H_V TS4H_W TS4H_N1 TS4H_N2 TS4H_N3 TS4H_N4 TS4H_EN TS4H_F0 TS4H_Q TS4H_G TS4H_RG TS4H_N5 TS4H_BLK TS4H_WANT
 # <<< trust-step4-setup-hardening-publish-and-e

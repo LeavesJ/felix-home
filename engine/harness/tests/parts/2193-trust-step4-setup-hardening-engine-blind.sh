@@ -201,6 +201,28 @@ else
 fi
 skip "ts4 harden H3: authority-engine refuses a HOME owned by another uid, naming HOME" "a HOME owned by another uid is made only by root (chown), and this test uses no sudo"
 
+# ------------------------------------------------------------------ H3, after the build review (not blind) ---
+# Written by the builder from the review of d4ac2338 (audits/.../review/build-review-2026-11-16.md, trust 3 and 4),
+# each shown red on d4ac2338 first. A link met on the way, as written, that points at another link: the directory
+# holding the second link is read too (spec rev 2, section 0's walk). A HOME that is itself a link is read as a
+# directory above is: owner root or this login, and no entry that allows.
+mkdir -p "$TS4H_D/m/a" "$TS4H_D/m/b" "$TS4H_D/m/c/real/home"; chmod 755 "$TS4H_D/m" "$TS4H_D/m/a" "$TS4H_D/m/c" "$TS4H_D/m/c/real" "$TS4H_D/m/c/real/home"
+chmod 777 "$TS4H_D/m/b"; ln -s "$TS4H_D/m/c/real" "$TS4H_D/m/b/l2" 2>/dev/null; ln -s "$TS4H_D/m/b/l2" "$TS4H_D/m/a/l1" 2>/dev/null
+is "ts4 harden H3 (control, review trust 3): a link of this login's points at a link in a directory of mode 777, which points at a directory of this login's" \
+  "$(_ts4u_m "$TS4H_D/m/b") $(_ts4_yn test -L "$TS4H_D/m/a/l1") $(_ts4_yn test -L "$TS4H_D/m/b/l2") $(_ts4_yn test -d "$TS4H_D/m/a/l1/home")" "drwxrwxrwx yes yes yes"
+_ts4h_h3 "a HOME reached through a link to a link that sits in a directory of mode 777 without the sticky bit, naming that directory (review trust 3)" \
+  "$TS4H_D/m/a/l1/home" "$TS4H_D/m/b"
+TS4H_N="ts4 harden H3: authority-engine refuses a HOME that is a link carrying an entry that allows, in a directory of mode 1777, naming the link, and writes nothing in HOME (review trust 4)"
+mkdir -p "$TS4H_D/k/s" "$TS4H_D/k/real"; chmod 755 "$TS4H_D/k" "$TS4H_D/k/real"; chmod 1777 "$TS4H_D/k/s"; ln -s "$TS4H_D/k/real" "$TS4H_D/k/s/home" 2>/dev/null
+if [ "$TS4U_OS" != Darwin ]; then skip "$TS4H_N" "this is not macOS: an entry on a link itself is put with chmod -h +a"
+elif ! chmod -h +a "everyone allow delete" "$TS4H_D/k/s/home" 2>/dev/null || [ "$(_ts4u_allows "$TS4H_D/k/s/home")" != yes ]; then skip "$TS4H_N" "chmod -h +a put no entry that allows on a link here"
+else
+  TS4H_V="$(_ts4_snap "$TS4H_D/k/real")"; _ts4u_ae "$TS4H_D/k/s/home" "$TS4H_K1" "$TS4H_B"
+  if [ "$(_ts4_snap "$TS4H_D/k/real")" = "$TS4H_V" ]; then TS4H_V=unchanged; else TS4H_V=changed; fi
+  _ts4_is "$TS4H_N" "$(_ts4u_ref); home: $TS4H_V" "exit 1; stderr: authority-engine: $TS4H_D/k/s/home can be written by another login; home: unchanged" "$(_ts4_why)"
+  chmod -h -N "$TS4H_D/k/s/home" 2>/dev/null
+fi
+
 # ------------------------------------------------------------------ H4 and H7: owned by another uid ---
 skip "ts4 harden H4: authority-engine refuses a .felix, .felix/engine, boot.git or .felix/bin owned by another uid, with E6's line" \
   "a directory owned by another uid is made only by root (chown), and this test uses no sudo; E6's mode and entry refusals stand, in part 2191"

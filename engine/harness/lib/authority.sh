@@ -169,18 +169,43 @@ EOF
   _FA_ID="$id"
 }
 
-# W6 e. Prints each path of the code this process runs that a login workers run as owns or can write: the
-# engine's own directory, its `felix` and each file of its lib/, each directory PATH names and each program in
-# one, and the lock with its directory. Directories, and not a list of the tools' names: a list is the tools
-# found so far, and the first one written here named twenty and left out one the door runs. A link is read as
-# itself and as what it points at. "Can write" is: owns it, or it is writable by every login, or by a group a
-# worker is in, or it carries an access-control entry that allows. A path a third login owns (a system's role
-# account) is not a worker's. NOT READ: the directories above these, and what a link in a PATH directory
-# points into; the slice's document lists both.
+# W6 e. Prints each path of the code this process runs that a login workers run as owns or can write: every
+# path under the engine's root (FELIX_ROOT, the directory above the one felix is in) at every depth, the root
+# with them (C1 of the setup slice, 0.49.351: the lock program and the witness the launchers run are under
+# it, and so is every file felix sources); each directory PATH names and each program in one; the directory
+# `git --exec-path` prints for the git first on PATH, read as a PATH directory is (C2: on this Mac /usr/bin/git
+# runs Xcode's git, whose programs sit under /Applications, which the admin group writes); the lock with its
+# directory; and each directory above any of these (C3, _fa_above). Directories, and not a list of the tools'
+# names: a list is the tools found so far, and the first one written here named twenty and left out one the
+# door runs. A link is read as itself and as what it points at. "Can write" is: owns it, or it is writable by
+# every login, or by a group a worker is in, or it carries an access-control entry that allows. A path a third
+# login owns (a system's role account) is not a worker's. Each path is printed with no trailing slash. NOT
+# READ: the libraries a program loads, what a link in a PATH directory points into beyond its own directories
+# above, and a login not named in workers; the setup slice's section 8 lists them.
 _fa_code_offenders() {
-  local d w rest g u e="${SCRIPT_DIR:-/nonexistent}" ifs="$IFS"
-  local -a a=() dirs=() grp=() own=()
-  a=("$e" "$e/felix" "$e/lib" "$e"/lib/*.sh)
+  { _fa_code_offenders_raw; } | LC_ALL=C awk '
+    substr($0, 1, 1) == "/" { s = $0; t = ""; i = index(s, " ("); if (i) { t = substr(s, i); s = substr(s, 1, i - 1) }
+      while (length(s) > 1 && substr(s, length(s)) == "/") s = substr(s, 1, length(s) - 1)
+      $0 = s t }
+    { print }'
+}
+# C3. Prints each directory above DIR up to /, along DIR as written and along its physical path (cd -P), one a
+# line. A path with a newline in it is read as two, and the directories above the real one are then not read.
+_fa_above() {   # DIR
+  local p q
+  for p in "$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)"; do
+    case "$p" in /*) ;; *) continue ;; esac
+    while :; do
+      case "$p" in /) break ;; */) p="${p%/}"; continue ;; esac
+      q="${p%/*}"; [ -n "$q" ] || q=/
+      printf '%s\n' "$q"; p="$q"
+    done
+  done
+}
+_fa_code_offenders_raw() {
+  local d w rest g u x p e="${SCRIPT_DIR:-/nonexistent}" r ifs="$IFS" seen=$'\n'
+  local -a a=() dirs=() grp=() own=() ups=() upl=() wr=()
+  r="${FELIX_ROOT:-${e%/*}}"; [ -n "$r" ] || r=/
   if [ -n "$_FA_LOCK" ]; then a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"; fi
   case ":${PATH:-}:" in *::*) printf '%s\n' "PATH (an empty entry: the directory the command is run from)" ;; esac
   IFS=:
@@ -192,6 +217,10 @@ _fa_code_offenders() {
     esac
   done
   IFS="$ifs"
+  # C2. The git that runs is the first on PATH, so it is asked, with --exec-path its first word. Printing nothing,
+  # failing, or naming no directory adds nothing: a git that cannot run runs nothing from there.
+  x="$(git --exec-path 2>/dev/null)" || x=""
+  case "$x" in /*) [ ! -d "$x" ] || { dirs[${#dirs[@]}]="$x/"; a[${#a[@]}]="$x/"; } ;; esac
   rest="$_FA_WORKERS,"
   while [ -n "$rest" ]; do
     w="${rest%%,*}"; rest="${rest#*,}"
@@ -207,22 +236,56 @@ _fa_code_offenders() {
   done
   [ ${#own[@]} -gt 0 ] || { own=(-user "$_FA_USER" -a ! -user "$_FA_USER"); }   # no worker is a login here: nothing is a worker's
   [ ${#grp[@]} -gt 0 ] || { grp=(-group 0 -a ! -group 0); }
-  find "${a[@]}" -prune \( "${own[@]}" \) -print 2>/dev/null
-  find -L "${a[@]}" -prune \( \( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
+  wr=(\( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \))
+  # C1. The root and every path under it, each read as itself and, through -L, as what a link in it points at.
+  find "$r" \( "${own[@]}" \) -print 2>/dev/null
+  find -L "$r" \( "${wr[@]}" \) -print 2>/dev/null
+  if [ ${#a[@]} -gt 0 ]; then
+    find "${a[@]}" -prune \( "${own[@]}" \) -print 2>/dev/null
+    find -L "${a[@]}" -prune \( "${wr[@]}" \) -print 2>/dev/null
+  fi
   if [ ${#dirs[@]} -gt 0 ]; then
     find "${dirs[@]}" -mindepth 1 -maxdepth 1 -type l \( "${own[@]}" \) -print 2>/dev/null
-    find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d \( \( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
+    find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d \( "${wr[@]}" \) -print 2>/dev/null
   fi
+  # C3. The directories above the root and above each directory read here. A link among them is read for its
+  # owner alone: its own mode says nothing (777 on Linux), and what it points at is on the physical path, read
+  # too. Writable by every login or by a worker's group offends only without the sticky bit, which keeps a
+  # login that can write the directory from renaming or removing what another login owns in it.
+  for p in "$r" ${a[@]+"${a[@]}"}; do
+    [ -d "$p" ] || continue
+    while IFS= read -r x; do
+      case "$seen" in *$'\n'"$x"$'\n'*) continue ;; esac
+      seen="$seen$x"$'\n'
+      if [ -L "$x" ]; then upl[${#upl[@]}]="$x"; else ups[${#ups[@]}]="$x"; fi
+    done <<EOF
+$(_fa_above "$p")
+EOF
+  done
+  { [ ${#upl[@]} -eq 0 ] || find "${upl[@]}" -prune \( "${own[@]}" \) -print 2>/dev/null
+    if [ ${#ups[@]} -gt 0 ]; then
+      find "${ups[@]}" -prune \( \( "${own[@]}" \) -o \( ! -perm -1000 \( -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) \) \) -print 2>/dev/null
+      if ls -lde / >/dev/null 2>&1; then
+        ls -lde "${ups[@]}" 2>/dev/null | LC_ALL=C awk '
+          /^ [0-9]+: / { if ($0 !~ / deny / && last != "") { print last; last = "" } next }
+          { last = $0; sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, "", last) }'
+      else
+        ls -ld "${ups[@]}" 2>/dev/null | LC_ALL=C awk 'substr($1, 11, 1) == "+" { sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, ""); print }'
+      fi
+    fi
+  } | LC_ALL=C awk '$0 != "" { print $0 " (a directory above the code)" }'
   # An access-control entry that is not a deny can let a login write what the owner and the mode say it
   # cannot, so the same paths are read for one. Whose entry it is is not read: any that allows is named.
-  if ls -lLde "$e" >/dev/null 2>&1; then
-    { ls -lLde "${a[@]}" 2>/dev/null
+  if ls -lLde "$r" >/dev/null 2>&1; then
+    { find -L "$r" -exec ls -lLde {} + 2>/dev/null
+      [ ${#a[@]} -eq 0 ] || ls -lLde "${a[@]}" 2>/dev/null
       [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -exec ls -lLde {} + 2>/dev/null
     } | LC_ALL=C awk '
       /^ [0-9]+: / { if ($0 !~ / deny / && last != "") { print last " (an access-control entry that allows)"; last = "" } next }
       { last = $0; sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, "", last) }'
   else
-    { ls -lLd "${a[@]}" 2>/dev/null
+    { find -L "$r" -exec ls -lLd {} + 2>/dev/null
+      [ ${#a[@]} -eq 0 ] || ls -lLd "${a[@]}" 2>/dev/null
       [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -exec ls -lLd {} + 2>/dev/null
     } | LC_ALL=C awk 'substr($1, 11, 1) == "+" { sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, ""); print $0 " (an access-control list)" }'
   fi
@@ -277,11 +340,12 @@ felix_authority_own() {   # [again]
     [ -z "$(_fa_acl "$p")" ] \
       || _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: a path under $(_fa_esc "$p" 200) carries an access-control list"
   done
-  # e. The code it runs.
+  # e. The code it runs. FIRST is printed as the setup slice's section 0 says (_fa_show): as it is when it is
+  # printable ASCII with no backslash or double quote, escaped and quoted otherwise.
   bad="$(_fa_code_offenders | LC_ALL=C sort -u)"
   if [ -n "$bad" ]; then
     n="$(printf '%s\n' "$bad" | wc -l | tr -d ' ')"
-    _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: it runs $(_fa_esc "${bad%%$'\n'*}" 200), which a login workers run as owns or can write ($n such)"
+    _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: it runs $(_fa_show "${bad%%$'\n'*}" 200), which a login workers run as owns or can write ($n such)"
   fi
   _FA_OWN_READ=1
   [ -z "$_FA_OWN" ]

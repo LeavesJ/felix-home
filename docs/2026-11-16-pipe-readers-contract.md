@@ -152,8 +152,8 @@ read from a list in the test with the reason beside it. An allowance that no
 flagged line matches fails, so a moved or fixed site cannot leave it behind.
 
 On the base tree the scan names the sites this contract fixes and the
-allowance's (31 lines: the 29 rev 2 counted, and bin/authority-engine's two
-awks named through `"$_AE_AWK"`), among them lib/instrument.sh's
+allowance's (32 lines: the 29 rev 2 counted, and bin/authority-engine's three
+awks named through `"$_AE_AWK"`, at 105, 157 and 286 on the base tree), among them lib/instrument.sh's
 `_felix_instr_sha`; on the fixed tree it names none past the allowance.
 
 ## PR5. `head` fed by shell code reads to the end
@@ -210,9 +210,11 @@ carry past a backslash-newline and that a regex literal is read as code, as the
 part reads them. No assertion changes: the part pinned neither rev 1 clause.
 
 Rev 3, from three adversarial reviews of the build:
-- Two awks the sweep missed, in bin/authority-engine, run awk through
-  `"$_AE_AWK"`, which rev 2's lint could not see. PR4 now reads an awk named
-  through a variable whose name ends in `AWK`, and the base count is 31.
+- Three awks the sweep missed, in bin/authority-engine, run awk through
+  `"$_AE_AWK"`, which rev 2's lint could not see; a reviewer found two, and the
+  author of the amended part found the third (line 157, whose exit sits two
+  lines below the awk word). PR4 now reads an awk named through a variable whose
+  name ends in `AWK`, and the base count is 32.
 - Three shapes rev 2's matcher read wrong: a prefix whose quoted value holds a
   blank (three such awks are in the tree, none exiting), a `"` inside a regex
   literal (the exit after it went unseen), and a `| awk` in a trailing shell
@@ -223,13 +225,23 @@ Rev 3, from three adversarial reviews of the build:
 
 ## Tests
 
-One blind part, `tests/parts/2500-pipe-readers-read-to-the-end-blind.sh`: PR1's
-and PR2's large-input cases (SIGPIPE ignored and at default), with their
-controls, and PR4's matcher on written-out samples, its allowance and its scan
-of the harness. 50 assertions. Run alone through a one-part runner, not
-`tests/run`, on this Mac: on the base engine 42 ok and 8 FAIL (the seven
-large-input cases PR1 and PR2 expect to fail there, and the scan); on the fixed
-tree 50 ok. Four copies of the fixed tree, each with one fix undone (base's
-lib/instrument.sh, base's lib/green-install.sh, the exit put back in
-lib/bootstrap-gh.sh, the exit put back in bin/obligations-check), fail 5, 3, 1
-and 1 assertions, each naming its site. Engine 0.49.353.
+Two blind parts. `tests/parts/2500-pipe-readers-read-to-the-end-blind.sh` holds
+PR1's and PR2's cases: large inputs, SIGPIPE ignored and at its default, with
+their controls. `tests/parts/2501-pipe-readers-lint-blind.sh` holds PR4's
+matcher on written-out samples, its allowance and its scan of the harness. One
+author wrote the first form from rev 1. A second amended it from rev 3 and moved
+the lint into 2501, keeping every assertion name.
+
+Each part was run alone through a one-part runner, not `tests/run`, on this Mac:
+- rev 1's part, 50 assertions: main's engine 42 ok, 8 FAIL; the first fix
+  (e7c90797) 50 ok. Four copies of that fix, each with one fix undone (main's
+  lib/instrument.sh, main's lib/green-install.sh, the exit put back in
+  lib/bootstrap-gh.sh, the exit put back in bin/obligations-check), failed 5,
+  3, 1 and 1 assertions, each naming its site.
+- rev 3's parts, 34 and 24 assertions: main's engine 27 ok and 7 FAIL, and 23 ok
+  and 1 FAIL (the scan, naming 31 lines past the allowance). The commit before
+  the last fix fails the scan at bin/authority-engine:157 alone. The fixed tree
+  passes 34 and 24. The amendment's 8 new samples each failed when run against
+  rev 2's matcher.
+
+Engine 0.49.353.

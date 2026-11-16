@@ -154,9 +154,9 @@ _ae_tree() {
   done < <(_ae_g ls-tree -r -z "$_AE_K" -- engine 2>/dev/null)
   [ -z "$odd" ] || _ae_no "$(_ae_show "$odd") in $_AE_K is a link or a submodule, and the copy holds files only"
   [ -z "$name" ] || _ae_no "$(_ae_show "$name") in $_AE_K cannot be written on this file system as it is named"
-  k="$(printf '%s' "$_AE_E" | "$_AE_AWK" '{ p = substr($0, length($1) + length($2) + 3); n = split(p, c, "/"); q = ""
+  k="$(printf '%s' "$_AE_E" | "$_AE_AWK" 'quit { next } { p = substr($0, length($1) + length($2) + 3); n = split(p, c, "/"); q = ""
          for (i = 1; i <= n; i++) { q = (i == 1) ? c[1] : q "/" c[i]; if (q in seen) continue; seen[q] = 1
-           l = tolower(q); if (l in low) { print low[l]; exit } low[l] = q } }')"
+           l = tolower(q); if (l in low) { print low[l]; quit = 1; next } low[l] = q } }')"
   [ -z "$k" ] || _ae_no "$(_ae_show "$k") in $_AE_K cannot be written on this file system as it is named"
   [ "$_AE_N" -gt 0 ] || _ae_no "$_AE_K holds no engine (engine/harness/felix)"
 }

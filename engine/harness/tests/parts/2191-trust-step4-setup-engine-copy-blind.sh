@@ -290,12 +290,18 @@ is "ts4 setup 2 (control): the real source's commit holds this suite's engine fi
   "${TS4U_RN:-?} entries, 0 other modes, 0 outside ASCII, 0 equal without case; felix: 100755"
 printf '%s\n' 'umask 077; G="$1"; B="$HOME/.felix/engine/boot.git"' \
   'mkdir -p "$HOME/.felix/engine" && "$G" init -q --bare "$B" && "$G" --git-dir="$B" -c transfer.fsckObjects=true fetch -q -- "$3" '"'"'+refs/*:refs/boot/*'"'"'' \
-  '"$G" --git-dir="$B" show "$2:engine/harness/bin/authority-engine" | /bin/bash -s -- "$2" "$3"' > "$TS4E_X/boot.sh"
+  '"$G" --git-dir="$B" show "$2:engine/harness/bin/authority-engine" | /usr/bin/env -i HOME="$HOME" /bin/bash -s -- "$2" "$3"' > "$TS4E_X/boot.sh"
 TS4E_HB="$TS4/h/boot"; mkdir -p "$TS4E_HB"
-TS4_ENV=(HOME="$TS4E_HB" PATH="$TS4_PATH"); _ts4u_run "$TS4/t" bash "$TS4E_X/boot.sh" "$TS4U_GIT" "$TS4E_KR" "$TS4E_RB"; TS4_ENV=()
+# Spec rev 3 (review E1-builtin-fn, F7): the third line runs the program under env -i with HOME alone. A BASH_ENV of
+# the caller's runs for the bash that runs boot.sh, and must not run for the one that reads the program from its
+# input, told apart by the s in $- ($0 is the shell's own name in both while BASH_ENV is read, on bash 3.2).
+printf 'case "$-" in *s*) printf "%%s\\n" "$-" >> "%s" ;; esac\n' "$TS4E_X/benv.out" > "$TS4E_X/benv.sh"
+TS4_ENV=(HOME="$TS4E_HB" PATH="$TS4_PATH" BASH_ENV="$TS4E_X/benv.sh"); _ts4u_run "$TS4/t" bash "$TS4E_X/boot.sh" "$TS4U_GIT" "$TS4E_KR" "$TS4E_RB"; TS4_ENV=()
 _ts4_is "ts4 setup 2: the program read with git show from the bundle's commit and run with /bin/bash -s, its own path unknown, copies that commit's engine and exits 0" \
   "exit $TS4_RC; $(_ts4_line 'engine: ' "$TS4/o"); $(_ts4_line 'state: ' "$TS4/o"); $(_ts4_line 'version: ' "$TS4/o"); $(_ts4_line 'files: ' "$TS4/o")" \
   "exit 0; engine: $TS4E_KR; state: made; version: $TS4E_RV; files: ${TS4U_RN:-?}" "$(_ts4_why)"
+_ts4_is "ts4 setup 2 (review E1-builtin-fn): run under env -i with HOME alone, the program reads no BASH_ENV of the caller's" \
+  "inner runs: $(if [ -s "$TS4E_X/benv.out" ]; then LC_ALL=C awk 'END { print NR }' "$TS4E_X/benv.out"; else printf 0; fi)" "inner runs: 0" "$(_ts4_why)"
 _ts4_is "ts4 setup 2, E9: that copy holds the engine under test, each file its blob's bytes and mode" "$(_ts4u_cmp "$TS4E_RS" "$TS4E_KR" "$TS4E_HB/.felix/engine/$TS4E_KR")" same
 TS4_ENV=(FELIX_AUTHORITY_HOME="$TS4E_X/caller-ah"); _ts4u_run "$TS4/t" self "$TS4E_HB/.felix/bin/felix" authority status; TS4_ENV=()
 _ts4_is "ts4 setup E11 (section 6): the felix launcher runs the copied engine, whose felix authority status says no authority is set up at HOME/.felix/authority, whatever the caller's FELIX_AUTHORITY_HOME" \

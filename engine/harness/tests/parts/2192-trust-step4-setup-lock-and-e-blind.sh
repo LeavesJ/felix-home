@@ -148,6 +148,22 @@ TS4L_W="$(_ts4l_now)"; chmod 755 "$TS4/ww"; TS4L_U="$(_ts4l_after)"; TS4_ENV=()
 _ts4_is "ts4 setup C3 (review): a PATH entry that is not there, under a directory every login can write, offends as that directory above the code, with the sticky bit and without it, and under one only its owner writes does not" \
   "$TS4L_V; with the sticky bit: $TS4L_W; then $TS4L_U; made: $(_ts4_yn test -e "$TS4/ww/bin")" \
   "$(_ts4u_eline "$TS4/ww (a directory above the code)" 1); with the sticky bit: $(_ts4u_eline "$TS4/ww (a directory above the code)" 1); then cd; made: no" "$(_ts4_why)"
+# Security review of b29d8468, C3 rev 3: an entry that is there and is not a directory is read as one not there. A
+# link to a file, or a link to nothing, leads wherever its target is later made a directory, so the link offends
+# itself; wk/ stands for a place a worker can write. A plain file is read for the directory it sits in.
+mkdir -p "$TS4/sv/wk" "$TS4/sv/rt"; chmod 755 "$TS4/sv" "$TS4/sv/rt"; chmod 777 "$TS4/sv/wk"; : > "$TS4/sv/wk/f"; chmod 644 "$TS4/sv/wk/f"
+ln -s "$TS4/sv/wk/f" "$TS4/sv/rt/lf" 2>/dev/null; ln -s "$TS4/sv/wk/later" "$TS4/sv/rt/dl" 2>/dev/null
+TS4_ENV=(PATH="$TS4/sv/rt/lf:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; TS4_ENV=(PATH="$TS4/sv/rt/dl/bin:$TS4_PATH"); TS4L_W="$(_ts4l_now)"; TS4_ENV=()
+_ts4_is "ts4 setup C3 (security review): a PATH entry that is a link to a file, and one under a link to nothing, each name that link as one that leads to no directory" \
+  "$TS4L_V; $TS4L_W" "$(_ts4u_eline "$TS4/sv/rt/lf (a link on the way to the code that leads to no directory)" 1); $(_ts4u_eline "$TS4/sv/rt/dl (a link on the way to the code that leads to no directory)" 1)" "$(_ts4_why)"
+TS4_ENV=(PATH="$TS4/sv/wk/f:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; chmod 755 "$TS4/sv/wk"; TS4L_W="$(_ts4l_after)"; TS4_ENV=()
+_ts4_is "ts4 setup C3 (security review): a PATH entry that is a plain file, in a directory every login can write, names that directory above the code, and in one only its owner writes does not" \
+  "$TS4L_V, then $TS4L_W" "$(_ts4u_eline "$TS4/sv/wk (a directory above the code)" 1), then cd" "$(_ts4_why)"
+cp "$TS4L_Q/authority.conf" "$TS4/x/conf.keep" 2>/dev/null; ln -s "$TS4/sv/wk/later-lock" "$TS4/sv/rt/lk" 2>/dev/null
+_ts4_conf "$TS4L_Q" lock "$TS4/sv/rt/lk"; TS4L_V="$(_ts4l_now)"; rm -f "$TS4/sv/rt/lk"; printf '#!/bin/sh\nexit 0\n' > "$TS4/sv/rt/lk"; chmod 755 "$TS4/sv/rt/lk"
+TS4L_W="$(_ts4l_after)"; cat "$TS4/x/conf.keep" > "$TS4L_Q/authority.conf" 2>/dev/null; rm -f "$TS4/x/conf.keep"
+_ts4_is "ts4 setup C3 (security review): a lock that is a link to nothing is named as one, and a lock that is a file only its owner writes is not" \
+  "$TS4L_V, then $TS4L_W" "$(_ts4u_eline "$TS4/sv/rt/lk (a link on the way to the code that leads to nothing)" 1), then cd" "$(_ts4_why)"
 TS4L_N="ts4 setup C3: on macOS, a directory above the code that carries an access-control entry that allows offends, and one whose only entry denies does not"
 if [ "$TS4U_OS" != Darwin ]; then skip "$TS4L_N" "this is not macOS"
 elif [ -z "$TS4_SKIP" ] && ! chmod +a "everyone allow add_file,add_subdirectory" "$TS4/pp" 2>/dev/null; then skip "$TS4L_N" "chmod +a put no access-control entry on a directory here"

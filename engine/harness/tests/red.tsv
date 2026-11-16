@@ -8,35 +8,5 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	bd10d061b6f0082d0efb1d0b669ce9f85fee1d28	0.49.348
-run	30	17671	19
-gcr GR1 GR2 2: under a git exiting 69, a base that exists here is not looked up: status 2, V and W hold the clause with 69	1
-gcr GR1 GR2 2: under a git exiting 70, status 2, V and W hold the clause with 70	1
-gcr GR1 a git that answers --version and refuses rev-parse has run: status 1, V kept and W unset	1
-gcr GR2 1: git runs and BASE names nothing there, status 1, V kept and W unset	1
-gcr GR3 classify: under a git exiting 69, one row: unknown, GIT, the clause, the base main and nothing was compared	1
-gcr GR3 escapes: under a git exiting 69, one row: unknown, GIT, the clause, the base main and nothing was scanned	1
-gcr GR3 evidence: under a git exiting 69, one row: unknown, GIT, the clause, the base main and no rule was consulted	1
-gcr GR3 evidence: under a git exiting 70 the row's clause carries 70	1
-gcr GR3 rev 3 under a working git a base spelled ADDED-LINES that names nothing is named in double quotes in the classify row, reason unchanged	1
-gcr GR3 rev 3 under a working git a base spelled CHANGED-PATHS that names nothing is named in double quotes in the escapes row, reason unchanged	1
-gcr GR3 rev 3 under a working git a base spelled GIT that names nothing is named in double quotes in the evidence, escapes and classify rows, reasons unchanged	1
-gcr GR3 rev 3 under a working git a base spelled SUITE that names nothing is named in double quotes in the escapes row, reason unchanged	1
-gcr GR4 a green receipt handed in, under a git exiting 69: stale, the clause with 69, status 2	1
-gcr GR4 a green receipt handed in, under a git exiting 70: stale, the clause with 70, status 2	1
-gcr GR4 the green receipt on disk, read by felix_verify_current itself under a git exiting 69: the same stale line, status 2	1
-gcr GR4 under a git exiting 69, with no fourth argument a checkout with no receipt on disk gets the stale line, status 2	1
-gcr GR4 under a git exiting 69, with no fourth argument a red receipt on disk gets the stale line, status 2	1
-gcr GR5.1 next: a rank-1 felix row holding the GR3 escapes reason with 69, with the same action	1
-gcr GR5.1 next: a rank-1 felix row whose text is the GR4 reason with 69 and whose action is make git run here, then run this again	1
-gcr GR5.1 next: with a green receipt present it ran and says neither no green gate receipt nor names nothing nor the tree changed	1
-gcr GR5.2 evidence: the GIT row as an unknown row, nothing was compared, the git sentence in place of Check --base, exit 1	1
-gcr GR5.3 classify: the unknown GIT row, then the git paragraph in place of the one about a base it cannot resolve, exit 1	1
-gcr GR5.4 scope with no paths: the clause, so nothing was compared and no tier can be given, make git run, exit 1	1
-gcr GR5.5 pr: it stops with the clause and says no pull request was opened, not that the base names nothing this repository holds	1
-gcr GR5.6 status: under a git exiting 69 the gate row is in state unknown, not a value, with the GR4 reason as its detail	1
-gcr GR5.7 merge: where it cannot read which commit the base names under a git exiting 69, it stops with the clause, not Fetch the remote	1
-gcr GR5.7 rev 3 merge: where git stops after the base was read and the escape scan gives the GIT row, its closing words say git could not run here and to make it run, not that the base names nothing this repository holds	1
-gcr GR6 the hold names the clause with 69 and gives no usual cause of an unreadable tree (a named pipe, a socket, a device)	1
-gcr GR8 macOS: under /usr/bin/git with that DEVELOPER_DIR, felix next gives the GR4 row and neither no green gate receipt nor names nothing	1
-gcr GR8 macOS: under /usr/bin/git with that DEVELOPER_DIR, felix_base_resolves returns 2 and VAR holds the clause with 69	1
+base	origin/main	8729689bf4990e39245ab918ac5295199b53e4fe	0.49.349
+run	0	17672	48

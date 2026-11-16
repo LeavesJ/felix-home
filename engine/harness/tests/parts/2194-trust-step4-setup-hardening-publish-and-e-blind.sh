@@ -110,7 +110,8 @@ _ts4_is "ts4 harden H9: the setup document's step 3 has that commit read on anot
 # pull request by a number he fixed himself, has all forty characters read on the commit's own page and never a
 # short id completed on this Mac, and names the version COMMIT must hold. Step 4's lines are pinned: they set no
 # system or global configuration, no hook and no replacement object for git, and make HOME/.felix fresh, so a
-# .felix someone else left stops them before git runs.
+# .felix someone else left stops them before git runs. Lines 5 and 6 end in && so that, pasted as one, a line
+# that fails stops the ones after it (a pasted line otherwise runs whatever the one before it did).
 _ts4_is "ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.354" \
   "$(T="$TS4H_S3" LC_ALL=C awk 'BEGIN { t = tolower(ENVIRON["T"]); printf "%s %s %s %s", (index(t, "number") ? "number" : "-"), (index(t, "own page") ? "own-page" : "-"), (index(t, "short id") ? "short-id" : "-"), (index(t, "0.49.354") ? "0.49.354" : "-") }')" \
   "number own-page short-id 0.49.354" "step 3: $TS4H_S3"
@@ -119,8 +120,8 @@ TS4H_WANT='umask 077; G=/Library/Developer/CommandLineTools/usr/bin/git
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1
 export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null
 B=~/.felix/engine/boot.git; S=/Users/Shared/felix-authority/source.bundle
-/bin/mkdir -m 700 ~/.felix ~/.felix/engine && $G init -q --bare --template= $B
-$G --git-dir=$B -c transfer.fsckObjects=true fetch -q -- $S '"'"'+refs/*:refs/boot/*'"'"'
+/bin/mkdir -m 700 ~/.felix ~/.felix/engine && $G init -q --bare --template= $B &&
+$G --git-dir=$B -c transfer.fsckObjects=true fetch -q -- $S '"'"'+refs/*:refs/boot/*'"'"' &&
 $G --git-dir=$B show COMMIT:engine/harness/bin/authority-engine |
   /usr/bin/env -i HOME="$HOME" /bin/bash -s -- COMMIT $S'
 _ts4_is "ts4 harden H9 (review trust 2): step 4's lines set no configuration, hook or replacement object of the system's or the login's for git, and make HOME/.felix fresh" \

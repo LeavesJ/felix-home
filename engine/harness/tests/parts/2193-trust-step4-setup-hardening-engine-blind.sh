@@ -36,6 +36,9 @@ printf '\ntrust plane step 4, the setup slice hardened: what authority-engine re
 # and writable by every login with the sticky bit (each needs root to make); H3's HOME owned by another uid, H4 and H7
 # (a file or directory owned by another uid needs root: each is a skip that says so); H8 where ls takes -e; section 4's
 # open items (the dynamic loader's paths, who the login is, a link under the exec path that points outside it).
+# Added after the build review (spec rev 2, the builder's): H1's walk is shadowed by H2 here, since this git finds
+# its exec path beside the file it was run as, so every H1 fixture is refused by H2's same line too; and H2's
+# nested links (a link inside a directory a link under X points at) have no fixture under the real X.
 _ts4u_begin ts4-harden-engine
 TS4H_X="$TS4/x"; TS4H_S="$TS4/src.git"; TS4H_B="$TS4/src.bundle"; TS4H_D="$TS4/h3"
 TS4H_SEAM='  if [ "$_AE_OS" = Darwin ]; then _AE_GIT=/Library/Developer/CommandLineTools/usr/bin/git; else _AE_GIT=/usr/bin/git; fi'

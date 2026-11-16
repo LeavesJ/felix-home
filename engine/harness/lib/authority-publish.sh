@@ -17,7 +17,9 @@
 #
 # THE ID IS NOT READ FROM HERE (H9, 0.49.354). origin-main: is this repository's refs/remotes/origin/main, which a
 # worker can move with no push, printed by a worker's login. The commit the founder names at the authority's
-# Terminal is read where no login of this machine can write: the pull request he released, on another device.
+# Terminal is read on his phone: the merged commit of the pull request whose number he fixed when he released it,
+# all forty characters on the commit's own page. GitHub is not out of a worker's reach (Felix merges with his
+# login's token), so the number he fixed, and not "the last one", is what names it.
 #
 # WHAT IT READS: the repository at REPO and nothing of the caller's git environment (each GIT_ variable is
 # unset, as felix_authority_gitenv does, so REPO alone decides which repository is read). NOT READ: any
@@ -56,7 +58,7 @@ _fap_above_ok() {   # DIR UID
 # Returns 0 and prints P5's seven lines, or returns 1 or 2 with _FA_WHY (felix prints it after "felix: ").
 # Every refusal comes before DIR is made and before anything is written in it.
 felix_authority_publish() {   # DIR|"" REPO|""
-  local to="$1" from="$2" up refs k main om sm tmp n shown me ups y p LC_ALL=C
+  local to="$1" from="$2" up refs k main om sm tmp n shown me ups y p absent=0 LC_ALL=C
   local -a names=()
   _FA_WHY=""
   # P1. The directory: --to, or /Users/Shared/felix-authority where /Users/Shared is a directory.
@@ -73,13 +75,15 @@ felix_authority_publish() {   # DIR|"" REPO|""
     # The authority's login reads the drop as "other": a directory it cannot read and search hides the drop.
     [ -n "$(find "$to" -prune -perm -005 2>/dev/null)" ] || { _FA_WHY="$(_fa_show "$to") cannot be read by another login"; return 1; }
   else
+    absent=1
     [ -d "$up" ] || { _FA_WHY="$(_fa_show "$up") is not a directory"; return 1; }
   fi
   # H5. DIR, when it is there, is this login's alone; each directory above it, as written and physical, is root's
-  # or this login's or sticky. When DIR is not there yet, the walk starts at its parent, which is.
+  # or this login's or sticky. When DIR is not there yet, the walk starts at its parent, which is. Whether DIR is
+  # there is decided once, above (review trust 1): it is not looked at again before it is made.
   me="$(id -u 2>/dev/null)"
   case "$me" in ""|*[!0123456789]*) _FA_WHY="this login's uid could not be read"; return 1 ;; esac
-  if [ -d "$to" ]; then
+  if [ "$absent" = 0 ]; then
     _fap_mine "$to" "$me" || { _FA_WHY="$(_fa_show "$to") can be written by another login"; return 1; }
     ups="$(_fa_above "$to")"
   else
@@ -104,9 +108,12 @@ EOF
   while IFS= read -r n; do [ -z "$n" ] || names[${#names[@]}]="${n#* }"; done <<EOF
 $refs
 EOF
-  # P1. Made one level, 755 whatever the umask: the authority's login reads it as another login. The mode is given
-  # in the same call (H5), so nothing is changed by name after the directory is made.
-  if [ ! -d "$to" ]; then
+  # P1. Made one level, 755 whatever the umask: the authority's login reads it as another login. A DIR that was not
+  # there when H5 read it is made by this one mkdir, which fails on anything at the name by then (a directory or a
+  # link another login made after that read), and that failure is P4's refusal (review trust 1). mkdir -m sets the
+  # mode by name just after it makes the directory (macOS); no other login can put anything at the name between
+  # the two, because each directory above DIR is root's, this login's or sticky.
+  if [ "$absent" = 1 ]; then
     mkdir -m 755 -- "$to" 2>/dev/null || { _FA_WHY="the bundle could not be written in $(_fa_show "$to")"; return 1; }
   fi
   # P4. Written whole under a name of this process's, then renamed: a reader sees the old bundle or the new one.

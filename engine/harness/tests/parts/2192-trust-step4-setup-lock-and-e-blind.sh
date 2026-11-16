@@ -151,11 +151,14 @@ _ts4_is "ts4 setup C3 (review): a PATH entry that is not there, under a director
 # Security review of b29d8468, C3 rev 3: an entry that is there and is not a directory is read as one not there. A
 # link to a file, or a link to nothing, leads wherever its target is later made a directory, so the link offends
 # itself; wk/ stands for a place a worker can write. A plain file is read for the directory it sits in.
+# 0.49.354 (review trust 3): the walk above the code follows each hop of a link, so each link's target is walked
+# too and wk/ itself, which every login can write without the sticky bit, is a second offender: 2 such, the link
+# still named first.
 mkdir -p "$TS4/sv/wk" "$TS4/sv/rt"; chmod 755 "$TS4/sv" "$TS4/sv/rt"; chmod 777 "$TS4/sv/wk"; : > "$TS4/sv/wk/f"; chmod 644 "$TS4/sv/wk/f"
 ln -s "$TS4/sv/wk/f" "$TS4/sv/rt/lf" 2>/dev/null; ln -s "$TS4/sv/wk/later" "$TS4/sv/rt/dl" 2>/dev/null
 TS4_ENV=(PATH="$TS4/sv/rt/lf:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; TS4_ENV=(PATH="$TS4/sv/rt/dl/bin:$TS4_PATH"); TS4L_W="$(_ts4l_now)"; TS4_ENV=()
 _ts4_is "ts4 setup C3 (security review): a PATH entry that is a link to a file, and one under a link to nothing, each name that link as one that leads to no directory" \
-  "$TS4L_V; $TS4L_W" "$(_ts4u_eline "$TS4/sv/rt/lf (a link on the way to the code that leads to no directory)" 1); $(_ts4u_eline "$TS4/sv/rt/dl (a link on the way to the code that leads to no directory)" 1)" "$(_ts4_why)"
+  "$TS4L_V; $TS4L_W" "$(_ts4u_eline "$TS4/sv/rt/lf (a link on the way to the code that leads to no directory)" 2); $(_ts4u_eline "$TS4/sv/rt/dl (a link on the way to the code that leads to no directory)" 2)" "$(_ts4_why)"
 TS4_ENV=(PATH="$TS4/sv/wk/f:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; chmod 755 "$TS4/sv/wk"; TS4L_W="$(_ts4l_after)"; TS4_ENV=()
 _ts4_is "ts4 setup C3 (security review): a PATH entry that is a plain file, in a directory every login can write, names that directory above the code, and in one only its owner writes does not" \
   "$TS4L_V, then $TS4L_W" "$(_ts4u_eline "$TS4/sv/wk (a directory above the code)" 1), then cd" "$(_ts4_why)"

@@ -191,16 +191,41 @@ _fa_code_offenders() {
 }
 # C3. Prints each directory above DIR up to /, along DIR as written and along its physical path (cd -P), one a
 # line. A path with a newline in it is read as two, and the directories above the real one are then not read.
+# 0.49.354 (review trust 3): a part met on either path that is a link adds the path its target names, one hop,
+# read against the link's directory; that path is printed and walked too, at most 40 such hops. cd -P goes to
+# the end of a chain at once, so without this the directory holding a link that a link points at was not read.
 _fa_above() {   # DIR
-  local p q
-  for p in "$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)"; do
+  local p q l i=0 j=0
+  local -a t
+  t=("$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)")
+  while [ "$j" -lt "${#t[@]}" ]; do
+    p="${t[$j]}"; j=$((j + 1))
     case "$p" in /*) ;; *) continue ;; esac
+    [ "$j" -le 2 ] || printf '%s\n' "$p"
     while :; do
       case "$p" in /) break ;; */) p="${p%/}"; continue ;; esac
+      if [ -L "$p" ] && [ "$i" -lt 40 ] && l="$(readlink -- "$p" 2>/dev/null)" && [ -n "$l" ]; then
+        case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
+        i=$((i + 1)); t[${#t[@]}]="$l"
+      fi
       q="${p%/*}"; [ -n "$q" ] || q=/
       printf '%s\n' "$q"; p="$q"
     done
   done
+}
+# H11 (0.49.354, review trust 6). The physical path of what PATH, a link, points at: each link on the way
+# followed, at most 40, then its directory read with cd -P. Nothing, and 1, when it leads nowhere.
+_fa_real() {   # PATH
+  local p="$1" l d i=0
+  while [ -L "$p" ] && [ "$i" -lt 40 ]; do
+    l="$(readlink -- "$p" 2>/dev/null)" && [ -n "$l" ] || return 1
+    case "$l" in /*) p="$l" ;; *) p="${p%/*}/$l" ;; esac
+    i=$((i + 1))
+  done
+  [ -e "$p" ] && [ ! -L "$p" ] || return 1
+  if [ -d "$p" ]; then (cd -P -- "$p" 2>/dev/null && pwd -P); return; fi
+  d="$(cd -P -- "${p%/*}/" 2>/dev/null && pwd -P)" || return 1
+  printf '%s/%s\n' "${d%/}" "${p##*/}"
 }
 # C3. Adds each line of LINES, a directory above the code, to the caller's ups (or upl, for a link) once.
 _fa_up_add() {   # LINES
@@ -216,7 +241,7 @@ EOF
 }
 _fa_code_offenders_raw() {
   local d w rest g u x p q e="${SCRIPT_DIR:-/nonexistent}" r ifs="$IFS" seen=$'\n' nf
-  local -a a=() dirs=() grp=() own=() ups=() upl=() wr=() m=() mq=()
+  local -a a=() dirs=() grp=() own=() ups=() upl=() wr=() m=() mq=() lt=()
   r="${FELIX_ROOT:-${e%/*}}"; [ -n "$r" ] || r=/
   if [ -n "$_FA_LOCK" ]; then
     a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"
@@ -312,10 +337,21 @@ _fa_code_offenders_raw() {
   } | LC_ALL=C awk '$0 != "" { print $0 " (a directory above the code)" }'
   # An access-control entry that is not a deny can let a login write what the owner and the mode say it
   # cannot, so the same paths are read for one. Whose entry it is is not read: any that allows is named.
+  # H11 (0.49.354, review trust 6): macOS ls -lLde prints a link's own entries, not its target's, so what each
+  # link among these paths points at is read by its physical path too, and named there.
+  while IFS= read -r p; do
+    [ -n "$p" ] && [ -L "$p" ] || continue
+    q="$(_fa_real "$p")" && [ -n "$q" ] || continue
+    case "$seen" in *$'\n'"T$q"$'\n'*) continue ;; esac
+    seen="${seen}T$q"$'\n'; lt[${#lt[@]}]="$q"
+  done <<EOF
+$(find -L "$r" -print 2>/dev/null; [ ${#a[@]} -eq 0 ] || printf '%s\n' "${a[@]%/}"; [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -print 2>/dev/null)
+EOF
   if ls -lLde "$r" >/dev/null 2>&1; then
     { find -L "$r" -exec ls -lLde {} + 2>/dev/null
       [ ${#a[@]} -eq 0 ] || ls -lLde "${a[@]}" 2>/dev/null
       [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -exec ls -lLde {} + 2>/dev/null
+      [ ${#lt[@]} -eq 0 ] || ls -lde "${lt[@]}" 2>/dev/null
     } | LC_ALL=C awk '
       /^ [0-9]+: / { if ($0 !~ / deny / && last != "") { print last " (an access-control entry that allows)"; last = "" } next }
       { last = $0; sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, "", last) }'
@@ -323,6 +359,7 @@ _fa_code_offenders_raw() {
     { find -L "$r" -exec ls -lLd {} + 2>/dev/null
       [ ${#a[@]} -eq 0 ] || ls -lLd "${a[@]}" 2>/dev/null
       [ ${#dirs[@]} -eq 0 ] || find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d -exec ls -lLd {} + 2>/dev/null
+      [ ${#lt[@]} -eq 0 ] || ls -ld "${lt[@]}" 2>/dev/null
     } | LC_ALL=C awk 'substr($1, 11, 1) == "+" { sub(/^([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)([^ ]+ +)/, ""); print $0 " (an access-control list)" }'
   fi
   return 0

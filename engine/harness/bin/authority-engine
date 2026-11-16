@@ -140,13 +140,25 @@ _ae_dir_ok() {   # PATH
   fi
 }
 # Each directory above PATH up to /, along PATH as written and along its physical path, each once (condition e's
-# C3 walk, _fa_above in lib/authority.sh, written again here: this program sources nothing).
+# C3 walk, _fa_above in lib/authority.sh, written again here: this program sources nothing). A part met on either
+# path that is a link adds the path its target names, one hop, read against the link's directory; that path is
+# printed and walked too, at most 40 such hops (review trust 3: cd -P goes to the end of a chain at once).
 _ae_above() {   # PATH
-  local p q seen=$'\n'
-  for p in "$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)"; do
+  local p q l seen=$'\n' i=0 j=0
+  local -a t
+  t=("$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)")
+  while [ "$j" -lt "${#t[@]}" ]; do
+    p="${t[$j]}"; j=$((j + 1))
     case "$p" in /*) ;; *) continue ;; esac
+    if [ "$j" -gt 2 ]; then
+      case "$seen" in *$'\n'"$p"$'\n'*) ;; *) seen="$seen$p"$'\n'; printf '%s\n' "$p" ;; esac
+    fi
     while :; do
       case "$p" in /) break ;; */) p="${p%/}"; continue ;; esac
+      if [ -L "$p" ] && [ "$i" -lt 40 ] && l="$("$_AE_READLINK" "$p" 2>/dev/null)" && [ -n "$l" ]; then
+        case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
+        i=$((i + 1)); t[${#t[@]}]="$l"
+      fi
       q="${p%/*}"; [ -n "$q" ] || q=/
       case "$seen" in *$'\n'"$q"$'\n'*) ;; *) seen="$seen$q"$'\n'; printf '%s\n' "$q" ;; esac
       p="$q"
@@ -206,12 +218,13 @@ _ae_git() {
   o="$("$_AE_FIND" "$x" \( ! -user 0 -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print 2>/dev/null)" && [ -z "$o" ] \
     && o="$("$_AE_FIND" -L "$x" \( ! -user 0 -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print 2>/dev/null)" && [ -z "$o" ] \
     && [ -z "$(_ae_acl "$x")" ] && [ -z "$(_ae_acl -L "$x")" ] || _ae_no "$_AE_GIT is not a git only root can change"
-  # What each link under X points at, by its physical path, for its entries (and its owner and mode once more).
+  # What each link under X points at, at every depth find -L reaches (a link inside a directory a link points at,
+  # too: review trust 5), by its physical path, for its entries (and its owner and mode once more).
   while IFS= read -r o; do
-    [ -n "$o" ] || continue
+    [ -n "$o" ] && [ -L "$o" ] || continue
     p="$(_ae_real "$o")" && [ -n "$p" ] && _ae_rootly "$p" || _ae_no "$_AE_GIT is not a git only root can change"
   done <<EOF
-$("$_AE_FIND" -L "$x" -type l -print 2>/dev/null; "$_AE_FIND" "$x" -type l -print 2>/dev/null)
+$("$_AE_FIND" -L "$x" -print 2>/dev/null; "$_AE_FIND" "$x" -type l -print 2>/dev/null)
 EOF
 }
 
@@ -220,7 +233,14 @@ EOF
 # could write HOME, or rename a directory above it, could put its own .felix there between E6's read and its
 # mkdir, or move the whole home. HOME is named first, then the directories above in the order the walk prints.
 _ae_home() {
-  local h="${_AE_H:-/}" p y
+  local h="${_AE_H:-/}" p y l
+  # A HOME that is itself a link (review trust 4) is read as a directory above is: root's or this login's, and no
+  # entry that allows, which would let another login remove it and put its own in its place. Named first.
+  l="$h"; while :; do case "$l" in /) break ;; */) l="${l%/}" ;; *) break ;; esac; done
+  if [ -L "$l" ]; then
+    [ -n "$("$_AE_FIND" "$l" -prune \( -user 0 -o -user "$_AE_UID" \) -print 2>/dev/null)" ] \
+      && [ -z "$(_ae_acl "$l" -prune)" ] || _ae_no "$(_ae_show "$h") can be written by another login"
+  fi
   p="$(cd -P -- "$h" 2>/dev/null && pwd -P)" || p=""
   case "$p" in /*) ;; *) _ae_no "HOME is not an absolute path to a directory" ;; esac
   [ -n "$("$_AE_FIND" "$p" -prune -type d -user "$_AE_UID" ! -perm -020 ! -perm -002 -print 2>/dev/null)" ] \

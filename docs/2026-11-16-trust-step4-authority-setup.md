@@ -6,9 +6,11 @@ same day. The contract the tests were written from is in the memory root,
 `audits/2026-11-16-trust-step4-authority-setup/spec.md` (revision 3), with the review and the log of each run
 named here. Engine version 0.49.351.
 
-**Revised the same day by the hardening change (0.49.354),** after two reviews of the code that landed: where
-he reads the commit id (§2 step 1, §7 step 3), and what `authority-engine` and `publish` read before they trust
-a path (§2, after the chain). Its contract is `audits/2026-11-16-trust-step4-setup-hardening/spec.md`.
+**Revised the same day by the hardening change (0.49.354),** after two reviews of the code that landed and a
+review of the hardening itself: where he reads the commit id (§2 step 1, §7 step 3), the lines he types (§2,
+§7 step 4), what `authority-engine` and `publish` read before they trust a path (§2, after the chain), what
+condition e reads (§4), and what is left open (§8). Its contract is
+`audits/2026-11-16-trust-step4-setup-hardening/spec.md` (revision 2).
 
 **Scope.** Step 3 of slice 1's §8 has the founder run `felix authority init` as the authority's login "with a
 copy of the engine and a `PATH` that no worker's login can write", naming a source and a lock. Slice 1 left
@@ -33,8 +35,11 @@ lock that step 3 needs?": "Yes, build them". His login for the authority, `autho
 - **The drop is a worker's.** The founder's login writes it, so everything in it is a worker's word. What the
   authority runs out of it is fixed by the commit id he types in full (§2). Everything else it reads from the
   drop is candidates, as slice 1's source was.
+- **The commit id is read, not checked.** He reads it on his phone from a pull request whose number he fixed
+  himself (§7 step 3). Nothing the bootstrap runs checks it against a key of his; that is §8's signer.
 - **Linux is CI's.** The parts run there; the lock is macOS only.
 - **One day, one builder, one blind test author, two reviewers, and two automated reviews of the commits.**
+  The hardening added another blind test author, three automated findings, a sweep and a review of its build.
 
 ## 1. What was built
 
@@ -47,39 +52,51 @@ lock that step 3 needs?": "Yes, build them". His login for the authority, `autho
 
 The enforcing path is bash 3.2 and git, as the rest of the engine. `authority-engine` names every program by
 its absolute path and runs git with no configuration, attributes file, hooks or replacement objects from the
-caller, the user or the system.
+caller, the user or the system. The lines he types before it (§7 step 4) run git with no configuration of the
+system's or the login's, no hooks and no replacement objects, in a `~/.felix` they make fresh.
 
 ## 2. How the copy is fixed to the commit he names
 
 The chain, from his desktop to the authority's:
 
 1. At his desktop, `felix authority publish` writes the bundle. On his phone he reads the id he will type: the
-   "merged commit" of the pull request he released. `publish` also prints `origin-main:`, the commit his
-   checkout's `origin/main` names, and that is not the id. A worker can move that ref with no push, and can
-   write to any window of his login, so a number read on this Mac under his login is a worker's to choose.
-2. At the authority's desktop he types six lines (§7). Each program in them is named by a path root owns
+   merged commit of the pull request whose number he fixed himself when he released it, read on the commit's
+   own page. `publish` also prints `origin-main:`, the commit his checkout's `origin/main` names, and that is
+   not the id. A worker can move that ref with no push, and can write to any window of his login, so a number
+   read on this Mac under his login is a worker's to choose. GitHub is not out of a worker's reach either:
+   Felix merges with his login's token, so "the pull request released last" may be a worker's.
+2. At the authority's desktop he types eight lines (§7). Each program in them is named by a path root owns
    (`/Library/Developer/CommandLineTools/usr/bin/git`, `/bin/mkdir`, `/usr/bin/env`, `/bin/bash`), so none is
    looked up on the `PATH`. The authority's own `PATH` holds `/opt/homebrew/bin`, which the founder's login
    owns, through `/etc/paths.d/homebrew`. What the Terminal's shell runs as it starts is not read here (§8).
-3. The fourth line fetches the bundle into a repository of the authority's, checking each object. A bundle
-   holding a malformed object is refused and leaves no ref.
+3. The first four set what git reads: no configuration file of the system's or the login's, no replacement
+   objects, and `core.hooksPath` set to `/dev/null`, so no hook runs. The fifth makes `~/.felix` and
+   `~/.felix/engine` with mode 700 and without `-p`, so a `~/.felix` already there stops the rest before git
+   runs anything out of it, and makes the repository with no template. The sixth fetches the bundle into it,
+   checking each object. A bundle holding a malformed object is refused and leaves no ref.
 4. The last two read `authority-engine` out of the commit he typed, and run it under `/usr/bin/env -i` with
    `HOME` alone, so no function or variable of the Terminal's reaches it.
 5. `authority-engine` checks that the commit is one the bundle holds and holds an engine, then writes each file
    from the blob that commit names. A path that is a link or a submodule, or one this file system would fold
    into another, is refused. An existing copy is read for a match and otherwise left as it is.
 
-So the bytes the authority runs are the bytes of the commit id he typed, and that id is his because he read it
-where no login of this Mac can write. A worker can put any bundle in the drop, and the most it can do is make
-the fetch or the copy fail.
+So the bytes the authority runs are the bytes of the commit id he typed. That id is his as far as the pull
+request's number is: he fixed the number, he read the id on his phone and not on this Mac, and a merged pull
+request's merge commit does not change after the merge. A worker can put any bundle in the drop, and the most it
+can do is make the fetch or the copy fail.
 
-Before the copy, `authority-engine` reads what it relies on (0.49.354). Only root can change the git, each
-directory above it, the directory that git runs its helper programs from, each directory above that, and every
-program in it: the Command Line Tools' git finds its helpers from where its own file is, which a hard link to it
-in a folder of the founder's showed. Only the authority's login can change its `HOME` and the four directories
-it writes in, and each directory above `HOME` is root's or that login's, or sticky. A copy already in place
-must be that login's too. `publish` writes only in a directory that is its login's alone, under directories
-that are root's or its login's or sticky, so that no other login can put a link where the bundle is written. Each later run goes through the launchers:
+Before the copy, `authority-engine` reads what it relies on (0.49.354), and refuses unless each reads as follows.
+Root owns the git, each directory above it, the directory that git runs its helper programs from, each
+directory above that, and every path under it, with no write for a group or other and no access-control entry
+that allows, and so does what each link among them points at, read by its physical path. The Command Line
+Tools' git finds its helpers from where its own file is, which a hard link to it in a folder of the founder's
+showed. The authority's login owns its `HOME`, a `HOME` that is a link, and the four directories it writes in,
+with no write for another; each directory above `HOME` is root's or that login's, or sticky. A copy already in
+place must be that login's too. "Each directory above" is read along the path as written, along its physical
+path, and along each hop of a link met on the way. `publish` writes only in a directory that its login owns
+alone, under directories that are root's or its login's or sticky; a directory that was not there is made by
+one `mkdir`, and one another login puts at that name first makes `publish` refuse. Each later run goes through
+the launchers:
 `~/.felix/bin/felix`, `~/.felix/bin/reach-witness` and `~/.felix/bin/lock`, each three lines that name the
 commit and run the copy with an empty environment, `HOME`, the login's name, `TERM`, the system's `PATH` and
 `DEVELOPER_DIR` set to the Command Line Tools.
@@ -103,7 +120,8 @@ program, and the lock with its directory. It now reads:
 |---|---|---|
 | C1 | Every path under the engine's root, at every depth, and the root itself | The lock program and the witness the launchers run are under it |
 | C2 | The directory `git --exec-path` prints, for the git first on `PATH`, read as a `PATH` directory is | On this Mac `/usr/bin/git` runs Xcode's git, whose programs are under `/Applications` (root, group admin, mode 775), and the founder's login is in admin |
-| C3 | Each directory above those, along the path as written and along its physical path. One offends when a worker owns it, when every login or a worker's group can write it without the sticky bit, or when it carries an access-control entry that allows | A worker who can rename a directory above the code can replace the code |
+| C3 | Each directory above those, along the path as written, along its physical path, and along each hop of a link met on the way (0.49.354). One offends when a worker owns it, when every login or a worker's group can write it without the sticky bit, or when it carries an access-control entry that allows | A worker who can rename a directory above the code can replace the code |
+| Entries of a link's target | What each link under the engine's root, and each link directly in a `PATH` directory, points at, read by its physical path for an access-control entry that allows (0.49.354) | macOS `ls -lLde` prints a link's own entries, not its target's |
 | C3, not there | A `PATH` entry, the exec-path directory or the lock's directory that is not a directory yet: the deepest directory above it that is there offends when a worker owns or can write it, sticky bit or not. A link on the way that leads to no directory offends itself. A lock that is a link offends | A worker who can make the missing directory, or the thing a link points at, chooses what runs |
 
 With the system's `PATH`, which the launchers set, the Command Line Tools' git comes first and its directories
@@ -153,8 +171,28 @@ implementation, before the build existed:
 - **What they do not reach:** a run as another login, a change of owner or group, the lock call, a fetch over
   `https` or `ssh`, Linux (CI runs it).
 
+**The hardening's tests (0.49.354).** Two more parts, written from the hardening's spec alone (revision 1) by an
+author that did not read its implementation: 2193 (`authority-engine`: the git, its helper directory, `HOME`
+and above, the four directories and a copy in place by owner, entries where `ls` takes no `-e`) and 2194
+(`publish`'s directory and those above it, condition e's `PATH` with globbing off, step 3 of §7).
+
+- **Red first.** On main with the two parts: 2193 had 13 failing and 2194 15, with every fixture control
+  passing (the audit folder, `blind/`).
+- **The review of the build** added eight assertions, the builder's and not blind, in 2191, 2193 and 2194. Each
+  was shown red on the build it was written against (d4ac2338), with every other assertion of those parts
+  passing. One count in 2192 rose from 1 to 2: the walk now follows each link to its target, and the
+  directory that target sits in, of mode 777, is a second offender.
+- **After the fixes,** each part alone: 2190 97 pass and 1 skip, 2191 139 and 1, 2192 88 and 2, 2193 92 and 7,
+  2194 95 and 0; slice 1's 2186 to 2189 and the three lints this change could reach (1296, 1500, 1510) pass
+  alone. 2193's skips: three need a directory owned by another uid, which only root makes, and four are for
+  where `ls` takes no `-e` (Linux).
+- **What they do not reach,** beyond the list above: the walk of the git's own directory is shadowed by the
+  helper-directory reading, since this git finds its helpers beside the file it was run as, so each fixture for
+  the one is refused by the other with the same line; and a link inside a directory that a link under the
+  git's helper directory points at has no fixture under the real directory.
+
 **A rehearsal of the founder's steps 3 and 4,** under his own login in scratch (the script and its output are in
-the audit folder, `logs/`): `publish` to a scratch drop, 46 MB and 220 branches; the six lines of §7 run by
+the audit folder, `logs/`): `publish` to a scratch drop, 46 MB and 220 branches; the six lines §7 held then, run by
 `zsh` with an empty environment and the scratch drop for `S`, which copied the 512 files of the branch's head
 commit; the `next:` line it
 printed, with `--workers authority`; then `status` and a tick through the launcher. `status` read `shadow` with the two `why` lines of c and d alone, so conditions a, b and e held with the roles
@@ -177,25 +215,35 @@ a second Public folder, `/Users/jarrondeng/Public`, a path not on this Mac now. 
 that login: remove the first share at least. Remote Login and Screen Sharing admit admins, and the authority is
 not one (the founder's login is; §8).
 
-**Step 3. The commit, and the drop.** On his phone, not this Mac: open the pull request he released last and
-read the 40 characters of its "merged commit". That is COMMIT. Then at his own desktop, in his checkout of this
-repository, after `git fetch`: `felix authority publish`. Do not take COMMIT from what it prints after
-`origin-main:`, or from any window of his own login: a worker can make either say any commit.
+**Step 3. The commit, and the drop.** When he releases the pull request whose engine the authority will run, he
+writes down its number himself, off this Mac. On his phone, not this Mac: open the pull request with that
+number, tap its merged commit, and on the commit's own page read all 40 characters of its id. That is COMMIT.
+Read every character there; never type a short id and complete it on this Mac, where a worker chooses what it
+completes to. COMMIT must hold this change, 0.49.354, or a later one: an earlier engine copies without the
+reads of §2. Then at his own desktop, in his checkout of this repository, after `git fetch`:
+`felix authority publish`. Do not take COMMIT from what it prints after `origin-main:`, from any window of his
+own login, or from whichever pull request was merged last: a worker can make each of them name any commit.
 
-**Step 4. At the authority's desktop,** in Terminal, typing each line as it stands, with COMMIT (twice) the
-40 characters read on his phone in step 3. The fifth line ends with `|`, and the shell waits for the sixth:
+**Step 4. At the authority's desktop,** in Terminal, the eight lines as they stand, with COMMIT (twice) the 40
+characters read on his phone in step 3. Lines 5 and 6 end with `&&` and line 7 with `|`, so the shell reads on
+to the eighth and runs lines 5 to 8 as one: each runs only when the one before it worked. A `~/.felix` already
+there stops them at the fifth line, before git runs; these lines are for a login that has none (an upgrade is
+§8).
 
 ```
 umask 077; G=/Library/Developer/CommandLineTools/usr/bin/git
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1
+export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null
 B=~/.felix/engine/boot.git; S=/Users/Shared/felix-authority/source.bundle
-/bin/mkdir -p ~/.felix/engine && $G init -q --bare $B
-$G --git-dir=$B -c transfer.fsckObjects=true fetch -q -- $S '+refs/*:refs/boot/*'
+/bin/mkdir -m 700 ~/.felix ~/.felix/engine && $G init -q --bare --template= $B &&
+$G --git-dir=$B -c transfer.fsckObjects=true fetch -q -- $S '+refs/*:refs/boot/*' &&
 $G --git-dir=$B show COMMIT:engine/harness/bin/authority-engine |
   /usr/bin/env -i HOME="$HOME" /bin/bash -s -- COMMIT $S
 ```
 
-It prints `engine:`, `state: made` and the lines after them, the last `next:`. Type that `next:` line, with
-`a14808` in place of `WORKERS`. That makes the authority's home and store, in shadow.
+It prints `engine:`, `state: made` and the lines after them, the last `next:`. Read that its `version:` line
+says 0.49.354 or later. Type that `next:` line, with `a14808` in place of `WORKERS`. That makes the
+authority's home and store, in shadow.
 
 **Step 5. Restart,** and from here as slice 1's §8 steps 4 to 6, with `~/.felix/bin/felix` for `felix` and
 `~/.felix/bin/reach-witness` for the witness: the first start at the console, the reach test with him at the
@@ -215,7 +263,10 @@ The items found so far.
 | A bundle is the whole repository each time, and nothing caps its size | The connector's slice |
 | A worker that replaces the drop with a bundle that is slow to read or large | The connector's slice |
 | `/etc/paths.d/homebrew` puts a directory a worker can write on every login's `PATH` | His; the launchers do not depend on it |
-| Upgrading the authority's engine: the same six lines with a new commit; nothing tells him one is due | A later slice |
+| Upgrading the authority's engine: the eight lines stop at a `~/.felix` already there, so an upgrade needs steps of its own; nothing tells him one is due | A later slice |
+| A worker holds GitHub write access through his login's token (Felix merges with it), so GitHub does not say which merges were his: step 3 rests on the number he fixed (0.49.354) | The trust plane's signer |
+| What the eight lines rely on before `authority-engine` reads anything: the git they name, its helper programs, and the authority's `HOME`, as they are when he types them. `authority-engine`'s reads of the git passed on this Mac on 2026-11-16, under the founder's login | His, before step 4 |
+| The directories above what a link under the git's helper directory points at: the target is read, not the directories above it (0.49.354) | Before live, with the reach test |
 | A lock on a system that is not macOS | When one is needed |
 | What the lock call does on a later macOS. Exit 0 rests on the reading, so a missing call reads `NOT LOCKED` | Read on each macOS before relying on it |
 | What condition e does not read: the libraries a program loads; what a link's target's directory holds, for a program in a `PATH` directory that is a link; a login not named in `workers` (this Mac has a third, `dengs`) | Before live, with the reach test |

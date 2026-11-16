@@ -1,4 +1,4 @@
-### 2026-11-15: the suite passes on the public snapshot again (0.49.350; six parts that read what the snapshot leaves out)
+### 2026-11-15: the suite passes on the public snapshot again (0.49.352; six parts that read what the snapshot leaves out)
 
 **What this is.** After #514 landed (0.49.346), `projects/felix/snapshot.sh`
 cut the snapshot from main at `c9bff19b`. Its scrub, audit and credential scan
@@ -38,8 +38,9 @@ prints that as one "drops assertion" line. The founder was shown the old name
 beside the new and answered "Rename it, land all six" (2026-11-15). If the
 landing check shows any other line, he is asked again.
 
-**Order.** #515 landed as 0.49.348 during the cut, and #516 holds 0.49.349, so
-this took 0.49.350.
+**Order.** #515 landed as 0.49.348 during the cut. While this waited, #516
+landed as 0.49.349 and #518 as 0.49.351; main was merged in after each, and
+this takes 0.49.352.
 
 **Next.** Once this lands and deploys, run `snapshot.sh` from the home on main
 again. Audit what differs from this cut, test the install in a scratch HOME,

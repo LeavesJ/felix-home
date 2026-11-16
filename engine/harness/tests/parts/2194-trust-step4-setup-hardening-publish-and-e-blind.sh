@@ -277,7 +277,33 @@ TS4_ENV=(PATH="$TS4/ev4/bin:$TS4_PATH"); TS4H_V="$(_ts4h_e)"; chmod 755 "$TS4/ev
 _ts4_is "ts4 harden H12 (security review of e7056655): a program in a PATH directory that is a link to a link in a directory every login can write names that directory, and is gone once the mode is taken back" \
   "$TS4H_V, then $TS4H_W" "$(_ts4u_eline "$TS4/ev4/m (a directory above the code)" 1), then cd; none" "$(_ts4_why)"
 FELIX="$TS4H_F0"; TS4_SKIP=""
+# After the security review of b417a831 (not blind; white-box: _fa_c3_keep is called with the walk's lists set by
+# hand), shown red on b417a831 first. A directory above the code that offends is excused only when each child of it
+# on the code's paths carries a flag no login can clear (sunlnk here). Its children are matched by device and inode,
+# so one the walk read through a link counts; and a directory that is itself a link is never excused, since what its
+# target holds does not keep the link. Not covered: csrutil's answer, which a test cannot set, and a link a worker
+# owns read through felix authority status, which only that login can make.
+_ts4h_keep() {   # LINE PATH... -> what _fa_c3_keep prints for the one offender LINE, PATH... the directories the walk read
+  ( . "$REAL_HARNESS/lib/authority-walk.sh" 2>/dev/null || exit 0
+    r=/nonexistent; a=(); upl=(); lt=(); lh=(); m=(); mq=(); TS4H_V="$1"; shift; ups=("$@")
+    _fa_c3_keep "$TS4H_V" 2>/dev/null ) | LC_ALL=C awk '{ printf "%s%s", (n++ ? "," : ""), $0 } END { if (!n) printf "nothing" }'
+}
+TS4H_X=/System/Volumes/Preboot/Cryptexes; TS4H_N6="ts4 harden C3 (security review of b417a831)"
+mkdir -p "$TS4/ev5"; ln -s "$TS4H_X" "$TS4/ev5/c" 2>/dev/null
+if [ "$TS4U_OS" != Darwin ]; then TS4H_V="this is not macOS: no child is excused for its flags"
+elif case ",$(stat -f '%Sf' "$TS4H_X/App" 2>/dev/null)," in (*,sunlnk,*) false ;; (*) true ;; esac; then TS4H_V="$TS4H_X/App carries no sunlnk here"
+elif [ ! -d "$TS4H_X/Incoming" ] || case ",$(stat -f '%Sf' "$TS4H_X/Incoming" 2>/dev/null)," in (*,sunlnk,*|*,schg,*|*,restricted,*) true ;; (*) false ;; esac; then TS4H_V="$TS4H_X/Incoming is not here without a flag"
+else TS4H_V=""; fi
+if [ -n "$TS4H_V" ]; then
+  skip "$TS4H_N6 (control): a directory whose one child on the code's paths carries sunlnk is excused" "$TS4H_V"
+  skip "$TS4H_N6: a child of it the walk read through a link, which carries no flag, keeps it" "$TS4H_V"
+  skip "$TS4H_N6: a directory above the code that is a link is kept, though each child of its target carries sunlnk" "$TS4H_V"
+else
+  is "$TS4H_N6 (control): a directory whose one child on the code's paths carries sunlnk is excused" "$(_ts4h_keep "$TS4H_X" "$TS4H_X/App")" "nothing"
+  is "$TS4H_N6: a child of it the walk read through a link, which carries no flag, keeps it" "$(_ts4h_keep "$TS4H_X" "$TS4H_X/App" "$TS4/ev5/c/Incoming")" "$TS4H_X"
+  is "$TS4H_N6: a directory above the code that is a link is kept, though each child of its target carries sunlnk" "$(_ts4h_keep "$TS4/ev5/c" "$TS4/ev5/c/App")" "$TS4/ev5/c"
+fi
 
 _ts4u_end
-unset TS4H_R TS4H_DOC TS4H_E TS4H_C TS4H_S3 TS4H_V TS4H_W TS4H_N1 TS4H_N2 TS4H_N3 TS4H_N4 TS4H_EN TS4H_F0 TS4H_Q TS4H_G TS4H_RG TS4H_N5 TS4H_BLK TS4H_WANT
+unset TS4H_R TS4H_DOC TS4H_E TS4H_C TS4H_S3 TS4H_V TS4H_W TS4H_N1 TS4H_N2 TS4H_N3 TS4H_N4 TS4H_EN TS4H_F0 TS4H_Q TS4H_G TS4H_RG TS4H_N5 TS4H_BLK TS4H_WANT TS4H_X TS4H_N6
 # <<< trust-step4-setup-hardening-publish-and-e

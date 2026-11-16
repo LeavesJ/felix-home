@@ -65,21 +65,47 @@ EOF
 # children on the code's paths can be renamed or removed by no worker: flag sunlnk or schg (root's alone to
 # clear), or restricted while SIP is on. As the sticky bit, that keeps a login that can write the directory from
 # replacing what the code is reached through. (/System/Volumes/Preboot/Cryptexes is mode 777, and what the
-# system PATH reaches through it carries sunlnk: read 2026-11-16.) A child not found or not read keeps it.
+# system PATH reaches through it carries sunlnk: read 2026-11-16.) Its children are the paths the walk read
+# whose parent is it by device and inode, however each was written: through a link, in another letter case
+# (pwd -P keeps the case typed), or along a physical path (security review of b417a831). The walk prints each
+# directory above every path it reads, along each hop, so each name the kernel looks up there is one of them.
+# It stays an offender when it is a link, when a child is not there or not read, when a child is named . or ..,
+# when no child is found, and when the parent of any path read could not be read. SIP is on only when the first
+# line of csrutil status is "System Integrity Protection status: enabled."; anything else is off.
 _fa_c3_keep() {   # LINES
-  local y c k f n s=""
-  local -a ch
+  local y yi k d i n c f s="" u=""
+  local -a kp=() ki=() kd=() ch=()
   while IFS= read -r y; do
     [ -n "$y" ] || continue
-    ch=(); c=$'\n'
-    if [ "$y" != / ] && [ "$(uname -s 2>/dev/null)" = Darwin ]; then
-      for k in "$r" ${a[@]+"${a[@]%/}"} ${ups[@]+"${ups[@]}"} ${upl[@]+"${upl[@]}"} ${lt[@]+"${lt[@]}"} ${lh[@]+"${lh[@]}"} ${m[@]+"${m[@]}"} ${mq[@]+"${mq[@]}"}; do
-        case "$k" in "$y"/?*) k="${k#"$y"/}"; k="$y/${k%%/*}"; case "$c" in *$'\n'"$k"$'\n'*) ;; *) c="$c$k"$'\n'; ch[${#ch[@]}]="$k" ;; esac ;; esac
-      done
+    ch=(); c=$'\n'; n=-1
+    if [ "$y" != / ] && [ -d "$y" ] && [ ! -L "$y" ] && [ "$(/usr/bin/uname -s 2>/dev/null)" = Darwin ]; then
+      if [ -z "$u" ]; then
+        u=ok
+        for k in "$r" ${a[@]+"${a[@]}"} ${ups[@]+"${ups[@]}"} ${upl[@]+"${upl[@]}"} ${lt[@]+"${lt[@]}"} ${lh[@]+"${lh[@]}"} ${m[@]+"${m[@]}"} ${mq[@]+"${mq[@]}"}; do
+          while :; do case "$k" in /) break ;; */) k="${k%/}" ;; *) break ;; esac; done
+          case "$k" in /?*) ;; *) continue ;; esac
+          d="${k%/*}"; [ -n "$d" ] || d=/
+          [ -e "$d" ] || continue
+          kp[${#kp[@]}]="$k"; kd[${#kd[@]}]="$d"
+        done
+        [ ${#kd[@]} -eq 0 ] || while IFS= read -r i; do ki[${#ki[@]}]="$i"; done <<EOF
+$(/usr/bin/stat -L -f '%d:%i' -- "${kd[@]}" 2>/dev/null)
+EOF
+        [ ${#ki[@]} -eq ${#kd[@]} ] || u=no
+      fi
+      if [ "$u" = ok ] && yi="$(/usr/bin/stat -f '%d:%i' -- "$y" 2>/dev/null)" && [ -n "$yi" ]; then
+        n=0
+        for ((i = 0; i < ${#kp[@]}; i++)); do
+          [ "${ki[$i]}" = "$yi" ] || continue
+          k="${kp[$i]##*/}"
+          case "$k" in .|..) n=-1; break ;; esac
+          case "$c" in *$'\n'"$k"$'\n'*) ;; *) c="$c$k"$'\n'; ch[${#ch[@]}]="${y%/}/$k" ;; esac
+        done
+      fi
     fi
-    if [ ${#ch[@]} -gt 0 ]; then
-      [ -n "$s" ] || { s=off; case "$(csrutil status 2>/dev/null)" in *enabled*) s=on ;; esac; }
-      f="$(stat -f '%Sf' -- "${ch[@]}" 2>/dev/null)"; n=0
+    if [ "$n" -eq 0 ] && [ ${#ch[@]} -gt 0 ]; then
+      [ -n "$s" ] || { s=off; f="$(/usr/bin/csrutil status 2>/dev/null)"; [ "${f%%$'\n'*}" != "System Integrity Protection status: enabled." ] || s=on; }
+      f="$(/usr/bin/stat -f '%Sf' -- "${ch[@]}" 2>/dev/null)"
       while IFS= read -r k; do case ",$k," in *,sunlnk,*|*,schg,*) n=$((n + 1)) ;; *,restricted,*) [ "$s" != on ] || n=$((n + 1)) ;; esac; done <<EOF
 $f
 EOF

@@ -594,11 +594,11 @@ _felix_merge_gate_held() {
   # them, as status, conclusion and the commit the run is on, with `-` for a
   # field gh left empty so no field is ever missing between two tabs.
   #
-  # The first run that is on this commit decides, and nothing after it is read:
+  # The first run that is on this commit decides, and what follows it is passed over (the awk
+  # still reads the list to its end, so printf is never cut off mid-list):
   # a run before it that cannot be read or placed might have been the newest on
   # this commit, so it is unreadable and not skipped, and an older success never
   # outvotes a newer run that failed or has not finished.
-  # The awk reads the list to its end (quit passes over what follows), so printf is never cut off mid-list.
   verdict="$(printf '%s\n' "$runs" | LC_ALL=C awk -F'\t' -v sha="$sha" '
     quit { next }
     NR == 1 { if ($0 !~ /^[0-9]+$/) { bad = "gh run list printed no run count"; quit = 1; next }

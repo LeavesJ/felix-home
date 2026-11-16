@@ -102,7 +102,7 @@ _ae_g() {   # ARG...: git, in the boot store
 # and a colon), as condition e reads them; where ls takes no -e, there is nothing more to read.
 _ae_acl() {   # PATH...: prints the first entry that is not a deny, of these paths and each path under them
   "$_AE_LS" -lde / >/dev/null 2>&1 || return 0
-  "$_AE_FIND" "$@" -exec "$_AE_LS" -lde {} + 2>/dev/null | "$_AE_AWK" '/^ [0-9]+: / && $0 !~ / deny / { print; exit }'
+  "$_AE_FIND" "$@" -exec "$_AE_LS" -lde {} + 2>/dev/null | "$_AE_AWK" 'quit { next } /^ [0-9]+: / && $0 !~ / deny / { print; quit = 1; next }'
 }
 _ae_dir_ok() {   # PATH
   if [ -e "$1" ] || [ -L "$1" ]; then
@@ -283,7 +283,7 @@ _ae_main() {
   _ae_launcher felix felix; _ae_launcher reach-witness bin/reach-witness
   if [ "$_AE_OS" = Darwin ]; then _ae_launcher lock bin/lock-macos; lock="$_AE_H/.felix/bin/lock"; fi
   # E12. The subject is the message's first line as the commit holds it, cut to 200 bytes, then shown.
-  subject="$(_ae_g cat-file commit "$_AE_K" 2>/dev/null | "$_AE_AWK" 'b { print; exit } $0 == "" { b = 1 }')"
+  subject="$(_ae_g cat-file commit "$_AE_K" 2>/dev/null | "$_AE_AWK" 'quit { next } b { print; quit = 1; next } $0 == "" { b = 1 }')"
   subject="${subject:0:200}"
   date="$(_ae_g show -s --no-show-signature --format=%cI "$_AE_K" 2>/dev/null)"
   version="$("$_AE_AWK" -F'"' '$2 == "version" { print $4; exit }' "$_AE_C/engine/.claude-plugin/plugin.json" 2>/dev/null)"

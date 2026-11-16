@@ -1,4 +1,4 @@
-# Contract: a pipe's reader reads to the end (rev 2, 2026-11-16)
+# Contract: a pipe's reader reads to the end (rev 3, 2026-11-16)
 
 **Scope.** The pipes in the engine's code (`engine/harness/felix`, `lib/*.sh`,
 `bin/*`, `hooks/*`, and the suite's own `tests/run` and `tests/lib/*`) whose
@@ -101,10 +101,12 @@ passed over while the flag holds, and the END action, if any, unchanged.
 
 One site keeps its exit on purpose, and the lint holds it by name:
 `lib/inventory-orphans.sh`, the awk that reads the loop of `find` over ignored
-directories (`++n > 2000 { p = 1; exit }`). Its exit is the cost bound on that
-loop. Nothing it cuts off is shell code: `find` and `/usr/bin/printf` write the
-pipe, their standard error goes to a file read only for "could not open
-directory" and "Permission denied", and the loop's status is not read.
+directories (`++n > 2000 { p = 1; exit }`). Nothing it cuts off is shell code:
+`find` and `/usr/bin/printf` write the pipe, and the loop's status is not read,
+so no bash write error and no status rests on the cut. The cut stops the walk
+only where SIGPIPE is at its default. Where it is ignored, each `find` takes
+EPIPE and walks on, and its "Permission denied" lines reach the file the
+unreadable count is read from, so that count can differ by disposition (PR8).
 
 ## PR4. The lint
 
@@ -116,7 +118,11 @@ an awk whose program holds `exit` outside any END action. It reads like part
   may start with `|`; comment lines are skipped;
 - after the pipe, optionally `command`, `env`, `nice`, `timeout N`, `if`, `!`,
   `VAR=value` prefixes and a leading backslash; then `awk`, `gawk`, `mawk` or
-  `nawk` as a word;
+  `nawk` as a word, or a variable whose name ends in `AWK` (`"$_AE_AWK"`,
+  `$AWK`, `"${X_AWK}"`), which names an awk. A prefix's value may be quoted and
+  hold blanks or a `$( )`: `X="a b" awk`, `P="$1" N="$t $(r) " awk`;
+- the shell line's code ends at a `#` that follows a blank outside quotes: a
+  trailing comment is not code, so a `| awk` written in one is not read;
 - options before the program: `-F` and `-v` with their argument attached or as
   the next word, quoted or not, and `--`. `-f` means the program is in a file,
   which is not read;
@@ -129,7 +135,11 @@ an awk whose program holds `exit` outside any END action. It reads like part
   program line or follows a blank to the end of that line; anything inside the
   braces of an action whose pattern is `END`. Counted: an exit in a BEGIN action
   (awk then reads no input at all), in a function body, or in any other rule; a
-  regex literal is read as code, so `/exit/` counts.
+  regex literal is read as code, so `/exit/` counts. A `/` where awk expects an
+  operand (at the start of a pattern, after `(`, `,`, `!`, `~`, `&&`, `||`, `{`,
+  `;` or a newline) opens a regex literal, which runs to the next `/` not escaped
+  and not inside a bracket expression; a `"` inside a regex literal opens no
+  string, so in `/"/ { print; exit }` the exit counts.
 The flagged line is the one that holds the awk word.
 
 Scan set: `felix`, `lib/*.sh`, `hooks/*`, `bin/*`, `tests/lib/*` and `tests/run`
@@ -142,7 +152,8 @@ read from a list in the test with the reason beside it. An allowance that no
 flagged line matches fails, so a moved or fixed site cannot leave it behind.
 
 On the base tree the scan names the sites this contract fixes and the
-allowance's (29 lines by the sweep's own scanner), among them lib/instrument.sh's
+allowance's (31 lines: the 29 rev 2 counted, and bin/authority-engine's two
+awks named through `"$_AE_AWK"`), among them lib/instrument.sh's
 `_felix_instr_sha`; on the fixed tree it names none past the allowance.
 
 ## PR5. `head` fed by shell code reads to the end
@@ -183,6 +194,9 @@ Found in the sweep and not changed here, each for its own change:
   `felix_guard_culprit`. Not swept.
 - A lint for the shell-fed `head` and `sed q` shapes, and part 0960's grep scan
   over `tests/lib` and `tests/run`.
+- The find loop in lib/inventory-orphans.sh (PR3's allowance): where SIGPIPE is
+  ignored its walk is not bounded by the cut, and its unreadable count reads
+  directories past the 2,000-file cut that the default would not reach.
 - Whether CI should run with SIGPIPE at its default. The engine runs on hosts
   that ignore it, so the code is fixed and not the runner.
 
@@ -194,6 +208,18 @@ newline when STATUS is not 3 (rev 1 said a newline). `_gt_detail` at the default
 SIGPIPE already passes (rev 1 said it failed). PR4 now says that awk's arguments
 carry past a backslash-newline and that a regex literal is read as code, as the
 part reads them. No assertion changes: the part pinned neither rev 1 clause.
+
+Rev 3, from three adversarial reviews of the build:
+- Two awks the sweep missed, in bin/authority-engine, run awk through
+  `"$_AE_AWK"`, which rev 2's lint could not see. PR4 now reads an awk named
+  through a variable whose name ends in `AWK`, and the base count is 31.
+- Three shapes rev 2's matcher read wrong: a prefix whose quoted value holds a
+  blank (three such awks are in the tree, none exiting), a `"` inside a regex
+  literal (the exit after it went unseen), and a `| awk` in a trailing shell
+  comment (flagged, though it is no code). PR4 now names each.
+- PR3's allowance said its cut bounds the walk. That holds only where SIGPIPE
+  is at its default; PR3 says so, and PR8 lists the rest.
+- `_gt_class`'s `hourly` with no newline (rev 2) is now compared exactly.
 
 ## Tests
 

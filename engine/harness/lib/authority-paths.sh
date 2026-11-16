@@ -62,6 +62,15 @@ _fa_esc_set() {   # STRING [MAX] -> _FA_E
   [ "$max" -eq 0 ] || [ "$n" -le "$max" ] || _FA_E="$_FA_E (+$(( n - max )) more bytes)"
 }
 _fa_esc() { _fa_esc_set "$@"; printf '%s' "$_FA_E"; }   # STRING [MAX], printed
+# The setup slice's section 0 (0.49.351): a value from outside the engine is printed as it is when it holds no
+# byte outside printable ASCII, no backslash, no double quote and is no longer than MAX, and as _fa_esc prints it
+# otherwise. Condition e's why line and felix authority publish print this way. The door's card does not: there a
+# worker's word is always quoted, and slice 1's tests read it so.
+_fa_show() {   # STRING [MAX], printed
+  local LC_ALL=C
+  case "$1" in *[!\ -~]*|*\\*|*\"*) _fa_esc "$@"; return ;; esac
+  if [ "${2:-0}" -gt 0 ] && [ "${#1}" -gt "${2:-0}" ]; then _fa_esc "$@"; else printf '%s' "$1"; fi
+}
 
 # The policy at BASE, read once a process (a tick asks it of each candidate). Sets _FP_AT to BASE,
 # _FP_AT_UNREADABLE to 1 when it cannot be read, and _FP_AT_ERES to the patterns: each founder row's, then the

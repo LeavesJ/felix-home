@@ -16473,6 +16473,147 @@
 1	ts4 reading case 4, K7: authorize then hold: the head is held, for an authorization lifts no hold
 1	ts4 reading case 5, K6: when main has moved so that the merge is another tree, the override is not in effect: the head waits, and the detail ends ; override N names another tree
 1	ts4 reading case 6, W9: a candidate that adds a file whose name holds a newline waits for his authorization, and the tick shows the name with \x0a; so does one whose name holds a byte above 0x7e
+1	ts4 setup 2 (control): the real source's commit holds this suite's engine file by file, modes 100644 and 100755 only, no path outside printable ASCII, no two equal without case
+1	ts4 setup 2 (review E1-builtin-fn): run under env -i with HOME alone, the program reads no BASH_ENV of the caller's
+1	ts4 setup 2, E9: that copy holds the engine under test, each file its blob's bytes and mode
+1	ts4 setup 2: the program read with git show from the bundle's commit and run with /bin/bash -s, its own path unknown, copies that commit's engine and exits 0
+1	ts4 setup 5: an option with no value is a usage error: exit 2
+1	ts4 setup 5: an unknown option is a usage error: exit 2, and no directory is made
+1	ts4 setup 5: felix help names publish beside init on a line of authority
+1	ts4 setup C (control): from the copied engine, with that login as the one worker, the standing is shadow with the why lines of c and d alone
+1	ts4 setup C (control): ps lists this machine's processes, and it has a login other than this one that runs none
+1	ts4 setup C (control): the copied engine holds a file under bin/ and one under tests/lib/, and no file or directory in it can be written by group or other
+1	ts4 setup C1 (review): the engine's root, the directory above the one felix is in, is read itself: made writable by every login, it is the one offender, and is gone once the mode is taken back
+1	ts4 setup C1, C4: a file under the engine's bin/ that every login can write is code the process runs: the why says so, and is gone once the mode is taken back
+1	ts4 setup C1: so is a file at any depth of the engine, one under tests/lib/
+1	ts4 setup C1: the engine's root itself is read: made writable by every login, it is the first offender
+1	ts4 setup C2 (control): the stub git answers --exec-path with the fixture's directory and runs every other call through the real git; the other two print nothing and fail
+1	ts4 setup C2: and so is each program directly in it
+1	ts4 setup C2: the directory git --exec-path prints, for the git first on PATH, is read as a PATH directory: writable by every login, it is named
+1	ts4 setup C2: where git --exec-path prints nothing, or fails, this adds nothing: status exits 0 with the why lines of c and d alone
+1	ts4 setup C3 (control): zl is a link to phys/pp2/bin, a directory, and its physical path holds phys/pp2
+1	ts4 setup C3 (review): a PATH entry that is not there, under a directory every login can write, offends as that directory above the code, with the sticky bit and without it, and under one only its owner writes does not
+1	ts4 setup C3 (review): a directory above the engine's root that every login can write, without the sticky bit, offends as a directory above the code, and with the sticky bit does not
+1	ts4 setup C3 (security review): a PATH entry that is a link to a file, and one under a link to nothing, each name that link as one that leads to no directory
+1	ts4 setup C3 (security review): a PATH entry that is a plain file, in a directory every login can write, names that directory above the code, and in one only its owner writes does not
+1	ts4 setup C3 (security review): a lock that is a link is named as one, to nothing or to a file in a directory every login can write, and a lock that is a file only its owner writes is not
+1	ts4 setup C3: a PATH directory whose parent every login can write, without the sticky bit, offends as a directory above the code, and with the sticky bit does not
+1	ts4 setup C3: on macOS, a directory above the code that carries an access-control entry that allows offends, and one whose only entry denies does not
+1	ts4 setup C3: the directories above are read along the physical path too: a PATH entry that is a link into a directory every login can write names that directory first
+1	ts4 setup C4: with two offenders, the why names the first as sorted and counts both
+1	ts4 setup E (control): K1's engine/ holds seven files, felix and the two programs of mode 100755, and the source two files outside it
+1	ts4 setup E (control): the bundle lists each branch of the source, and git reads the subjects of K3 and K4 as made
+1	ts4 setup E (control): the refused commits hold what their cases say: no felix, a felix of 100644, two links, a submodule, a path outside printable ASCII, two paths equal without case
+1	ts4 setup E1 (review): a caller's GIT_OBJECT_DIRECTORY, GIT_DIR and GIT_INDEX_FILE reach no git of the run: the copy is made from the boot store, which holds the objects, and nothing is written where they point
+1	ts4 setup E10 (control): with each change undone, the copy is in place again
+1	ts4 setup E10, E12: a second run with the same commit finds the copy in place, writes nothing in it, prints state: in place, and writes the launchers again
+1	ts4 setup E10: a copy there before in which a file carries an access-control entry that allows (review) is refused, and left as it is
+1	ts4 setup E10: a copy there before in which a file is a link to a file of the same bytes is refused, and left as it is
+1	ts4 setup E10: a copy there before in which a file of mode 100644 has mode 700 is refused, and left as it is
+1	ts4 setup E10: a copy there before in which a file's bytes differ from its blob is refused, and left as it is
+1	ts4 setup E10: a copy there before that holds a directory the commit lacks is refused, and left as it is
+1	ts4 setup E10: a copy there before that holds a file the commit lacks is refused, and left as it is
+1	ts4 setup E10: a copy there before that lacks one of the commit's files is refused, and left as it is
+1	ts4 setup E10: a copy there before whose own top directory has mode 777 (review) is refused, and left as it is
+1	ts4 setup E11 (section 6): the felix launcher runs the copied engine, whose felix authority status says no authority is set up at HOME/.felix/authority, whatever the caller's FELIX_AUTHORITY_HOME
+1	ts4 setup E11, E12: a later run with another commit makes its copy, prints version - for a commit with no plugin.json, and the felix launcher then runs that copy
+1	ts4 setup E11: .felix/bin holds the launchers felix and reach-witness, and lock on macOS alone, each of mode 700, and no temporary file
+1	ts4 setup E11: on macOS the launcher lock is three lines: #!/bin/sh, a comment naming the commit, and exec through env -i of bin/lock-macos in the copy; elsewhere there is none
+1	ts4 setup E11: the felix launcher runs the copy with its arguments, this HOME, USER and LOGNAME, the caller's TERM, the system's PATH, and no FELIX_, GIT_, BASH_ENV or ENV of the caller's
+1	ts4 setup E11: the launcher felix is three lines: #!/bin/sh, a comment naming the commit, and exec through env -i of felix in the copy
+1	ts4 setup E11: the launcher reach-witness is three lines: #!/bin/sh, a comment naming the commit, and exec through env -i of bin/reach-witness in the copy
+1	ts4 setup E11: with no TERM in the caller's environment the copy is given TERM=dumb
+1	ts4 setup E12 (review): a source holding a space and a ; is put in single quotes on the next line, which then names it as one word
+1	ts4 setup E12: a first run prints engine, state made, subject, date, version, files, copy, felix, lock, reach-witness and next, in that order, and exits 0
+1	ts4 setup E12: the subject is the message's first line, cut to 200 bytes and then escaped as section 0 says
+1	ts4 setup E13: a first argument that starts with - is a usage error, and nothing is written
+1	ts4 setup E13: a second argument that starts with - is a usage error, and nothing is written
+1	ts4 setup E13: with no argument authority-engine is a usage error, and nothing is written
+1	ts4 setup E13: with three arguments authority-engine is a usage error, and nothing is written
+1	ts4 setup E2: the git E2 names for this system is one only root can change, and a run with a commit of the source succeeds
+1	ts4 setup E4: a commit id in upper case is refused, and nothing is written
+1	ts4 setup E4: a short commit id is refused, and nothing is written
+1	ts4 setup E4: forty characters one of which is not hex are refused, and nothing is written
+1	ts4 setup E4: forty-one hex digits are refused, and nothing is written
+1	ts4 setup E5: a source of the ext:: transport is refused, and nothing is written
+1	ts4 setup E5: a source of the form user@host:path is refused, and nothing is written
+1	ts4 setup E5: a source that is a file:// URL of a repository is taken, and the next line names it
+1	ts4 setup E5: a source that is a relative path, though a bundle stands there, is refused, and nothing is written
+1	ts4 setup E5: a source that is an http:// URL is refused, and nothing is written
+1	ts4 setup E6, E7: boot.git is a bare repository that holds the source's refs under refs/boot/
+1	ts4 setup E6, E9: the home holds .felix alone, .felix holds bin and engine, nothing under .felix/authority, and engine holds boot.git and the copy, no .new. directory
+1	ts4 setup E6: .felix, .felix/engine, .felix/engine/boot.git and .felix/bin are made with mode 700
+1	ts4 setup E6: and writes nothing where that link points
+1	ts4 setup E6: authority-engine refuses a .felix its group can write, and makes no copy
+1	ts4 setup E6: authority-engine refuses a .felix that is a link to a directory, and makes no copy
+1	ts4 setup E6: authority-engine refuses a .felix/bin its group can write, and makes no copy
+1	ts4 setup E6: authority-engine refuses a .felix/bin that is a link to a directory, and makes no copy
+1	ts4 setup E6: authority-engine refuses a .felix/bin with an access-control entry that allows (review), and makes no copy
+1	ts4 setup E6: authority-engine refuses a .felix/engine that every login can write, and makes no copy
+1	ts4 setup E6: authority-engine refuses a .felix/engine that is a file, and makes no copy
+1	ts4 setup E6: authority-engine refuses a .felix/engine/boot.git that is a file, and makes no copy
+1	ts4 setup E6: authority-engine refuses a HOME that holds a byte outside printable ASCII: one line on stderr, the one E6 gives for HOME, exit 1, and nothing is written
+1	ts4 setup E6: authority-engine refuses a HOME that holds a single quote: one line on stderr, the one E6 gives for HOME, exit 1, and nothing is written
+1	ts4 setup E6: authority-engine refuses a HOME that is a file: one line on stderr, the one E6 gives for HOME, exit 1, and nothing is written
+1	ts4 setup E6: authority-engine refuses a HOME that is a relative path to a directory: one line on stderr, the one E6 gives for HOME, exit 1, and nothing is written
+1	ts4 setup E6: authority-engine refuses a HOME that is not there: one line on stderr, the one E6 gives for HOME, exit 1, and nothing is written
+1	ts4 setup E6: authority-engine refuses a run as uid 0, and makes no copy
+1	ts4 setup E6: authority-engine refuses an environment with no HOME: one line on stderr, the one E6 gives for HOME, exit 1, and nothing is written
+1	ts4 setup E7 (control): f's bundle holds a commit with no author line, which this git's plain fetch takes and its fetch that checks objects refuses
+1	ts4 setup E7: a source that cannot be fetched is refused, and no copy is made
+1	ts4 setup E7: a source that holds a commit with no author line is refused by the fetch's checks, and no copy and no launcher is made
+1	ts4 setup E8, E9: a link, a submodule and a path outside printable ASCII outside engine/ are neither judged nor copied
+1	ts4 setup E8: authority-engine refuses a commit that holds no engine/harness/felix, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E8: authority-engine refuses a commit the source does not hold, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E8: authority-engine refuses a commit whose engine/ holds a path with a byte outside printable ASCII, printed escaped, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E8: authority-engine refuses a commit whose engine/ holds a submodule, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E8: authority-engine refuses a commit whose engine/ holds links, naming the first, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E8: authority-engine refuses a commit whose engine/ holds two paths equal without case, naming one, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E8: authority-engine refuses a commit whose engine/harness/felix has mode 100644, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E8: authority-engine refuses the id of a tree, which is no commit, and writes no copy, no .new. directory and no launcher
+1	ts4 setup E9 (control): the attributes file of K1 changes lib/id.txt when git archive writes it, so a copy taken that way would differ from the blob
+1	ts4 setup E9: the copy C holds engine/ alone, each file the bytes of its blob with mode 600 for 100644 and 700 for 100755, each directory 700
+1	ts4 setup E9: the copy is written from the blobs: lib/id.txt holds $Id$ and LF line ends whatever the commit's attributes file asks
+1	ts4 setup L1: off macOS, lock-macos --status exits 2 with lock-macos: not macOS
+1	ts4 setup L1: off macOS, lock-macos with any other argument exits 2 with lock-macos: not macOS
+1	ts4 setup L3 (control): on macOS this test reads this login's console sessions as one of locked, not locked and unknown
+1	ts4 setup L3: on macOS, --status reads this login's console sessions as L3 says, the same as this test reads them
+1	ts4 setup L4: on macOS, --status prints exactly one line, locked, not locked or unknown, with exit 0, 1 or 3 to match, prints nothing on stderr, and writes nothing
+1	ts4 setup L6: on macOS, --status with a second argument is a usage error
+1	ts4 setup L6: on macOS, an argument other than --status is a usage error: exit 2 and usage: lock-macos [--status]
+1	ts4 setup P (control): r2 holds main alone, r3 trunk alone, r4 refs/remotes/origin/main and no branch, and r5 no ref
+1	ts4 setup P (control): the repository holds main, feat, two tags, origin/main, origin/other, upstream/main, a stash and a note, and git finds no repository in x/plain
+1	ts4 setup P (control): this test reads a bundle's refs: one made by hand of main lists main's commit
+1	ts4 setup P1, P4: under a umask of 077 the directory is made with mode 755 and the bundle given 644, and it holds source.bundle alone: no .source.bundle. file is left
+1	ts4 setup P1: a directory there before, of mode 775, is taken and its mode left as it is
+1	ts4 setup P1: with no --to where /Users/Shared is no directory, publish refuses with status 2
+1	ts4 setup P2 (control): in r, a GIT_DIR naming r2 makes plain git read r2
+1	ts4 setup P2: the caller's GIT_ variables are unset: with GIT_DIR, GIT_WORK_TREE and GIT_NAMESPACE naming r2, --from r publishes r
+1	ts4 setup P2: with no --from the repository is the one the current directory is in
+1	ts4 setup P2: with no --from, run in a directory that is in no git repository, publish refuses with one line on stderr naming that, exits 1 and makes no directory
+1	ts4 setup P3: fetched, the bundle gives three refs, and not the annotated tag's object, nor the commits of the other remotes, the stash or the note
+1	ts4 setup P3: the bundle holds each branch and refs/remotes/origin/main, and no tag, no other remote's ref, no stash and no note
+1	ts4 setup P4 (a reading): with a directory standing at DIR/source.bundle the bundle cannot be put in place: publish refuses, and no .source.bundle. file is left in DIR or in that directory
+1	ts4 setup P4: a file there before is replaced whole, and so is a bundle: a later publish of r2 holds r2's main alone
+1	ts4 setup P5: a repository whose one branch is trunk prints main -, origin-main - and source-main -
+1	ts4 setup P5: a repository with main and no origin/main prints origin-main - and source-main refs/heads/main
+1	ts4 setup P5: publish prints published, bytes, branches, main, origin-main, source and source-main, in that order, and exits 0
+1	ts4 setup P: publish makes no authority home
+1	ts4 setup P: publish refuses a --from that is in no git repository, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to that exists with mode 700, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to that exists with mode 711, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to that exists with mode 750, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to that is a file whose name holds a double quote, printed escaped as section 0 says (review), and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to that is a file, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to that is a link to a directory, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to that is not absolute, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to whose parent is a file, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to whose parent is not there, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to with a byte outside printable ASCII, and leaves the directory as it was
+1	ts4 setup P: publish refuses a --to with a tab, and leaves the directory as it was
+1	ts4 setup P: publish refuses a directory of mode 555, where the bundle cannot be written (P4), and leaves the directory as it was
+1	ts4 setup P: publish refuses a repository with no branch, its one ref refs/remotes/origin/main, and leaves the directory as it was
+1	ts4 setup P: publish refuses a repository with no commit, and leaves the directory as it was
 1	ts4 store (control): a directory that every login can write, holding a program named git that runs, is staged
 1	ts4 store (control): ps lists this machine's processes, and it has a login other than this one that runs none and one, not root, that runs some
 1	ts4 store (control): the PATH each felix call is given here names absolute directories only, and git, perl, awk, sed, ps and id are found in them

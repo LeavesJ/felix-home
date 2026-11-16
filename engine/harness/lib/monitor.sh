@@ -32,7 +32,7 @@ _felix_json_esc() {
 # noise, so it is pulled out here rather than polluting the log format.
 _felix_mon_prompt() {
   local raw="$1" p
-  p="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' | head -1)"
+  p="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\(.*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
   [ -n "$p" ] && printf '%s' "$p" || printf '%s' "$raw"
 }
 

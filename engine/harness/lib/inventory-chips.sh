@@ -37,7 +37,7 @@ _fi_win() {
   local sz; sz="$(wc -c 2>/dev/null < "$1" | tr -d ' ')"
   case "$sz" in ''|*[!0123456789]*) return 0 ;; esac
   if [ "$sz" -le 1310720 ]; then cat -- "$1" 2>/dev/null; return 0; fi
-  head -c 1048576 -- "$1" 2>/dev/null | LC_ALL=C awk '{ o += length($0) + 1; if (o > 1048576) exit; print }'
+  head -c 1048576 -- "$1" 2>/dev/null | LC_ALL=C awk 'quit { next } { o += length($0) + 1; if (o > 1048576) { quit = 1; next }; print }'
   tail -c 262145 -- "$1" 2>/dev/null | sed 1d
 }
 

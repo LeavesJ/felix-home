@@ -96,10 +96,10 @@ felix_prompt_start "$FELIX_HOME_DIR" "$raw" 2>/dev/null || true
 # startup row and could not know; the summary row is how a reader drops it.
 machine="$(felix_route_machine "$(felix_route_prompt "$raw" 2>/dev/null)" 2>/dev/null)"
 if [ "$machine" = session ]; then
-  _felix_msid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  _felix_msid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
   felix_session_machine_mark "$FELIX_HOME_DIR" "$_felix_msid" 2>/dev/null || true
   felix_lifecycle_summary "$PROJ" "$PWD" "$_felix_msid" \
-    "$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)" \
+    "$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)" \
     >/dev/null 2>&1 || true
   felix_prompt_end
   exit 0
@@ -110,12 +110,12 @@ root="$(felix_repo_root "$PWD")"
 # What this session has already done. Present on every event that shares the
 # base payload; absent means the whole play gets named, which is the old
 # behaviour and a safe place to fall back to.
-transcript="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+transcript="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 
 # Hoisted, because more than one block needs to remember what it already said.
 # It used to be computed inside the route branch, so anything else wanting a
 # session key got an unbound variable or silently shared one.
-sid_raw="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+sid_raw="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 sid="$sid_raw"
 [ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
 
@@ -356,7 +356,7 @@ escape_for_json() {
 # prompt arrived carrying the session title and everything after it. Stopping
 # at the first quote truncates a prompt that contains one, which is a smaller
 # and far more visible wrong than silently gluing on the rest of the payload.
-_felix_asked="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+_felix_asked="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 [ -n "$_felix_asked" ] || _felix_asked="$raw"
 felix_say "$PROJ" "brief" "$body" "$_felix_asked" "${sid:-}"
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' \

@@ -276,7 +276,7 @@ _gt_merge() {   # WORKTREE VERSION -> output on stdout, felix merge's status
 
 _gt_detail() {   # felix merge's output -> the first blocker line, else the last line
   local d
-  d="$(printf '%s\n' "$1" | LC_ALL=C awk '/^  / { print; exit }')"
+  d="$(printf '%s\n' "$1" | LC_ALL=C awk 'quit { next } /^  / { print; quit = 1; next }')"
   [ -n "$d" ] || d="$(printf '%s\n' "$1" | LC_ALL=C awk 'NF { l = $0 } END { print l }')"
   printf '%s' "$d"
 }

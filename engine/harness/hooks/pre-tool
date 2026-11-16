@@ -222,7 +222,7 @@ esac
 # from a tool that is broken, which is the whole complaint guard.sh exists to
 # make about other people's plugins.
 sid="$(printf '%s' "$raw" \
-  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 felix_say "$PROJ" "denied" "$cmd
 $reason" "" "${sid:-}" 2>/dev/null || true
 

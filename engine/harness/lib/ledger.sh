@@ -385,7 +385,7 @@ felix_ledger_mcp() {
 felix_ledger_signal() {
   local raw="$1" tool skill
   tool="$(printf '%s' "$raw" \
-    | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
   [ -n "$tool" ] || return 0
 
   case "$tool" in
@@ -398,7 +398,7 @@ felix_ledger_signal() {
       return 0 ;;
     Skill|skill)
       skill="$(printf '%s' "$raw" \
-        | sed -n 's/.*"skill"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+        | sed -n 's/.*"skill"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
       [ -n "$skill" ] && { printf 'skill\t%s' "$skill"; return 0; }
       ;;
     # Which agent, the way Skill records which skill. Recorded as a bare
@@ -410,7 +410,7 @@ felix_ledger_signal() {
     # echoed the same key later on the line would win.
     Agent|agent|Task|task)
       skill="$(printf '%s' "$raw" \
-        | sed -n 's/.*"subagent_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+        | sed -n 's/.*"subagent_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
       [ -n "$skill" ] && { printf 'agent\t%s' "$skill"; return 0; }
       ;;
   esac

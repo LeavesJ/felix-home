@@ -81,14 +81,14 @@ esac
 # it: a hand-rolled JSON reader breaks on the first payload containing a quote,
 # and the failure mode is a hook that silently stops enforcing anything.
 raw="$(cat 2>/dev/null || true)"
-SID="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+SID="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 # The flag is read as a FIELD, not as two substrings in order: a message ending
 # "that is true" exempted its session from its own gate. Anchored on the comma
 # or brace before the key, which an occurrence inside a JSON string cannot have
 # (a quote inside a string is spelt \" there).
 _active="$(printf '%s' "$raw" \
   | sed -n 's/.*[{,][[:space:]]*"stop_hook_active"[[:space:]]*:[[:space:]]*\([a-z]*\).*/\1/p' \
-  | head -1)"
+  | LC_ALL=C sed -n 1p)"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 
@@ -141,7 +141,7 @@ _felix_stop_may_hold() {
 
 # The transcript this stop's payload names, or nothing.
 _felix_stop_tp() {
-  printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+  printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p
 }
 
 # This session's night, decided at this stop. It exits when the night decides:
@@ -281,7 +281,7 @@ fi
 _felix_stop_skipped() {
   local sid state routename play tp
   [ -f "$PROJ/routes.tsv" ] || return 0
-  sid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  sid="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
   [ -n "$sid" ] || return 0
   state="$FELIX_HOME_DIR/state/route/$sid"
   [ -f "$state" ] || return 0
@@ -301,7 +301,7 @@ _felix_stop_skipped() {
   felix_route_state_guessed "$state" && return 0
   play="$(_felix_route_rows "$PROJ" | awk -F'\t' -v r="$routename" '$1==r{print $4}')"
   [ -n "$play" ] && [ "$play" != "-" ] || return 0
-  tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
   [ -n "$tp" ] && [ -f "$tp" ] || return 0
   felix_route_skipped "$tp" "$play"
 }
@@ -309,7 +309,7 @@ _felix_stop_skipped() {
 # A hook belonging to another plugin that refused tool calls this session.
 _felix_stop_blocks() {
   local tp rows n hook msg who
-  tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
   [ -n "$tp" ] && [ -f "$tp" ] || return 0
   rows="$(felix_guard_blocks "$tp")"
   [ -n "$rows" ] || return 0

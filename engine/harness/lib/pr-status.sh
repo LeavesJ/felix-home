@@ -127,7 +127,7 @@ _ps_lander() {   # NAME LANDDIR W
   case "$_PS_LEDGER" in
     read) _gt_last_row "$2/ledger.tsv"
           if [ -n "$_GT_LAST" ]; then
-            det="$det; last ledger row $(printf '%s\n' "$_GT_LAST" | LC_ALL=C awk -F'\t' '{ gsub(/\r/, " "); print $1 " " $2 ": " $7; exit }')"
+            det="$det; last ledger row $(printf '%s\n' "$_GT_LAST" | LC_ALL=C awk -F'\t' 'NR == 1 { gsub(/\r/, " "); print $1 " " $2 ": " $7 }')"
           else det="$det; last ledger row none"; fi ;;
     none) det="$det; last ledger row none" ;;
     *) det="$det; last ledger row not read" ;;

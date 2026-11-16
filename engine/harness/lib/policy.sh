@@ -56,7 +56,7 @@ _felix_policy_copy() {   # ROOT SHA PREFIX DEST
   [ -n "$objs" ] && [ -d "$objs" ] || return 1
   typ="$(git -C "$root" cat-file -t "$sha:$pre" 2>/dev/null </dev/null)" || return 1
   if [ "$typ" = blob ]; then
-    mode="$(git -C "$root" ls-tree "$sha" -- "$pre" 2>/dev/null </dev/null | LC_ALL=C awk '{ print $1; exit }')"
+    mode="$(git -C "$root" ls-tree "$sha" -- "$pre" 2>/dev/null </dev/null | LC_ALL=C awk 'NR == 1 { print $1 }')"
     case "$mode" in 100644|100755) ;; *) return 1 ;; esac
     mkdir -p "$(dirname "$dest")" || return 1
     git -C "$root" cat-file blob "$sha:$pre" > "$dest" 2>/dev/null </dev/null || return 1
@@ -392,7 +392,7 @@ felix_policy_instruments() {   # ROOT BASE
       [ -n "$w" ] || continue
       case "$nl$words$nl" in *"$nl$w$nl"*) continue ;; esac
       u="${w#\?}"
-      mode="$(git -C "$root" ls-tree "$sha" -- "$u" 2>/dev/null </dev/null | LC_ALL=C awk -F'\t' -v p="$u" '$2 == p { split($1, m, " "); print m[1] " " m[2]; exit }')"
+      mode="$(git -C "$root" ls-tree "$sha" -- "$u" 2>/dev/null </dev/null | LC_ALL=C awk -F'\t' -v p="$u" 'quit { next } $2 == p { split($1, m, " "); print m[1] " " m[2]; quit = 1; next }')"
       case "$mode" in "100644 blob"|"100755 blob") ;; *) continue ;; esac
       if [ "$u" != "$w" ]; then
         printf 'policy\tengine\ta command in the tables %s holds names %s where P'"'"'s copy cannot be put in its place, so the candidate'"'"'s own file would run as the instrument; write that command so %s is in command position and outside a substitution, group, case, wrapper or interpreter option (spec S2.1)\n' "$base" "$u" "$u"

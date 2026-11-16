@@ -120,7 +120,7 @@ _felix_ps_dir() { printf '%s/state/prompt-start' "$1"; }
 felix_prompt_start() {   # home, payload
   local sid dir
   _FELIX_PS_FILE=""
-  sid="$(printf '%s' "${2:-}" | LC_ALL=C sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  sid="$(printf '%s' "${2:-}" | LC_ALL=C sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
   _felix_hold_path "${1:-}" "$sid" >/dev/null 2>&1 || return 0
   dir="$(_felix_ps_dir "$1")"
   [ -d "$dir" ] || mkdir -p "$dir" 2>/dev/null || return 0

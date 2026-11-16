@@ -54,8 +54,8 @@ felix_authority_publish() {   # DIR|"" REPO|""
   refs="$(_fap_refs "$from")"
   k="$(printf '%s\n' "$refs" | LC_ALL=C awk 'index($2, "refs/heads/") == 1 { n++ } END { print n + 0 }')"
   [ "$k" -gt 0 ] || { _FA_WHY="$shown has no branch to publish"; return 1; }
-  main="$(printf '%s\n' "$refs" | LC_ALL=C awk '$2 == "refs/heads/main" { print $1; exit }')"
-  om="$(printf '%s\n' "$refs" | LC_ALL=C awk '$2 == "refs/remotes/origin/main" { print $1; exit }')"
+  main="$(printf '%s\n' "$refs" | LC_ALL=C awk 'quit { next } $2 == "refs/heads/main" { print $1; quit = 1; next }')"
+  om="$(printf '%s\n' "$refs" | LC_ALL=C awk 'quit { next } $2 == "refs/remotes/origin/main" { print $1; quit = 1; next }')"
   while IFS= read -r n; do [ -z "$n" ] || names[${#names[@]}]="${n#* }"; done <<EOF
 $refs
 EOF

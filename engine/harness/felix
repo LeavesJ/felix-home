@@ -912,7 +912,7 @@ cmd_gate() {
         "$(printf '%s\n' "$pout" | grep -cE '^  not-applicable +')"
     else
       printf '  %-18s FAIL\n' probes | tee -a "$log"
-      printf '%s\n' "$pout" | grep -vE '^  found ' | head -12 | sed 's/^/  /'
+      printf '%s\n' "$pout" | grep -vE '^  found ' | LC_ALL=C sed -n '1,12p' | sed 's/^/  /'
       # The project's gate has already printed its own verdict line, and if
       # that line said pass, the last thing a person reads would now be a pass
       # followed by a FAIL under it. One closing line restates the verdict so
@@ -995,7 +995,7 @@ cmd_gate() {
       local qwhy
       qwhy="$(printf '%s\n' "$qout" \
         | grep -E ' (HELD|UNRUNNABLE)$|^  .* MALFORMED  |^never shown failing in this checkout: |^felix: |^  .*: which controls it declares could not be read$|^only [0-9]+ of [0-9]+ declared control\(s\) ran|^no control is declared for |^No checker here is qualified|^declares no control that can be run' \
-        | head -8)"
+        | LC_ALL=C sed -n '1,8p')"
       [ -n "$qwhy" ] || qwhy='felix qualify --gate refused; run it to read why'
       printf '%s\n' "$qwhy" | sed 's/^/  /'
       [ "$rc" -eq 0 ] && printf '\ngate: FAIL (qualified)\n'
@@ -1025,10 +1025,10 @@ cmd_gate() {
       else
         printf '  %-18s ok\n' obligations | tee -a "$log"
       fi
-      printf '                     %s\n' "$(printf '%s\n' "$oout" | grep -E '^[0-9]+ obligation' | head -1)"
+      printf '                     %s\n' "$(printf '%s\n' "$oout" | grep -E '^[0-9]+ obligation' | LC_ALL=C sed -n 1p)"
     else
       printf '  %-18s FAIL\n' obligations | tee -a "$log"
-      printf '%s\n' "$oout" | grep -E 'UNSATISFIED|UNKNOWN|admits no|refused|does not declare|^  [a-z]' | head -8 | sed 's/^/  /'
+      printf '%s\n' "$oout" | grep -E 'UNSATISFIED|UNKNOWN|admits no|refused|does not declare|^  [a-z]' | LC_ALL=C sed -n '1,8p' | sed 's/^/  /'
       [ "$rc" -eq 0 ] && printf '\ngate: FAIL (obligations)\n'
       rc=1
     fi
@@ -1618,7 +1618,7 @@ cmd_quarantine() {
   command -v claude >/dev/null 2>&1 || die "felix quarantine needs the claude CLI"
 
   local id
-  id="$(felix_ready_inventory | awk -F'\t' -v n="$name" '$2==n{print $2; exit}')"
+  id="$(felix_ready_inventory | awk -F'\t' -v n="$name" 'quit { next } $2==n{print $2; quit = 1; next}')"
   [ -n "$id" ] || die "no installed plugin called $name. felix ready lists what is here."
 
   if claude plugin disable "$name" >/dev/null 2>&1 \
@@ -2002,7 +2002,7 @@ cmd_merge() {
       0) jentry="$jout" ;;
       3) _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base defines no felix_accepted_deploy_diff, so it cannot say whether the judge is main's engine" ;;
       2) _felix_merge_die "$dry" "$proj" "$branch" judge "cannot tell whether the judge is main's engine: $jout" ;;
-      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | paste -sd, -) — the cache entry ${kernel%/harness} differs from main's engine, so it does not judge, and felix install does not replace an entry that exists. Move ${kernel%/harness} aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR), or unset a cache override that points elsewhere." ;;
+      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | LC_ALL=C sed -n '1,3p' | paste -sd, -) — the cache entry ${kernel%/harness} differs from main's engine, so it does not judge, and felix install does not replace an entry that exists. Move ${kernel%/harness} aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR), or unset a cache override that points elsewhere." ;;
     esac
     [ "$kernel" -ef "$jentry/harness" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
     # A felix that is not the entry forms no verdict: the whole command goes to a copy of main's engine, which
@@ -2040,7 +2040,7 @@ cmd_merge() {
   # named: then it says so in one line instead.
   local instnote="" instwhy=""
   if felix_self_governed_at "$root" "$base"; then
-    instwhy="$(printf '%s\n' "$blockers" | LC_ALL=C awk -F'\t' '$1 == "base" || $1 == "moved" || $1 == "objects" || $1 == "policy" || $1 == "unknown" { print $1; exit }')"
+    instwhy="$(printf '%s\n' "$blockers" | LC_ALL=C awk -F'\t' 'quit { next } $1 == "base" || $1 == "moved" || $1 == "objects" || $1 == "policy" || $1 == "unknown" { print $1; quit = 1; next }')"
     if [ -n "$instwhy" ]; then
       instnote="P's instrument parts were not run: a blocker of kind $instwhy stands, which says the inputs they would be run over cannot be read as named."
     elif command -v felix_instrument_judge >/dev/null 2>&1; then
@@ -2274,7 +2274,7 @@ EOF
   [ -n "$subject" ] || subject="$(felix_pr_title "$root" "$base")"
   [ -n "$subject" ] || subject="$(git -C "$root" log -1 --format=%s HEAD 2>/dev/null)"
   [ -n "$subject" ] || subject="$branch"
-  subject="$(printf '%s\n' "$subject" | _felix_merge_unskip | head -1)"
+  subject="$(printf '%s\n' "$subject" | _felix_merge_unskip | LC_ALL=C sed -n 1p)"
   log="$(git -C "$root" log --reverse --no-merges --format='* %s%n%n%b' "$base..HEAD" 2>/dev/null \
          | LC_ALL=C awk 'NF { print; b = 0; next } !b { print; b = 1 }')"
   if [ -n "${jentry:-}" ]; then
@@ -3364,7 +3364,7 @@ cmd_toolbox() {
       # listed: it is a fact about the machine, not about this project.
       reach="no declared capability looks like it"; n_nocap=$((n_nocap+1)); show=0
     else
-      routes="$(felix_toolbox_route_for "$proj" "$cap" | head -1)"
+      routes="$(felix_toolbox_route_for "$proj" "$cap" | LC_ALL=C sed -n 1p)"
       if [ -z "$routes" ]; then
         reach="capability '$cap' is in no profile"; n_orphan=$((n_orphan+1))
       elif [ "$wire" -eq 1 ] && [ "$risk" != "high" ]; then
@@ -3791,7 +3791,7 @@ cmd_ready() {
   n_unused="$(printf '%s\n' "$unused" | grep -c . || true)"
   if [ "${n_unused:-0}" -gt 0 ]; then
     printf '\ninstalled here, never reached for by any route (%s)\n\n' "$n_unused"
-    printf '%s\n' "$unused" | head -24 | while IFS=$'\t' read -r k nm; do
+    printf '%s\n' "$unused" | LC_ALL=C sed -n '1,24p' | while IFS=$'\t' read -r k nm; do
       [ -n "${k:-}" ] || continue
       printf '  %-8s %s\n' "$k" "$nm"
     done
@@ -4528,7 +4528,7 @@ cmd_automerge() {
   if [ -z "$history" ]; then
     printf 'No green pull requests have merged yet.\n\n'
   else
-    printf '%s\n' "$history" | head -8 | while IFS=$'\t' read -r num state title; do
+    printf '%s\n' "$history" | LC_ALL=C sed -n '1,8p' | while IFS=$'\t' read -r num state title; do
       [ -n "${num:-}" ] || continue
       case "$state" in
         clean)   printf '  clean  #%-5s %s\n' "$num" "$title" ;;
@@ -4951,8 +4951,8 @@ cmd_incident() {
   [ -n "$slug" ] || die "no github remote; cannot open an issue"
   local body
   body="$(printf 'Severity: %s\n\n%s\n\n## Implicated files\n\n%s\n\n## Last touched by\n\n%s\n\n## Signal\n\n```\n%s\n```\n' \
-    "$sev" "$headline" "$paths" "$suspects" "$(printf '%s' "$text" | head -40)")"
-  if gh issue create --repo "$slug" --title "incident: $(printf '%s' "$paths" | head -1)" \
+    "$sev" "$headline" "$paths" "$suspects" "$(printf '%s' "$text" | LC_ALL=C sed -n '1,40p')")"
+  if gh issue create --repo "$slug" --title "incident: $(printf '%s' "$paths" | LC_ALL=C sed -n 1p)" \
        --body "$body" --label "$label" 2>/dev/null; then
     printf '\nissue opened\n'
   else
@@ -5496,7 +5496,7 @@ cmd_promote() {
     local hits; hits="$(felix_mem_promotable "$proj")"
     if [ -n "$hits" ]; then
       printf '\nrecurring in the devlog, absent from the lessons\n\n'
-      printf '%s\n' "$hits" | head -8 | while IFS=$'\t' read -r n term; do
+      printf '%s\n' "$hits" | LC_ALL=C sed -n '1,8p' | while IFS=$'\t' read -r n term; do
         [ -n "${n:-}" ] || continue
         printf '  %-4s %s\n' "$n" "$term"
       done

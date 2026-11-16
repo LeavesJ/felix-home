@@ -1090,7 +1090,7 @@ _felix_merge_refs() {
   rc=$?
   rm -rf "$g"; _felix_merge_untrap
   [ "$rc" -eq 0 ] || return 1
-  tree="$(printf '%s\n' "$tree" | head -1)"
+  tree="$(printf '%s\n' "$tree" | LC_ALL=C sed -n 1p)"
   case "$tree" in
     ""|*[!0-9a-f]*) return 1 ;;
   esac

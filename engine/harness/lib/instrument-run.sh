@@ -243,7 +243,7 @@ _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
       _felix_instr_rg "$root" "$r/t.idx" read-tree --prefix="$p/" "$b:$p" >/dev/null 2>&1 </dev/null || return 1
     done
     if [ -n "$gp" ] && s="$(_felix_instr_sha "$lb" "$gp")" && [ -n "$s" ]; then
-      m="$(printf '%s\n' "$lb" | LC_ALL=C awk -v p="$gp" '{ i = index($0, "\t") } i && substr($0, i + 1) == p { print $1; exit }')"
+      m="$(printf '%s\n' "$lb" | LC_ALL=C awk -v p="$gp" 'quit { next } { i = index($0, "\t") } i && substr($0, i + 1) == p { print $1; quit = 1 }')"
       _felix_instr_rg "$root" "$r/t.idx" update-index --add --cacheinfo "$m,$s,$gp" >/dev/null 2>&1 </dev/null || return 1
     fi
     _felix_instr_rgo t "$root" "$r/t.idx" write-tree || return 1

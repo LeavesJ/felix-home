@@ -117,7 +117,7 @@ _ts4u_cmp() {   # SRC COMMIT C: "same" when C holds engine/ alone at its top, ea
   paste "$x/files" "$x/ids" | LC_ALL=C awk -F'\t' -v a="$x/f700" -v b="$x/f600" 'BEGIN { while ((getline l < a) > 0) m[l] = 700; while ((getline l < b) > 0) m[l] = 600 }
     { print $1 "\t" (($1 in m) ? m[$1] : "other") "\t" $2 }' | LC_ALL=C sort > "$x/got"
   if ! cmp -s "$x/want" "$x/got"; then
-    printf 'differs: %s' "$(LC_ALL=C diff "$x/want" "$x/got" 2>/dev/null | LC_ALL=C awk '/^[<>]/ { printf "%s; ", $0; if (++n == 2) exit }' | _ts4_flat)"; return 1
+    printf 'differs: %s' "$(LC_ALL=C diff "$x/want" "$x/got" 2>/dev/null | LC_ALL=C awk 'quit { next } /^[<>]/ { printf "%s; ", $0; if (++n == 2) { quit = 1; next } }' | _ts4_flat)"; return 1
   fi
   [ "$(_ts4u_ls "$c")" = "engine " ] || { printf 'the top holds %s' "$(_ts4u_ls "$c")"; return 1; }
   n="$( ( cd "$c" && find engine ! -type f ! -type d -print ) 2>/dev/null | LC_ALL=C awk 'END { print NR }')"; [ "$n" = 0 ] || { printf '%s entries neither file nor directory' "$n"; return 1; }

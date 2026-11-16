@@ -269,6 +269,13 @@ TS4_ENV=(PATH="$TS4/ev3/bin:$TS4_PATH"); TS4H_V="$(_ts4h_e)"; chmod 755 "$TS4/ev
 _ts4_is "ts4 harden H11 (security review of d1eecab1): a link in a PATH directory that leads to nothing, into a directory every login can write, names that directory, and not once the mode is taken back" \
   "$(case "$TS4H_V" in (*"$TS4/ev3/a (a directory above the code)"*) printf 'named' ;; (*) printf 'not named: %s' "$TS4H_V" ;; esac), then $(case "$TS4H_W" in (*"$TS4/ev3/a "*) printf 'named' ;; (*) printf 'not named' ;; esac)" \
   "named, then not named" "$(_ts4_why)"
+# After the security review of e7056655 (not blind), shown red on e7056655 first: a link in a PATH directory that
+# points at a link, which sits in a directory every login can write: the middle hop's directory is read too.
+mkdir -p "$TS4/ev4/bin" "$TS4/ev4/m" "$TS4/ev4/t"; chmod 755 "$TS4/ev4" "$TS4/ev4/bin" "$TS4/ev4/t"; printf '#!/bin/sh\n' > "$TS4/ev4/t/prog"; chmod 755 "$TS4/ev4/t/prog"
+ln -s "$TS4/ev4/t/prog" "$TS4/ev4/m/l2" 2>/dev/null; ln -s "$TS4/ev4/m/l2" "$TS4/ev4/bin/prog" 2>/dev/null; chmod 777 "$TS4/ev4/m"
+TS4_ENV=(PATH="$TS4/ev4/bin:$TS4_PATH"); TS4H_V="$(_ts4h_e)"; chmod 755 "$TS4/ev4/m"; TS4H_W="$(_ts4h_after)"; TS4_ENV=()
+_ts4_is "ts4 harden H12 (security review of e7056655): a program in a PATH directory that is a link to a link in a directory every login can write names that directory, and is gone once the mode is taken back" \
+  "$TS4H_V, then $TS4H_W" "$(_ts4u_eline "$TS4/ev4/m (a directory above the code)" 1), then cd; none" "$(_ts4_why)"
 FELIX="$TS4H_F0"; TS4_SKIP=""
 
 _ts4u_end

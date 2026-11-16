@@ -203,7 +203,8 @@ _ae_sh() {   # WORD
 # E2. The git only root can change. On macOS /usr/bin/git runs the git xcode-select points at, which on this
 # Mac is inside /Applications, a directory the admin group writes; the Command Line Tools' git is root's.
 _ae_git() {
-  local d x o p pd sd=$'\n'
+  local d x o p l k sd=$'\n'
+  local -a lk=() tg=()
   if [ "$_AE_OS" = Darwin ]; then _AE_GIT=/Library/Developer/CommandLineTools/usr/bin/git; else _AE_GIT=/usr/bin/git; fi
   if [ ! -e "$_AE_GIT" ] && [ ! -L "$_AE_GIT" ]; then
     [ "$_AE_OS" != Darwin ] || _ae_no "there is no $_AE_GIT; the Command Line Tools provide it"
@@ -229,19 +230,27 @@ _ae_git() {
     && o="$("$_AE_FIND" -L "$x" \( ! -user 0 -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print 2>/dev/null)" && [ -z "$o" ] \
     && [ -z "$(_ae_acl "$x")" ] && [ -z "$(_ae_acl -L "$x")" ] || _ae_no "$_AE_GIT is not a git only root can change"
   # What each link under X points at, at every depth find -L reaches (a link inside a directory a link points at,
-  # too: review trust 5), by its physical path, for its entries (and its owner and mode once more); and the
-  # directory it sits in, as H1 reads G's: as itself, physical, and each directory above it (security review of
-  # d1eecab1: a login that can write one of them can put another file where the link leads). Each directory once.
-  while IFS= read -r o; do
-    [ -n "$o" ] && [ -L "$o" ] || continue
-    p="$(_ae_real "$o")" && [ -n "$p" ] && _ae_rootly "$p" || _ae_no "$_AE_GIT is not a git only root can change"
-    pd="${p%/*}"; [ -n "$pd" ] || pd=/
-    case "$sd" in *$'\n'"$pd"$'\n'*) continue ;; esac
-    sd="$sd$pd"$'\n'
-    _ae_chain "$pd"; _ae_rootly "${_AE_L[@]}" || _ae_no "$_AE_GIT is not a git only root can change"
-  done <<EOF
+  # too: review trust 5), by its physical path, for its entries (and its owner and mode once more); and, as H1
+  # reads G's, each hop of its chain and each directory above each hop: the walk starts at its first hop, and
+  # _ae_above follows every link it meets (security reviews of d1eecab1 and e7056655: a login that can write one
+  # of those directories can put another file, or another link, where the chain leads). Each first hop once, and
+  # one readlink reads every link (per link, the reads took seconds: 149 of the 201 paths under X are links).
+  while IFS= read -r o; do [ -n "$o" ] && [ -L "$o" ] && lk[${#lk[@]}]="$o"; done <<EOF
 $("$_AE_FIND" -L "$x" -print 2>/dev/null; "$_AE_FIND" "$x" -type l -print 2>/dev/null)
 EOF
+  [ ${#lk[@]} -eq 0 ] || while IFS= read -r l; do tg[${#tg[@]}]="$l"; done <<EOF
+$("$_AE_READLINK" -- "${lk[@]}" 2>/dev/null)
+EOF
+  [ ${#tg[@]} -eq ${#lk[@]} ] || _ae_no "$_AE_GIT is not a git only root can change"
+  for ((k = 0; k < ${#lk[@]}; k++)); do
+    o="${lk[$k]}"; l="${tg[$k]}"
+    [ -n "$l" ] || _ae_no "$_AE_GIT is not a git only root can change"
+    case "$l" in /*) ;; *) l="${o%/*}/$l" ;; esac
+    case "$sd" in *$'\n'"$l"$'\n'*) continue ;; esac
+    sd="$sd$l"$'\n'
+    p="$(_ae_real "$l")" && [ -n "$p" ] || _ae_no "$_AE_GIT is not a git only root can change"
+    _ae_chain "$l"; _ae_rootly "$p" "${_AE_L[@]}" || _ae_no "$_AE_GIT is not a git only root can change"
+  done
 }
 
 # H3 (0.49.354). Only this login can change HOME (read at its physical path), and only root or this login can

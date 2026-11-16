@@ -7,10 +7,10 @@ same day. The contract the tests were written from is in the memory root,
 named here. Engine version 0.49.351.
 
 **Revised the same day by the hardening change (0.49.354),** after two reviews of the code that landed, a
-review of the hardening's build, an automated security review of it, and a rehearsal of the new lines: where he reads the commit id (§2 step 1, §7 step 3), the lines he types (§2,
+review of the hardening's build, two automated security reviews of it, and a rehearsal of the new lines: where he reads the commit id (§2 step 1, §7 step 3), the lines he types (§2,
 §7 step 4), what `authority-engine` and `publish` read before they trust a path (§2, after the chain), what
 condition e reads (§4), and what is left open (§8). Its contract is
-`audits/2026-11-16-trust-step4-setup-hardening/spec.md` (revision 3).
+`audits/2026-11-16-trust-step4-setup-hardening/spec.md` (revision 4).
 
 **Scope.** Step 3 of slice 1's §8 has the founder run `felix authority init` as the authority's login "with a
 copy of the engine and a `PATH` that no worker's login can write", naming a source and a lock. Slice 1 left
@@ -122,11 +122,17 @@ program, and the lock with its directory. It now reads:
 | C1 | Every path under the engine's root, at every depth, and the root itself | The lock program and the witness the launchers run are under it |
 | C2 | The directory `git --exec-path` prints, for the git first on `PATH`, read as a `PATH` directory is | On this Mac `/usr/bin/git` runs Xcode's git, whose programs are under `/Applications` (root, group admin, mode 775), and the founder's login is in admin |
 | C3 | Each directory above those, along the path as written, along its physical path, and along each hop of a link met on the way (0.49.354). One offends when a worker owns it, when every login or a worker's group can write it without the sticky bit, or when it carries an access-control entry that allows | A worker who can rename a directory above the code can replace the code |
-| A link's target | What each link under the engine's root, and each link directly in a `PATH` directory, points at: read by its physical path for an access-control entry that allows, and each directory above it read as C3 reads them. A link that leads to nothing is read as a path not there yet (0.49.354) | macOS `ls -lLde` prints a link's own entries, not its target's; a worker who can write where a link leads chooses what runs |
+| A link's target | What each link under the engine's root, and each link directly in a `PATH` directory, points at: read for an access-control entry that allows, and each hop of the chain and each directory above each hop read as C3 reads them. A link that leads to nothing is read as a path not there yet (0.49.354) | macOS `ls -lLde` prints a link's own entries, not its target's; a worker who can write where a link, or a link it leads to, sits chooses what runs |
+| C3, a child no login can remove | On macOS, a directory above the code does not offend when each of its children on the code's paths carries `sunlnk` or `schg` (flags only root can clear), or `restricted` while System Integrity Protection is on (0.49.354) | As with the sticky bit, writing the directory then adds entries but cannot replace the one the code is reached through. `/System/Volumes/Preboot/Cryptexes` is mode 777, and what `/usr/bin/safaridriver` reaches through it carries `sunlnk` (read 2026-11-16) |
 | C3, not there | A `PATH` entry, the exec-path directory or the lock's directory that is not a directory yet: the deepest directory above it that is there offends when a worker owns or can write it, sticky bit or not. A link on the way that leads to no directory offends itself. A lock that is a link offends | A worker who can make the missing directory, or the thing a link points at, chooses what runs |
 
 With the system's `PATH`, which the launchers set, the Command Line Tools' git comes first and its directories
 are root's, so the Xcode route is not taken. The rule is there for a `PATH` that is not the launchers'.
+
+On this Mac, on 2026-11-16, condition e on the system's `PATH` named nothing and took 0.55 to 0.65 s (main:
+0.25 s). A build of this change that read each link one at a time took 3 to 5 s, and one that walked above link
+targets without the flag rule named `/System/Volumes/Preboot/Cryptexes`, which would have kept the authority out
+of `live` on this Mac.
 
 ## 5. The review, and what changed because of it
 
@@ -192,7 +198,9 @@ and above, the four directories and a copy in place by owner, entries where `ls`
   the one is refused by the other with the same line; and a link under the git's helper directory whose
   target, or a directory above it, is not root's has no fixture, since staging one there needs root. A walk
   that meets more than 40 links is refused rather than passed over; no fixture reaches it, since this Mac stops
-  resolving a path after 32 links (read on 2026-11-16: a chain of 32 resolved, one of 33 did not).
+  resolving a path after 32 links (read on 2026-11-16: a chain of 32 resolved, one of 33 did not). No fixture
+  sets `sunlnk` or `schg`, which needs root; §4's flag rule is shown on macOS by each assertion that reads
+  condition e as naming nothing with `/usr/bin` on `PATH`.
 
 **A rehearsal of the founder's steps 3 and 4,** under his own login in scratch (the script and its output are in
 the audit folder, `logs/`): `publish` to a scratch drop, 46 MB and 220 branches; the six lines §7 held then, run by
@@ -268,6 +276,7 @@ The items found so far.
 | `/etc/paths.d/homebrew` puts a directory a worker can write on every login's `PATH` | His; the launchers do not depend on it |
 | Upgrading the authority's engine: the eight lines stop at a `~/.felix` already there, so an upgrade needs steps of its own; nothing tells him one is due | A later slice |
 | A worker holds GitHub write access through his login's token (Felix merges with it), so GitHub does not say which merges were his: step 3 rests on the number he fixed (0.49.354) | The trust plane's signer |
+| What the flag rule of §4 trusts: that `sunlnk` and `schg` are root's alone to clear, and that `restricted` binds while System Integrity Protection is on, as `csrutil status` says (0.49.354) | Before live, with the reach test |
 | What the eight lines rely on before `authority-engine` reads anything: the git they name, its helper programs, and the authority's `HOME`, as they are when he types them. `authority-engine`'s reads of the git passed on this Mac on 2026-11-16, under the founder's login | His, before step 4 |
 | A lock on a system that is not macOS | When one is needed |
 | What the lock call does on a later macOS. Exit 0 rests on the reading, so a missing call reads `NOT LOCKED` | Read on each macOS before relying on it |

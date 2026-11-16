@@ -1,0 +1,25 @@
+### 2026-11-16: a pipe's reader reads to the end, so no writer is cut off mid-list (0.49.353)
+
+**Scope.** Pipes in `engine/harness` (felix, lib, bin, hooks, tests/run, tests/lib) whose reader left before its input ended, where the reader was an awk that exits outside END, a `head` fed by shell code, or the suite library's one piped `grep -q`. The contract is `docs/2026-11-16-pipe-readers-contract.md` (rev 3, PR1 to PR8). Program-fed `head`s and the other early readers found in the sweep are under Open and are not changed.
+
+**Why.** On 2026-11-16 CI run 43865092616 (PR #518) failed part 1870's A16, which counts any output naming the judging copy `felix-merge-main.*`. The output held `.../lib/instrument.sh: line 83: printf: write error: Broken pipe`. `_felix_instr_sha` piped a whole tree listing into an awk that left at its first match. Past a pipe's 64 KB with the match early, printf's next write failed. With SIGPIPE ignored, as on the Actions runner, bash printed that line and the pipeline's status under pipefail was 1. At the default it was 141. On this Mac a 604 KB listing with the match first did each, run once per disposition. Part 1870 alone passed, because the listing's size and the match's place vary.
+
+**What changed.**
+- 31 awks reached through a pipe that exited outside END now read to the end. Each takes a first rule `quit { next }`, and each main-rule exit becomes `quit = 1; next`, so END sees the state it saw. Where the exit read the first line only, the rule is `NR == 1`; `bin/schema-check` uses its own `found`. Among them: the judge's three listing readers (lib/instrument.sh, instrument-run.sh, instrument-verdict.sh); the land tick's `_gt_detail`, `_gt_class` and `_gt_age`; the CI verdict in `_felix_merge_gate_held`; the grant readers in exceptions.sh; three in bin/authority-engine, which runs awk as `"$_AE_AWK"`; and two in tests/lib.
+- One keeps its exit: the 2,000-file cut in lib/inventory-orphans.sh's find loop. It cuts off `find` and `/usr/bin/printf` only, never shell code. A comment says so, and part 2501's lint holds it by name.
+- 45 `head`s fed by shell code (a printf of a variable, a function or a loop before them) now read to the end. They are `LC_ALL=C sed -n 1p` or `'1,Np'`, or `{ head -"$N"; cat >/dev/null; }` where N is a variable: felix 12, lib 13, bin 2, hooks 16, tests/lib 2.
+- tests/lib/audit.sh's piped `grep -qiE` reads a here-string. Part 0960's comment names part 2501 as the awk lint.
+
+**Measured.** The runs below were on this Mac, outside the suite, while another session held it for a suite.
+- Byte-identity: each old and new awk program over 500 generated inputs, plus shaped inputs for the CI verdict (400), `_gt_class` (400), `_gt_age` (200) and the three authority-engine readers (300 to 800). No difference in stdout or status. Against both replacements, `head -N` gave no difference in 10,400 comparisons (N from 1 to 40, inputs with and without a final newline). Part 1497's gawk-name lint reads 429 programs and names none.
+- Part 2500 (written blind from rev 1, 50 assertions): main's engine 42 ok, 8 FAIL; the first fix 50 ok. Four mutants, each with one fix undone, failed 5, 3, 1 and 1, each naming its site.
+- Three adversarial reviewers (byte-identity, completeness, test quality) found no blocker. They found two missed awks in bin/authority-engine, three matcher gaps, and a false claim in the allowance's reasoning. A second blind author amended the part from rev 3 and found the third authority-engine awk (line 157).
+- Parts 2500 and 2501 (rev 3, 34 and 24 assertions): main's engine 27 ok and 7 FAIL, and 23 ok and 1 FAIL. The one 2501 FAIL is the scan, naming 31 lines past the allowance. The fixed tree passes 34 and 24.
+- The record, the gate and the merge dry run are in the pull request.
+
+**Open.**
+- Program-fed `head`, about thirty sites (`sed -n ... FILE | head -1`, `git ... | head`, `find ... | head -n 1`, `git cat-file blob | head -c 8000`). Under SIGPIPE ignored, a GNU tool among them prints its own write error where its stderr is not redirected.
+- `cmp -s -` fed by a pipe (lib/discover.sh, lib/memory.sh). `read` in a group fed by a pipe (lib/commission.sh's ask). `while read` loops fed by a pipe that break or return, which were not swept.
+- The allowance's find loop: where SIGPIPE is ignored, the cut does not bound its walk, and its unreadable count reads directories past the cut that the default would not reach.
+- A lint for the shell-fed `head` and `sed q` shapes; part 0960's grep scan over tests/lib and tests/run; awk programs held in variables or files, which the lint does not read.
+- Whether CI should run with SIGPIPE at its default. The engine runs on hosts that ignore it, so the code is what was fixed.

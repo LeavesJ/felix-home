@@ -416,6 +416,8 @@ fi
 . "$HERE/parts/2190-trust-step4-setup-publish-blind.sh"
 . "$HERE/parts/2191-trust-step4-setup-engine-copy-blind.sh"
 . "$HERE/parts/2192-trust-step4-setup-lock-and-e-blind.sh"
+. "$HERE/parts/2193-trust-step4-setup-hardening-engine-blind.sh"
+. "$HERE/parts/2194-trust-step4-setup-hardening-publish-and-e-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

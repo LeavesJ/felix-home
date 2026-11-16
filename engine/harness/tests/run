@@ -437,6 +437,7 @@ fi
 . "$HERE/parts/2470-situations-review-focus-blind.sh"
 . "$HERE/parts/2480-deploy-window-blind.sh"
 . "$HERE/parts/2490-git-cannot-run-blind.sh"
+. "$HERE/parts/2500-pipe-readers-read-to-the-end-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 # The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion
@@ -474,8 +475,7 @@ if [ "$FELIX_TEST_RECORD" -ne 1 ] && [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; t
 elif [ -f "$FELIX_TEST_MANIFEST" ]; then
   # Emitted through bad(), so these are `  FAIL` lines, the one channel to a CI log with no workflow change: projects/felix/gate.sh prints a passing suite's last line, greps ^  FAIL on failure; .github/workflows is an escape channel no project can demote.
   _missing=0
-  # Read from the files, not through awk -v, which processes backslash escapes, so a name holding one could never equal itself
-  # (tests/red; part 0770). One pass: see _manifest_short.
+  # Read from the files, not through awk -v, which processes backslash escapes, so a name holding one could never equal itself (tests/red; part 0770). One pass: see _manifest_short.
   while IFS=$'\t' read -r want got name; do
     bad "assertion did not run: $name" "expected it $want time(s), reached it $got"
     _missing=$((_missing+1))

@@ -215,7 +215,7 @@ $1
 EOF
 }
 _fa_code_offenders_raw() {
-  local d w rest g u x p q e="${SCRIPT_DIR:-/nonexistent}" r ifs="$IFS" seen=$'\n'
+  local d w rest g u x p q e="${SCRIPT_DIR:-/nonexistent}" r ifs="$IFS" seen=$'\n' nf
   local -a a=() dirs=() grp=() own=() ups=() upl=() wr=() m=() mq=()
   r="${FELIX_ROOT:-${e%/*}}"; [ -n "$r" ] || r=/
   if [ -n "$_FA_LOCK" ]; then
@@ -226,7 +226,10 @@ _fa_code_offenders_raw() {
     [ ! -L "$_FA_LOCK" ] || printf '%s\n' "$_FA_LOCK (a lock that is a link: it runs wherever the link points)"
   fi
   case ":${PATH:-}:" in *::*) printf '%s\n' "PATH (an empty entry: the directory the command is run from)" ;; esac
-  IFS=:
+  # H6 (0.49.354, review): each entry as written, with globbing off, since the shell runs programs from /x/[b]in
+  # itself and not from the /x/bin a glob would read. The shell's glob setting is put back as it was.
+  case "$-" in *f*) nf=1 ;; *) nf=0 ;; esac
+  set -f; IFS=:
   for d in ${PATH:-}; do
     case "$d" in
       "") ;;
@@ -234,7 +237,7 @@ _fa_code_offenders_raw() {
       *)  printf '%s\n' "PATH (an entry that is not absolute: $d)" ;;
     esac
   done
-  IFS="$ifs"
+  IFS="$ifs"; [ "$nf" = 1 ] || set +f
   # C2. The git that runs is the first on PATH, so it is asked, with --exec-path its first word. Printing nothing,
   # failing, or naming no directory adds nothing: a git that cannot run runs nothing from there.
   x="$(git --exec-path 2>/dev/null)" || x=""

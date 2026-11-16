@@ -6,6 +6,10 @@ same day. The contract the tests were written from is in the memory root,
 `audits/2026-11-16-trust-step4-authority-setup/spec.md` (revision 3), with the review and the log of each run
 named here. Engine version 0.49.351.
 
+**Revised the same day by the hardening change (0.49.354),** after two reviews of the code that landed: where
+he reads the commit id (§2 step 1, §7 step 3), and what `authority-engine` and `publish` read before they trust
+a path (§2, after the chain). Its contract is `audits/2026-11-16-trust-step4-setup-hardening/spec.md`.
+
 **Scope.** Step 3 of slice 1's §8 has the founder run `felix authority init` as the authority's login "with a
 copy of the engine and a `PATH` that no worker's login can write", naming a source and a lock. Slice 1 left
 three of those open in its §7: which copy of the engine that login runs, a source it can read, and a program
@@ -36,7 +40,7 @@ lock that step 3 needs?": "Yes, build them". His login for the authority, `autho
 
 | Piece | Where | What it does |
 |---|---|---|
-| The drop | `lib/authority-publish.sh`, `felix authority publish [--to DIR] [--from REPO]` | Writes one git bundle of the repository's branches and its `origin/main` to `DIR/source.bundle` (default `/Users/Shared/felix-authority`), readable by another login, and prints the commit `origin/main` names. A worker's login runs it |
+| The drop | `lib/authority-publish.sh`, `felix authority publish [--to DIR] [--from REPO]` | Writes one git bundle of the repository's branches and its `origin/main` to `DIR/source.bundle` (default `/Users/Shared/felix-authority`), readable by another login, and prints the commit its `origin/main` names: a worker's word, not the id to type (§7 step 3). A worker's login runs it |
 | The engine copy | `bin/authority-engine COMMIT [SOURCE]` | Run by the authority's login. Fetches the drop with the root-owned git, checking each object, copies the engine of COMMIT file by file from git's objects into `~/.felix/engine/COMMIT`, and writes three launchers in `~/.felix/bin` that run that copy with an empty environment and the system's `PATH` |
 | The lock | `bin/lock-macos [--status]` | Locks this login's session through the system's lock call, then reads whether it is locked; exit 0 only on that reading. `--status` reads alone |
 | Condition e | `lib/authority.sh` | Reads the whole engine, the directory the running git's programs come from, and each directory above any of these (§4) |
@@ -49,8 +53,10 @@ caller, the user or the system.
 
 The chain, from his desktop to the authority's:
 
-1. At his desktop, `felix authority publish` writes the bundle and prints `origin-main:`, the commit his
-   checkout's `origin/main` names.
+1. At his desktop, `felix authority publish` writes the bundle. On his phone he reads the id he will type: the
+   "merged commit" of the pull request he released. `publish` also prints `origin-main:`, the commit his
+   checkout's `origin/main` names, and that is not the id. A worker can move that ref with no push, and can
+   write to any window of his login, so a number read on this Mac under his login is a worker's to choose.
 2. At the authority's desktop he types six lines (§7). Each program in them is named by a path root owns
    (`/Library/Developer/CommandLineTools/usr/bin/git`, `/bin/mkdir`, `/usr/bin/env`, `/bin/bash`), so none is
    looked up on the `PATH`. The authority's own `PATH` holds `/opt/homebrew/bin`, which the founder's login
@@ -63,8 +69,17 @@ The chain, from his desktop to the authority's:
    from the blob that commit names. A path that is a link or a submodule, or one this file system would fold
    into another, is refused. An existing copy is read for a match and otherwise left as it is.
 
-So the bytes the authority runs are the bytes of the commit id he typed: a worker can put any bundle in the
-drop, and the most it can do is make the fetch or the copy fail. Each later run goes through the launchers:
+So the bytes the authority runs are the bytes of the commit id he typed, and that id is his because he read it
+where no login of this Mac can write. A worker can put any bundle in the drop, and the most it can do is make
+the fetch or the copy fail.
+
+Before the copy, `authority-engine` reads what it relies on (0.49.354). Only root can change the git, each
+directory above it, the directory that git runs its helper programs from, each directory above that, and every
+program in it: the Command Line Tools' git finds its helpers from where its own file is, which a hard link to it
+in a folder of the founder's showed. Only the authority's login can change its `HOME` and the four directories
+it writes in, and each directory above `HOME` is root's or that login's, or sticky. A copy already in place
+must be that login's too. `publish` writes only in a directory that is its login's alone, under directories
+that are root's or its login's or sticky, so that no other login can put a link where the bundle is written. Each later run goes through the launchers:
 `~/.felix/bin/felix`, `~/.felix/bin/reach-witness` and `~/.felix/bin/lock`, each three lines that name the
 commit and run the copy with an empty environment, `HOME`, the login's name, `TERM`, the system's `PATH` and
 `DEVELOPER_DIR` set to the Command Line Tools.
@@ -162,11 +177,13 @@ a second Public folder, `/Users/jarrondeng/Public`, a path not on this Mac now. 
 that login: remove the first share at least. Remote Login and Screen Sharing admit admins, and the authority is
 not one (the founder's login is; §8).
 
-**Step 3. At his own desktop,** in his checkout of this repository, after `git fetch`:
-`felix authority publish`. Note the 40 characters after `origin-main:`.
+**Step 3. The commit, and the drop.** On his phone, not this Mac: open the pull request he released last and
+read the 40 characters of its "merged commit". That is COMMIT. Then at his own desktop, in his checkout of this
+repository, after `git fetch`: `felix authority publish`. Do not take COMMIT from what it prints after
+`origin-main:`, or from any window of his own login: a worker can make either say any commit.
 
 **Step 4. At the authority's desktop,** in Terminal, typing each line as it stands, with COMMIT (twice) the
-40 characters from step 3. The fifth line ends with `|`, and the shell waits for the sixth:
+40 characters read on his phone in step 3. The fifth line ends with `|`, and the shell waits for the sixth:
 
 ```
 umask 077; G=/Library/Developer/CommandLineTools/usr/bin/git
@@ -205,3 +222,4 @@ The items found so far.
 | What the authority's Terminal runs as its shell starts: that login's own startup files and the system's. Its home held none of its own when read on 2026-11-16; one added later, such as a line that runs Homebrew's setup, would run from a directory a worker can write | His, before step 4; with the reach test |
 | Remote Login enabled, with admins admitted: the founder's login is an admin | His, with the reach test |
 | Slice 1's §7, less the three items this slice builds | As slice 1 says |
+| A signature on the commit he names, checked by the bootstrap against a key only he holds, so the id is checked and not only read on his phone (0.49.354) | The trust plane's signer; a key is his to make |

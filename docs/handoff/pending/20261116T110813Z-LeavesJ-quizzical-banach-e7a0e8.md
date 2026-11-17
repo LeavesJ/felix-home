@@ -23,7 +23,7 @@ Each part of the slice and of slice 1 passes alone. The gate and the PR follow t
 
 **The founder's acts,** all his, none done by merging: finish the login (password, fingerprint); the sharing
 settings (the authority's Public folder is shared with guest access); after this lands, `felix authority
-publish` at his desktop; the six lines of the document's §7 at the authority's Terminal with the printed
+publish` at his desktop; the six lines of the document's §7 (eight since 0.49.354, whose section replaces these acts) at the authority's Terminal with the printed
 commit, then the `next:` line with `--workers a14808`; restart, the first start at the console, the reach test,
 its pass or fail at the console.
 

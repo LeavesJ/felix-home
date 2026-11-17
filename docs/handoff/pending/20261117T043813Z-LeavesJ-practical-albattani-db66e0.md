@@ -48,7 +48,15 @@ nothing.
 
   Each such round exited 2. The part's first run had misread every pid, through a `sed -n '1s/…//gp'` that prints only
   when it substitutes. That was fixed in 001e698a before the red counts above.
-- The part's run on the fixed engine, the review, the record, the gate and the merge dry run: in the pull request.
+- The adversarial review (Opus, read only) found no blocker. Its eight notes led to contract rev 2:
+  - IR2's bound is 20 attempts, since no code bounded rev 1's 3 s;
+  - IR4 now says which paths are made 0700;
+  - IR3's order is asserted;
+  - each race must show it collided;
+  - no wait in the part is unbounded.
+
+  The part was amended blind from rev 2.
+- The part's run on the fixed engine, the record, the gate and the merge dry run: in the pull request.
 
 **Open.**
 - Other `File::Path` callers in the engine. One is `_felix_instr_tcpl`'s scratch directory, which one process owns.
@@ -57,5 +65,14 @@ nothing.
   would happen when `_FELIX_BIND_OWNER` differs from `_FELIX_INSTR_OWNER`. That was not ruled out here.
 - bind.sh's own EXIT trap removes the copy with `rm -rf`. Whether anything else removes it at the same moment was not
   read.
-- A removal that fails without croaking (a file the user cannot unlink) now costs up to 2 s a path before the program
-  gives up. Before, it gave up at once.
+- A removal that fails without croaking now costs up to 20 attempts on that path before the program gives up. One
+  example is a file a unit marked immutable with `chflags uchg`. Each attempt walks the tree again, and there are up
+  to 2 s of pauses besides. Before, the program gave up after one walk. Nobody waits on these processes after a KILL,
+  and the bind copy now goes first, so it is not delayed.
+- `_rmeach` checks a path is a directory and not a link, then chmods it by path, so a same-user unit that swaps the
+  path for a link in between gets the chmod applied to the link's target. The watchdog already did this. The
+  supervisor now does it on five paths, where before it chmodded UP once. That gives such a unit nothing it could not
+  already do, and it cannot cause a removal.
+- On CI (ubuntu-26.04), the review reasoned, without measuring, that a walk out of a removed directory follows its
+  parent and does not croak. If so, part 2510's arming skips its race assertions there. A regression of the fix would
+  then show only on this Mac.

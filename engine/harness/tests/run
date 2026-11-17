@@ -23,8 +23,7 @@ esac
 exec </dev/null
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
-# REAL_HARNESS must name a harness before anything reads or copies it (part 0203: the two runs of 2026-10-08 that did not).
-# A section runner sets its own REAL_HARNESS after the line above, wherever that line is.
+# REAL_HARNESS must name a harness before anything reads or copies it (part 0203: the two runs of 2026-10-08 that did not). A section runner sets its own REAL_HARNESS after the line above, wherever that line is.
 if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HARNESS/lib" ]; then
   printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
   exit 2
@@ -437,6 +436,7 @@ fi
 . "$HERE/parts/2470-situations-review-focus-blind.sh"
 . "$HERE/parts/2480-deploy-window-blind.sh"
 . "$HERE/parts/2490-git-cannot-run-blind.sh"
+. "$HERE/parts/2510-instrument-removers-race-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 # The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion

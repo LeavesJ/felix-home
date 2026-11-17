@@ -74,8 +74,7 @@ while :; do case "${1:-}" in
   *)                   break ;;
 esac; done
 [ "$_rcp_reuse$FELIX_TEST_RECORD" = 11 ] && { printf 'tests/run: --reuse and --record-assertions do not go together\n' >&2; exit 2; }
-# The receipt (receipt.sh): --reuse answers from the last passed run on this tree, or runs. A red run and a part run load none:
-# FELIX_TEST_NO_MANIFEST and part mode are tested first: red stands in the base's tree, whose own receipt.sh would otherwise load.
+# The receipt (receipt.sh): --reuse answers from the last passed run on this tree, or runs. A red run and a part run load none: FELIX_TEST_NO_MANIFEST and part mode are tested first: red stands in the base's tree, whose own receipt.sh would otherwise load.
 _rcp_on=0; _rcp_cmp=0; _rcp_judged=0; _rcp_why=""
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then _rcp_why="this is a red run"
 elif [ -n "${_pm1:-}" ]; then _rcp_why="this is part mode"
@@ -476,8 +475,7 @@ if [ "$FELIX_TEST_RECORD" -ne 1 ] && [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; t
 elif [ -f "$FELIX_TEST_MANIFEST" ]; then
   # Emitted through bad(), so these are `  FAIL` lines, the one channel to a CI log with no workflow change: projects/felix/gate.sh prints a passing suite's last line, greps ^  FAIL on failure; .github/workflows is an escape channel no project can demote.
   _missing=0
-  # Read from the files, not through awk -v, which processes backslash escapes, so a name holding one could never equal itself
-  # (tests/red; part 0770). One pass: see _manifest_short.
+  # Read from the files, not through awk -v, which processes backslash escapes, so a name holding one could never equal itself (tests/red; part 0770). One pass: see _manifest_short.
   while IFS=$'\t' read -r want got name; do
     bad "assertion did not run: $name" "expected it $want time(s), reached it $got"
     _missing=$((_missing+1))

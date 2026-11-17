@@ -167,9 +167,9 @@ The rule is that a gate that cannot fail is not a gate.
 - **Each race collided (rev 2).** The arming above shows the host can collide; it does not show that a race's rounds
   did. So each race (IR2, IR3, IR4) also counts its rounds in which the other remover's own plain removal died. A race
   with no such round in its rounds has its assertions skipped by name, saying no round of it collided, rather than
-  passed. On a host where a walk out of a removed directory does not fail (by the review's reading, not measured, Linux, which
-  follows a removed directory's parent), the
-  arming skips the races; that is expected there, and the races are read on this Mac.
+  passed. On a host where a walk out of a removed directory does not fail (by the review's reading, not measured,
+  Linux, which follows a removed directory's parent), the arming skips the races; that is expected there, and the
+  races are read on this Mac.
 - **No wait without a limit (rev 2).** Every wait the part makes ends within a stated time, and a round whose tree
   cannot be made is a failure of that round, not a hang.
 - **Cost.** The part stays within about 90 s on this Mac, keeps everything under the suite's `$TMP`, and leaves no

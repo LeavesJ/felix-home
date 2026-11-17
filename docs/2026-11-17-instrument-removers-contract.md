@@ -1,4 +1,4 @@
-# Contract: the judge's removers each finish, whatever the other is doing (rev 1, 2026-11-17)
+# Contract: the judge's removers each finish, whatever the other is doing (rev 2, 2026-11-17)
 
 **Scope.** This contract covers the two perl programs in `engine/harness/lib/instrument-run.sh` that remove a
 judgement's directories after the judge is gone. One is the watchdog (`_felix_instr_wdpl`, started by
@@ -81,13 +81,15 @@ The arguments are `PARENT FROM TO KEEP PATH...`.
 
 After the watchdog exits, none of its PATHs is left. This holds when another process removes any of them, or anything
 under them, at the same time, and in whatever order the PATHs were given, as long as that process stops removing
-within the attempts below (about 3 s on one PATH). It also exits 0.
+within the attempts below. It also exits 0.
 
 How:
 - Each PATH is removed on its own.
 - A removal that dies is caught. The program changes back to `/` and removes that PATH again.
 - An attempt can die, or end without dying while the path is still there. Either way the program pauses about 0.1 s
-  and tries again: at least 10 attempts, and at most about 3 s on one PATH.
+  and tries again: at least 10 attempts and at most 20 on one PATH. The pauses are bounded at about 2 s a PATH; each
+  attempt's own walk of the tree comes on top (rev 2: rev 1 said "at most about 3 s", which no code bounds, since a
+  tree a unit made unremovable is walked again on each attempt).
 - Then it goes on to the next PATH.
 - A PATH that is already gone costs nothing.
 
@@ -113,6 +115,10 @@ What can be seen: a bash shell sources `lib/instrument-run.sh`, sets those varia
 `_felix_instr_watch`, and is KILLed while another process removes J. Within a few seconds, none of BD, BD.list, J, R,
 UP and HP is left. BD's loose objects and packs (except `pack/KEEP.*`) are in `_FELIX_BIND_HOME`, as IR1 moves them.
 
+The order can be seen too (rev 2), with no other remover: over a J large enough that its removal takes a while, a
+shell KILLed after `_felix_instr_watch` reaches a moment where BD and BD.list are gone while J is still there. Passed in
+the old order (J first), BD stays until J is gone.
+
 ## IR4. The supervisor's judge-gone path removes each of its directories
 
 Interface (unchanged): the arguments are `PARENT LIMIT LOG GROUP-FILE J R U UP HP COMMAND...`.
@@ -124,8 +130,9 @@ Interface (unchanged): the arguments are `PARENT LIMIT LOG GROUP-FILE J R U UP H
 - When LIMIT seconds pass, it ends the group and exits 124.
 - On TERM, HUP, INT or QUIT, it ends the group and exits 125. None of these three paths removes anything.
 - To end a group, it sends TERM, waits up to about 1 s, then sends KILL.
-- **The judge-gone path:** `getppid() != PARENT`. The supervisor ends the group, changes to `/`, makes UP mode 0700,
-  removes J, R, U, UP and HP, and exits 125.
+- **The judge-gone path:** `getppid() != PARENT`. The supervisor ends the group, changes to `/`, removes J, R, U, UP
+  and HP, and exits 125. Each directory PATH is made mode 0700 just before its removal, a symbolic link excepted (rev 2:
+  rev 1 said UP alone was made 0700 first, as the old code did, through a link too).
 
 IR4 itself: on the judge-gone path, each of J, R, U, UP and HP is removed on its own, as IR2 removes a PATH. After the
 supervisor exits 125, none of the five is left, when another process removes J, or any of the five, at the same time,
@@ -142,7 +149,7 @@ not 125.
   every round.
 - A supervisor whose PARENT lives removes nothing. A unit that ends normally gives its status, and nothing is removed.
 - A symbolic-link PATH is removed as a link. Its target and what the target holds stay.
-- Each program removes only its PATHs and what is under them.
+- Each program removes only its PATHs and what is under them, in the race rounds as in the others.
 
 ## IR6. What the part must show before it believes a pass
 
@@ -157,5 +164,13 @@ The rule is that a gate that cannot fail is not a gate.
 - **Rounds.** At least 20 rounds for each program. The race assertions count rounds in which anything is left. On the
   engine this contract was cut from (main debec2c3, 0.49.352), the watchdog's count is above 0. The supervisor's is
   expected to be above 0 too, and the red run records whether it is.
+- **Each race collided (rev 2).** The arming above shows the host can collide; it does not show that a race's rounds
+  did. So each race (IR2, IR3, IR4) also counts its rounds in which the other remover's own plain removal died. A race
+  with no such round in its rounds has its assertions skipped by name, saying no round of it collided, rather than
+  passed. On a host where a walk out of a removed directory does not fail (by the review's reading, not measured, Linux, which
+  follows a removed directory's parent), the
+  arming skips the races; that is expected there, and the races are read on this Mac.
+- **No wait without a limit (rev 2).** Every wait the part makes ends within a stated time, and a round whose tree
+  cannot be made is a failure of that round, not a hang.
 - **Cost.** The part stays within about 90 s on this Mac, keeps everything under the suite's `$TMP`, and leaves no
   process behind.

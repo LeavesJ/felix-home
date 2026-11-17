@@ -56,7 +56,23 @@ nothing.
   - no wait in the part is unbounded.
 
   The part was amended blind from rev 2.
-- The part's run on the fixed engine, the record, the gate and the merge dry run: in the pull request.
+- Part 2510 at rev 2 (22 assertions), run alone, one engine after another, on battery under `caffeinate`, at load
+  about 5:
+
+  | Engine | Result | Time |
+  | --- | --- | --- |
+  | Fixed (this branch) | 22 ok | 118 s |
+  | Main's lib (0.49.352) | 16 ok, 6 FAIL | 64 s |
+  | Mutant: bind copy passed last again | 21 ok, 1 FAIL | 65 s |
+  | Mutant: removal not in `eval` | 17 ok, 5 FAIL | 106 s |
+  | Mutant: no return to `/` after a removal that died | 18 ok, 4 FAIL | 290 s |
+  | Mutant: one attempt only | 19 ok, 3 FAIL | 104 s |
+
+  - Main's lib fails the order assertion and IR2, IR3 and IR4, each for the paths left and for the exit status.
+  - The bind-copy-last mutant fails the order assertion only.
+  - The other three fail the race assertions.
+  - In every race on every engine, the rival's own removal died in 8 to 20 of the 20 rounds, so the rounds collided.
+- The record, the gate and the merge dry run: in the pull request.
 
 **Open.**
 - Other `File::Path` callers in the engine. One is `_felix_instr_tcpl`'s scratch directory, which one process owns.

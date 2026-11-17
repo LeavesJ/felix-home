@@ -1,13 +1,55 @@
-# The public snapshot of engine 0.49.340, staged 2026-11-13
+# The public snapshot: staged 2026-11-13 at 0.49.340, published 2026-11-17 at 0.49.352
 
-**Scope.** This covers what one overnight session staged and audited for
-`github.com/LeavesJ/Felix`, cut from felix-home's main at `cf0cb744` (engine
-0.49.340), and what it left unchecked. Nothing was pushed, to the public
-repository or to felix-home. The question at the end is whether to publish. One
-question is left open for a design session: how the audit's address rule should
-treat SSH remotes.
+**Scope.** This covers the public snapshot at `github.com/LeavesJ/Felix`. The
+outcome section records the cut that was published on 2026-11-17, from
+felix-home's main at `debec2c3` (engine 0.49.352). The sections after it record
+what one overnight session staged and audited on 2026-11-13 from main at
+`cf0cb744` (engine 0.49.340), before anything was pushed. The last section lists
+what is still unchecked, including three questions left open for a design
+session.
 
-## Where it stands
+## Outcome: published 2026-11-17 as engine 0.49.352
+
+You answered "Land fixes, then publish". These steps followed.
+
+- **The fixes landed in felix-home.**
+    - PR #514 (0.49.346) carried part 1860's fixtures, the 92 acknowledgements
+      you turned on, and the README link.
+    - The first real cut, from main at `c9bff19b` on 2026-11-15, passed its
+      scrub and audit, then stopped in its own suite: 25 failures in six parts
+      that read what the snapshot withholds.
+    - PR #517 (0.49.352) fixed those six parts. Its one escape line, part
+      2400's renamed assertion, landed with your "Rename it, land all six".
+    - PRs #515, #516 and #518 landed in between.
+- **The cut.** `snapshot.sh` ran from main at `debec2c3`, 01:14Z to 03:09Z. Its
+  audit: 17 names derived, 8 rewritten, 98 lines acknowledged, none open. The
+  secret scan found 4 hits, all planted fixtures already public. The suite on
+  the staged commit `7896763`: 17746 passed, 0 failed, 115 skipped.
+- **What changed since the 2026-11-15 cut:** 34 files, all from #515 to #518.
+  The wider audit described below ran over those 34 files, the PR body and the
+  commit message, with its private inputs read afresh from the home. It found
+  no leak:
+    - one name, the author field in `plugin.json`, as on the public main;
+    - generic paths only, such as `/Users/Shared/felix-authority`;
+    - fixture addresses: `example` and `.invalid` domains, and SSH users such
+      as `git@github.com`;
+    - 12-word runs shared with private files, which are those files quoting
+      the engine.
+- **Install test**, as described below, on the staged branch:
+    - the install exited 0;
+    - `felix@felix` 0.49.352 is enabled;
+    - the plugin cache is byte-identical to `engine/`, with no version bump;
+    - `felix which` binds the scratch project;
+    - the real HOME's pointer and plugin registry are unchanged.
+- **Published.** Branch `snapshot/2026-11-16` was pushed; no `main` was pushed.
+  LeavesJ/Felix#7 carried it. Its CI, the suite run serially on ubuntu-latest,
+  passed in 1h50m, and #7 was merged with a merge commit as `c98268bd`. The
+  public main's tree is the staged commit's tree. `felix maintenance --ran
+  snapshot` recorded the run.
+- **Public change:** engine 0.49.232 to 0.49.352; 504 files, 402 added, 102
+  modified and none removed; +163,754 / −27,563 lines.
+
+## Where it stood on 2026-11-13
 
 **Main cannot be cut as it is.** `snapshot.sh` stops on it twice, as it is
 designed to, and both stops are in suite part 1860 (#475, 2026-10-29, after the
@@ -117,24 +159,38 @@ make the symlink, then run `felix new sproj --no-commission`.
 - `felix which` binds the scratch project.
 - Nothing was written to the real HOME's pointer or plugin registry.
 
-## Not checked
+## Not checked, as of 2026-11-17
 
-- **The suite** was not run on the preview, and part 1860 was not run after the
-  renames, because other sessions were gating. The fix PR's gate would run it,
-  and so would the public PR's CI.
-- **The fix commits' version bump and `tests/red` record.** Both need a suite run.
-- **The real cut.** Tonight's tree is a preview. Once the fixes land,
-  `snapshot.sh` runs again from main. Its tree should differ from tonight's only
-  by the version, `red.tsv` and whatever else lands in the meantime, and that
-  difference is what gets audited again.
-- Two of the README's new claims: bootstrap's conditions for setting the rule, and
-  discovery running again after an update. Suite parts pin both, but I did not
-  run them.
+Checked since 2026-11-13:
+
+- **The suite.** It ran on the published commit here and in the public CI.
+- **The fixes' version bumps and `tests/red` records.** These went through #514
+  and #517.
+- **The real cut and its difference from the preview.** Both are covered in the
+  outcome section.
+- **Whether the public CI passes.** It passed.
+
+The two README claims (bootstrap's conditions for setting the rule, and
+discovery running again after an update) were not checked one by one. The suite
+parts that pin them passed in both runs.
+
+Still unchecked or undecided:
+
 - Deliberate obfuscation, and names outside the 70.
-- Whether the public CI (ubuntu-latest) passes.
 - Three spellings from the first snapshot are still in the public history.
   Whether to rewrite it stays your call.
 - `.claude/`, `cloud-verify.md` and `strategy/` at the home's root are withheld
-  only by default, because no rule names them yet.
-- Open, for a design session: the address rule reads SSH remotes as addresses.
-  That accounts for 59 of tonight's 92 rows.
+  only by default, because no rule names them yet. The cut says so each time.
+- The public `suite.yml` runs the suite serially. It took 1h50m on this commit,
+  and GitHub stops a job at 6 hours. That margin shrinks as the suite grows.
+  Changing that workflow is a change to the public repository outside the
+  snapshot.
+- Open, for a design session:
+    - The address rule reads SSH remotes as addresses. That accounted for 59
+      of the 92 rows.
+    - A part that reads a withheld file only on a path the snapshot run did
+      not take would not have failed there. PR #517 fixed the six that failed
+      in one run; it was not a search for the rest.
+    - `engine/harness/tests/red.tsv` carries a felix-home commit id into the
+      public tree. The public main's copy already did. The script keeps the
+      home's id out of the commit message, but not out of this file.

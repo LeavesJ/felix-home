@@ -42,7 +42,11 @@ landing check shows any other line, he is asked again.
 landed as 0.49.349 and #518 as 0.49.351; main was merged in after each, and
 this takes 0.49.352.
 
-**Next.** Once this lands and deploys, run `snapshot.sh` from the home on main
-again. Audit what differs from this cut, test the install in a scratch HOME,
-and open the public pull request, merged with `--merge` on green CI. Then
-`felix maintenance --ran snapshot`.
+**Done, 2026-11-17.** This landed as #517 (debec2c3) and deployed at 01:01Z.
+`snapshot.sh` from main passed its suite on the staged commit (17746 passed, 0
+failed). The 34 files that changed since the 11-15 cut were audited, and the
+install was tested in a scratch HOME. LeavesJ/Felix#7 was merged with `--merge`
+on green CI as c98268bd, so the public main is engine 0.49.352. `felix
+maintenance --ran snapshot` is recorded. The report is
+`docs/2026-11-13-public-snapshot-0.49.340.md`; its last section holds what
+stays open.

@@ -191,10 +191,22 @@ and above, the four directories and a copy in place by owner, entries where `ls`
   was shown red on the build it was written against (d4ac2338), with every other assertion of those parts
   passing. One count in 2192 rose from 1 to 2: the walk now follows each link to its target, and the
   directory that target sits in, of mode 777, is a second offender.
-- **After the fixes,** each part alone: 2190 97 pass and 1 skip, 2191 139 and 1, 2192 88 and 2, 2193 92 and 7,
-  2194 95 and 0; slice 1's 2186 to 2189 and the three lints this change could reach (1296, 1500, 1510) pass
-  alone. 2193's skips: three need a directory owned by another uid, which only root makes, and four are for
-  where `ls` takes no `-e` (Linux).
+- **The three security reviews,** of d1eecab1, e7056655 and b417a831, each added assertions to 2194, the
+  builder's and not blind. Each part was run on the engine files of the commit it answers, with this tree's
+  tests. On d1eecab1 five fail: H11's two, H12, and the two C3 readings. On b417a831 the two C3 readings fail and
+  their control passes. On e7056655 the two C3 readings fail, while 2194's H6 block and 2192's C block skip: on
+  this Mac e7056655's condition e names `/System/Volumes/Preboot/Cryptexes`, which the system `PATH` reaches, so
+  each part's own check that a store can stand here declines. H12 is shown on e7056655 by a probe instead (the
+  audit folder, `logs/probe-h12-on-e7056655.log`): e7056655 does not name the directory of mode 777 in the
+  middle of a chain of links, and b417a831 does.
+- **One count that run found left at 1.** A lock that is a link to a file in a directory every login can write
+  has had that directory as a second offender since e7056655, which reads the directory each link's target
+  sits in. 2192 read 1 there; it reads 2 now. The skip above had hidden it on e7056655, and no part ran on
+  b417a831.
+- **After the fixes,** each part alone on this tree: 2190 97 pass and 1 skip, 2191 140 and 1, 2192 88 and 2,
+  2193 92 and 7, 2194 101 and 0; slice 1's 2186 to 2189 (179, 133, 112, and 124 with 1 skip) and the three
+  lints this change could reach (1296, 1500, 1510) pass alone. 2193's skips: three need a directory owned by
+  another uid, which only root makes, and four are for where `ls` takes no `-e` (Linux).
 - **What they do not reach,** beyond the list above: the walk of the git's own directory is shadowed by the
   helper-directory reading, since this git finds its helpers beside the file it was run as, so each fixture for
   the one is refused by the other with the same line; and a link under the git's helper directory whose

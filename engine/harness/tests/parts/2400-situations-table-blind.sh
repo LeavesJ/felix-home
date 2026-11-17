@@ -161,7 +161,10 @@ if [ -d "$S2400P" ]; then
     S2400e="$(printf '%s' "$S2400d" | LC_ALL=C tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
     case "$S2400l" in *"$S2400e"*) S2400a="$S2400a [$S2400d]" ;; esac
   done
-  is "2400 the table names no project under the projects/ beside this harness but felix, comments included, without regard to case ($S2400n name(s) read)" \
+  # Not blind: the count of names read was in the name, so the name differed
+  # wherever projects/ held other folders than the home's, as in the public
+  # snapshot, which holds felix alone. The name is now the one the skip below gives.
+  is "2400 the table names no project under the projects/ beside this harness but felix, comments included, without regard to case" \
      "$( [ -r "$S2400_T" ] && echo read || echo unread)|$S2400a" "read|"
 else
   skip "2400 the table names no project under the projects/ beside this harness but felix, comments included, without regard to case" \

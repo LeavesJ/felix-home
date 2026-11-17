@@ -26,7 +26,10 @@ is  "inventory A111: the host adapter runs no git" \
 is  "inventory A111: no hook and no other library names the inventory, and felix names felix_inventory only after audit's early arm" \
     "$(_ibmissing)$(for _ibf in "$REAL_HARNESS"/hooks/* "$IBL"/*.sh; do case "${_ibf##*/}" in (inventory*.sh) continue ;; esac
        [ -f "$_ibf" ] && LC_ALL=C awk -v f="${_ibf##*/}" '{ l = $0; if (f == "pr-status.sh" || f == "pr-status-gh.sh") gsub(/inventory-gh\.sh/, "", l) } l ~ /inventory\.sh|inventory-|felix_inventory/ { printf "%s:%d; ", f, FNR; exit }' "$_ibf"; done)$(LC_ALL=C awk '/^[[:space:]]*if \[ "\$\{1:-\}" = "audit" \]/ { a = NR } /felix_inventory/ { if (!a || NR <= a || NR > a + 15) printf "felix:%d; ", NR; n++ } END { if (!n) printf "felix names no felix_inventory" }' "$REAL_HARNESS/felix")" ""
-_ibnames="elenchus felix-home widget behaviorchangebench"
+# The governed projects come from the folders under projects/, never as literals
+# here. The public snapshot rewrites a literal project name into a phrase of
+# several words, and one of those words, "a", is on every line this searches.
+_ibnames="felix-home widget"
 for _ibd in "$REAL_HARNESS"/../../projects/*/; do [ -d "$_ibd" ] || continue; _ibn="${_ibd%/}"; _ibn="${_ibn##*/}"; [ "$_ibn" = felix ] || _ibnames="$_ibnames $_ibn"; done
 is  "inventory A112: the inventory libraries name no project" \
     "$(_ibmissing)$(_iblibs | while IFS= read -r _ibf; do LC_ALL=C awk -v names="$_ibnames" -v f="${_ibf##*/}" 'BEGIN { n = split(tolower(names), w, " ") } { l = tolower($0); for (i = 1; i <= n; i++) if (index(l, w[i])) { printf "%s:%d names %s; ", f, FNR, w[i]; next } }' "$_ibf"; done)" ""

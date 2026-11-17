@@ -162,8 +162,17 @@ is  "(A4) a root written as the driver writes it, with .. in it, that is the top
 # ---- A1: the contract names the inputs from outside the tree
 _gfb_doc="$REAL_HARNESS/../../docs/2026-10-12-gate-friction-contract-a.md"
 _gfb_docsays() { if [ -f "$_gfb_doc" ] && LC_ALL=C grep -qiF -- "$1" "$_gfb_doc"; then echo names; else echo "does not name"; fi; }
-is  "(A1) the contract lists the memory lessons.md that part 0590 reads among the inputs from outside the tree" "$(_gfb_docsays lessons.md)" "names"
-is  "(A1) and the deployed plugin cache that part 0440 reads" "$(_gfb_docsays 'plugin cache')" "names"
+_gfb_n1="(A1) the contract lists the memory lessons.md that part 0590 reads among the inputs from outside the tree"
+_gfb_n2="(A1) and the deployed plugin cache that part 0440 reads"
+# Not blind: the public snapshot withholds docs/, so where the contract is not
+# beside this harness both are skipped saying so, as part 1850 does for its
+# document. Where it is, they are asked as they were written.
+if [ -f "$_gfb_doc" ]; then
+  is  "$_gfb_n1" "$(_gfb_docsays lessons.md)" "names"
+  is  "$_gfb_n2" "$(_gfb_docsays 'plugin cache')" "names"
+else
+  for _gfb_i in "$_gfb_n1" "$_gfb_n2"; do skip "$_gfb_i" "no docs/2026-10-12-gate-friction-contract-a.md beside this harness"; done
+fi
 
 # ---- run 1: a normal run, origin/main at a commit of its own, over a planted receipt
 printf 'gfb planted\n' > "$_gfb_rp"

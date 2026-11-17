@@ -480,9 +480,17 @@ while IFS= read -r _cnv3_fl; do
   [ -n "$_cnv3_fl" ] && [ "$_cnv3_fl" != docs/handoff/0cw.md ] && [ -f "$CNV3_ROOT/$_cnv3_fl" ] || continue
   [ "$(_cnv3_both "$CNV3_ROOT/$_cnv3_fl" 'evidence packet' 'felix.receipt/3')" -gt 0 ] && CNV3_H3="$CNV3_H3 $_cnv3_fl"
 done <<< "$CNV3_HL"
-is "cnv3 A38 (C23): docs/handoff/0cw.md, an archived section, still plans the evidence packet as felix.receipt/2, and a line of HANDOFF.md or of another tracked file in docs/handoff/ names the evidence packet felix.receipt/3" \
-   "kept=$(_cnv3_yn "$(_cnv3_both "$CNV3_HO" 'evidence packet' 'felix.receipt/2')") read=$([ -n "$CNV3_HL" ] && printf yes || printf no) new=$([ -n "$CNV3_H3" ] && printf yes || printf no)" \
-   "kept=yes read=yes new=yes"
+CNV3_N38="cnv3 A38 (C23): docs/handoff/0cw.md, an archived section, still plans the evidence packet as felix.receipt/2, and a line of HANDOFF.md or of another tracked file in docs/handoff/ names the evidence packet felix.receipt/3"
+# The public snapshot withholds docs/ and HANDOFF.md, so where neither 0cw.md nor
+# any handoff file is beside this harness it is skipped saying so; where either
+# is, it is asked as written.
+if [ ! -f "$CNV3_HO" ] && [ -z "$CNV3_HL" ]; then
+  skip "$CNV3_N38" "no HANDOFF.md and no docs/handoff beside this harness"
+else
+  is "$CNV3_N38" \
+     "kept=$(_cnv3_yn "$(_cnv3_both "$CNV3_HO" 'evidence packet' 'felix.receipt/2')") read=$([ -n "$CNV3_HL" ] && printf yes || printf no) new=$([ -n "$CNV3_H3" ] && printf yes || printf no)" \
+     "kept=yes read=yes new=yes"
+fi
 
 # ---- the restore ----
 for _cnv3_v in $(compgen -v | LC_ALL=C grep -E '^CNV3[A-Z0-9_]*$'); do unset "$_cnv3_v"; done

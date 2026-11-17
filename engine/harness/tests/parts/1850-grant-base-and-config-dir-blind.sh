@@ -374,7 +374,15 @@ _g12g "$G12P" config remote.origin.url "$G12PS/other/x.git"; _g12g "$G12P" fetch
 _g12g "$G12P" config remote.origin.url "$G12PS/acme/x.git"; _g12route r3
 _g12g "$G12P" config remote.origin.url "$G12PS/look/acme/x.git"; _g12g "$G12P" fetch -q; _g12route r4
 is "b12 A84 (B35): each route takes: origin/main is forged's commit and its newest reflog entry begins fetch (control)" "$_g12took" "$_g12w84"
-is "b12 A85 (B35): each route is doubted by felix_exception_for or named in the status document's section 2 row" "$_g12held" "$_g12w85"
+_g12n85="b12 A85 (B35): each route is doubted by felix_exception_for or named in the status document's section 2 row"
+# Not blind: the public snapshot withholds docs/. Without the document a route
+# felix_exception_for does not doubt cannot be judged, so then this is skipped,
+# as A26 to A28 and A87 to A88 are; when every route is doubted it is still asked.
+if [ -f "$G12DOC" ] || [ "$_g12held" = "$_g12w85" ]; then
+  is "$_g12n85" "$_g12held" "$_g12w85"
+else
+  skip "$_g12n85" "no docs/2026-09-21-where-felix-stands.md beside this harness, and felix_exception_for does not doubt every route"
+fi
 _g12cm="$(LC_ALL=C awk '{ s = $0; sub(/^[ \t]+/, "", s) } substr(s, 1, 1) == "#" { sub(/^#+/, "", s); printf "%s ", s }' "$G12EX" 2>/dev/null \
           | LC_ALL=C tr '\t' ' ' | LC_ALL=C tr -s ' ')"
 _g12v=""

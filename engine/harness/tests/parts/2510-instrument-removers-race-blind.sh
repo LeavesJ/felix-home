@@ -1,6 +1,7 @@
 # >>> instrument-removers
 printf '\n%s\n' "the judge's removers each finish, whatever the other is doing: the watchdog, the shell that starts it, the supervisor (contract 2026-11-17, IR1 to IR6, blind)"
-# Blind, written on 2026-11-17 from docs/2026-11-17-instrument-removers-contract.md (rev 1, IR1 to IR6) alone, by an author
+# Blind, written on 2026-11-17 from docs/2026-11-17-instrument-removers-contract.md (rev 1, IR1 to IR6), and amended from its
+# rev 2 (IR3's order, IR5 in the race rounds, IR6's per-race collisions and limited waits), alone, by an author
 # who has not read lib/instrument-run.sh, lib/instrument.sh, lib/bind.sh or lib/merge-judge.sh. The programs are taken from
 # the fixture engine's lib/instrument-run.sh, _felix_instr_wdpl (the watchdog) and _felix_instr_pl (the supervisor), and run
 # as perl -e PROGRAM ARGS; _felix_instr_watch is run in a shell that sources that file. A name ending (control) holds on the
@@ -32,12 +33,27 @@ printf '\n%s\n' "the judge's removers each finish, whatever the other is doing: 
 #   after the last, and "within about a second" of USR1 is 1.5 s. "Stays", for a link's target, is that it and its file
 #   exist; its mode is not read. A supervisor whose PARENT lives runs sh -c 'exit 7' and gives 7.
 # - IR6: when no arming round collides, the race assertions are skipped by name and their rounds are not run.
+# - IR6 (rev 2), "died": a plain removal died when its process exited non-zero with a File::Path croak in its stderr, a
+#   line ending "aborting." (all four of rmtree's croaks in File::Path 2.18 end so: cannot chdir, cannot stat, and the two
+#   "changed" checks). Arming counts only those; another non-zero exit is counted apart and shown in the note line. Each race
+#   counts its rounds in which the rival's removal died so, and a note line gives the count. In a race with none, each
+#   assertion that would pass is skipped by name, saying no round of it collided; one that fails still fails, as a failure
+#   needs no arming.
+# - IR6 (rev 2), limits: every wait on another process or a file ends: the ready file 10 s; the rival 10 s to get ready and
+#   15 s for PARENT or the group; the program 10 s (6 s in IR3); the pair's go file 10 s and each of the pair 30 s; USR1
+#   1.5 s; a group leader 5 s. The part's own programs that make or time a tree run in the foreground, bounded by the tree;
+#   their status is read, and a tree not made ends its round as a failure ("no tree", or the arming assertion's).
+# - IR3's order (rev 2): 3 rounds, no rival, J of the calibrated size, so its removal takes 0.3 s or more. From just after
+#   the KILL until the watchdog is gone the judge looks every 0.01 s (about 30 looks in that removal) for BD and BD.list
+#   gone while J is there; every round must show it. The detail gives the looks that saw it, those that saw J gone with
+#   BD there (the old order), those that saw J, and all looks.
+# - IR5 in the race rounds (rev 2): each race asserts that keep/, beside the PATHs, stays in every round (control).
 IRB="$TMP/irb"; rm -rf "${IRB:?}"; mkdir -p "$IRB"; IRB="$(cd "$IRB" && pwd -P)"; IRB_P="instrument removers:"
 IRB_LIB="$FROOT/harness/lib/instrument-run.sh"
 IRB_WD="$( set +u; . "$IRB_LIB" >/dev/null 2>&1; printf '%s' "${_felix_instr_wdpl-}" )"
 IRB_SV="$( set +u; . "$IRB_LIB" >/dev/null 2>&1; printf '%s' "${_felix_instr_pl-}" )"
 IRB_ME="$(exec /bin/sh -c 'echo "$PPID"')"
-IRB_N=20; IRB_N3=20; IRB_NA=5; IRB_ARM=5; IRB_R=0; IRB_A=20
+IRB_N=20; IRB_N3=20; IRB_NA=5; IRB_ARM=5; IRB_R=0; IRB_A=20; IRB_NO3=3; IRB_SEE=""; IRB_RVD=0
 IRB_L1="$(printf '%038d' 0 | tr 0 1)"; IRB_L2="$(printf '%038d' 0 | tr 0 2)"
 sleep 30 & IRB_DEAD=$!; { kill -KILL "$IRB_DEAD"; wait "$IRB_DEAD"; } 2>/dev/null   # a PARENT that is gone
 
@@ -79,18 +95,24 @@ while (time - $t < 15) { last unless kill(0, $mode eq "grp" ? -$g : $who); sleep
 remove_tree($path) if length $path;
 exit 0;'
 # PID TIMEOUT PATH...: waits until PID is gone (KILLs it after TIMEOUT s), then prints how and the last name of each PATH left.
+# With IRB_SEE set to FILE, BD, BD.list and J, one a line, it looks every 0.01 s while PID lives and writes what it saw to FILE.
 IRB_JG='use strict; use warnings; use Time::HiRes qw(sleep time);
 my ($p, $to, @paths) = @ARGV; my $t = time; my $how = "exited";
+my @s = split /\n/, (defined $ENV{IRB_SEE} ? $ENV{IRB_SEE} : ""); my ($n, $seen, $jf, $jt) = (0, 0, 0, 0);
+sub look { return unless @s == 4; $n++; my ($xb, $xl, $xj) = map { lstat($_) ? 1 : 0 } @s[1 .. 3];
+  $jt++ if $xj; $seen++ if !$xb and !$xl and $xj; $jf++ if $xb and !$xj }
 if (defined $p and $p =~ /^\d+$/ and $p > 1) {
-  while (kill 0, $p) { if (time - $t > $to) { kill "KILL", $p; $how = "timeout"; sleep 0.3; last } sleep 0.02 }
+  while (kill 0, $p) { look(); if (time - $t > $to) { kill "KILL", $p; $how = "timeout"; sleep 0.3; last } sleep(@s == 4 ? 0.01 : 0.02) }
 } else { $how = "nopid" }
+if (@s == 4 and open(my $o, ">", $s[0])) { print {$o} "seen=$seen jfirst=$jf jthere=$jt looks=$n\n"; close $o }
 my @left; for (@paths) { push @left, (split m{/}, $_)[-1] if length($_) and lstat($_) }
 print join(" ", $how, @left), "\n";'
 # PID: 0 once PID leads its own process group, 1 after 5 s.
 IRB_RDY='use Time::HiRes qw(sleep time); my $t = time;
 until (getpgrp($ARGV[0]) == $ARGV[0]) { exit 1 if time - $t > 5; sleep 0.02 } exit 0;'
-# GO TREE: waits for GO, then one plain remove_tree of TREE, no eval (IR6 arming).
-IRB_PL='use File::Path qw(remove_tree); use Time::HiRes qw(sleep); sleep 0.002 until -e $ARGV[0]; remove_tree($ARGV[1]);'
+# GO TREE: waits for GO (exit 4 after 10 s), then one plain remove_tree of TREE, no eval (IR6 arming).
+IRB_PL='use File::Path qw(remove_tree); use Time::HiRes qw(sleep time); my $t = time;
+until (-e $ARGV[0]) { exit 4 if time - $t > 10; sleep 0.002 } remove_tree($ARGV[1]);'
 # TREE: one plain remove_tree of TREE, and the seconds it took.
 IRB_TM='use File::Path qw(remove_tree); use Time::HiRes qw(time); my $t = time; remove_tree($ARGV[0]); printf "%.3f\n", time - $t;'
 
@@ -115,7 +137,8 @@ _irb_intact() {   # DIR -> what changed in a waiting watchdog's tree: nothing is
   [ -z "$(ls -A "$1/ho" 2>/dev/null)" ] || printf ' TO holds %s;' "$(ls -A "$1/ho" | tr '\n' ' ')"
 }
 # DIR PARENT MODE TARGET TIMEOUT PATH...: the rival removes TARGET (none when empty) once PARENT (MODE pid) or the unit's
-# group (MODE grp) is gone; PARENT is KILLed once the program is ready. -> IRB_LEFT, IRB_S, IRB_WP (the program's pid)
+# group (MODE grp) is gone; PARENT is KILLed once the program is ready. -> IRB_LEFT, IRB_S, IRB_WP (the program's pid),
+# IRB_RVD: 0 the rival exited 0, 1 its removal died with a File::Path croak (IR6: this round collided), 2 another exit
 _irb_go() {
   local d="$1" pp="$2" m="$3" tg="$4" to="$5" rv; shift 5
   perl -e "$IRB_RV" "$m" "$pp" "$d/pid" "$d/grp" "$d/ready" "$tg" </dev/null >/dev/null 2>>"$d/rv.err" &
@@ -123,14 +146,15 @@ _irb_go() {
   _irb_wait "$d/ready" 100 || :
   { kill -KILL "$pp"; wait "$pp"; } 2>/dev/null
   IRB_WP="$(LC_ALL=C sed -n '1{s/[^0-9]//g;p;}' "$d/pid" 2>/dev/null)"
-  IRB_LEFT="$(perl -e "$IRB_JG" "${IRB_WP:-x}" "$to" "$@")"
-  { wait "$rv"; } 2>/dev/null
+  IRB_LEFT="$(IRB_SEE="$IRB_SEE" perl -e "$IRB_JG" "${IRB_WP:-x}" "$to" "$@")"
+  { wait "$rv"; } 2>/dev/null; IRB_RVD=$?
+  if [ "$IRB_RVD" != 0 ]; then case "$(cat "$d/rv.err" 2>/dev/null)" in *"aborting."*) IRB_RVD=1 ;; *) IRB_RVD=2 ;; esac; fi
   IRB_S="$(cat "$d/st" 2>/dev/null)"; IRB_S="${IRB_S:-none}"
 }
 _irb_wd() {   # DIR RACE A: a watchdog round; RACE 1 adds the rival on J. PATHs in today's order, the bind copy last.
   local d="$1" pp tg=""
   [ "$2" != 1 ] || tg="$d/J"
-  perl -e "$IRB_MK" "$d" "$3" 10 10 BD 2>>"$IRB/err" || { IRB_LEFT="no tree"; IRB_S=none; IRB_WP=""; return 0; }
+  perl -e "$IRB_MK" "$d" "$3" 10 10 BD 2>>"$IRB/err" || { IRB_LEFT="no tree"; IRB_S=none; IRB_WP=""; IRB_RVD=0; return 0; }
   ( p="$(exec /bin/sh -c 'echo "$PPID"')"
     IRB_ST="$d/st" perl -e "$IRB_REC" -e "$IRB_WD" "$p" "$d/BD/objects" "$d/ho" pack-keep \
       "$d/J" "$d/R" "$d/UP" "$d/HP" "$d/BD" "$d/BD.list" </dev/null >/dev/null 2>>"$d/err" &
@@ -142,7 +166,7 @@ _irb_wd() {   # DIR RACE A: a watchdog round; RACE 1 adds the rival on J. PATHs 
 _irb_sv() {   # DIR RACE A: a supervisor round, COMMAND a long sleep; RACE 1 adds the rival on J
   local d="$1" pp tg="" g
   [ "$2" != 1 ] || tg="$d/J"
-  perl -e "$IRB_MK" "$d" "$3" 10 10 "" 2>>"$IRB/err" || { IRB_LEFT="no tree"; IRB_S=none; IRB_WP=""; return 0; }
+  perl -e "$IRB_MK" "$d" "$3" 10 10 "" 2>>"$IRB/err" || { IRB_LEFT="no tree"; IRB_S=none; IRB_WP=""; IRB_RVD=0; return 0; }
   ( p="$(exec /bin/sh -c 'echo "$PPID"')"
     IRB_ST="$d/st" perl -e "$IRB_REC" -e "$IRB_SV" "$p" 60 "$d/log" "$d/grp" \
       "$d/J" "$d/R" "$d/UP/u1" "$d/UP" "$d/HP" sleep 60 </dev/null >/dev/null 2>>"$d/err" &
@@ -153,10 +177,11 @@ _irb_sv() {   # DIR RACE A: a supervisor round, COMMAND a long sleep; RACE 1 add
   g="$(LC_ALL=C sed -n '1{s/[^0-9]//g;p;}' "$d/grp" 2>/dev/null)"
   [ -z "$g" ] || ! kill -0 -- "-$g" 2>/dev/null || kill -KILL -- "-$g" 2>/dev/null
 }
-_irb_sh() {   # DIR RACE A OWN: a shell sources the lib, runs _felix_instr_watch over DIR and execs sleep; OWN 1 owns BD
-  local d="$1" pp tg=""
+_irb_sh() {   # DIR RACE A OWN [SEE]: a shell sources the lib, runs _felix_instr_watch over DIR and execs sleep; OWN 1 owns
+  local d="$1" pp tg=""   # BD; SEE 1 has the judge look for IR3's order and write it to DIR/see
   [ "$2" != 1 ] || tg="$d/J"
-  perl -e "$IRB_MK" "$d" "$3" 10 10 felix-objects.irb 2>>"$IRB/err" || { IRB_LEFT="no tree"; IRB_S=none; IRB_WP=""; return 0; }
+  IRB_SEE=""; [ "${5:-0}" != 1 ] || IRB_SEE="$d/see"$'\n'"$d/felix-objects.irb"$'\n'"$d/felix-objects.irb.list"$'\n'"$d/J"
+  perl -e "$IRB_MK" "$d" "$3" 10 10 felix-objects.irb 2>>"$IRB/err" || { IRB_LEFT="no tree"; IRB_S=none; IRB_WP=""; IRB_RVD=0; return 0; }
   "$BASH" -c '
     . "$1" || exit 3
     d="$2"; _FELIX_INSTR_J="$d/J"; _FELIX_INSTR_R="$d/R"; _FELIX_INSTR_UP="$d/UP"; _FELIX_INSTR_HP="$d/HP"
@@ -168,12 +193,14 @@ _irb_sh() {   # DIR RACE A OWN: a shell sources the lib, runs _felix_instr_watch
     exec sleep 60' irb-shell "$IRB_LIB" "$d" "$4" </dev/null >/dev/null 2>>"$d/err" &
   pp=$!
   _irb_go "$d" "$pp" pid "$tg" 6 "$d/felix-objects.irb" "$d/felix-objects.irb.list" "$d/J" "$d/R" "$d/UP" "$d/HP"
+  IRB_SEE=""
 }
 # KIND N RACE A: N rounds of _irb_KIND -> IRB_K rounds run; IRB_CL rounds with a PATH left (IRB_DL), IRB_CK rounds with
-# keep/ gone, IRB_CS rounds whose status is not KIND's (IRB_DS; sh's is not read), IRB_CV rounds whose salvage is wrong (IRB_DV)
+# keep/ gone (IRB_DK), IRB_CS rounds whose status is not KIND's (IRB_DS; sh's is not read), IRB_CV rounds whose salvage is
+# wrong (IRB_DV), IRB_CR rounds in which the rival's removal died with a File::Path croak, IRB_CO its other non-zero exits
 _irb_rounds() {
   local kind="$1" n="$2" k=0 d w want=0
-  IRB_CL=0; IRB_DL=""; IRB_CK=0; IRB_CS=0; IRB_DS=""; IRB_CV=0; IRB_DV=""
+  IRB_CL=0; IRB_DL=""; IRB_CK=0; IRB_DK=""; IRB_CS=0; IRB_DS=""; IRB_CV=0; IRB_DV=""; IRB_CR=0; IRB_CO=0
   [ "$kind" != sv ] || want=125
   while [ "$k" -lt "$n" ]; do
     k=$((k + 1)); IRB_R=$((IRB_R + 1)); d="$IRB/$kind.$IRB_R"
@@ -182,7 +209,8 @@ _irb_rounds() {
       IRB_CL=$((IRB_CL + 1)); IRB_DL="$IRB_DL r$k: $IRB_LEFT;"
       [ -n "$IRB_WP" ] || IRB_DL="$IRB_DL [$(head -c 200 "$d/err" 2>/dev/null | tr '\n' ' ')]"
     fi
-    [ -e "$d/keep/file" ] || IRB_CK=$((IRB_CK + 1))
+    [ "$IRB_RVD" != 1 ] || IRB_CR=$((IRB_CR + 1)); [ "$IRB_RVD" != 2 ] || IRB_CO=$((IRB_CO + 1))
+    [ -e "$d/keep/file" ] || { IRB_CK=$((IRB_CK + 1)); IRB_DK="$IRB_DK r$k;"; }
     [ "$kind" = sh ] || [ "$IRB_S" = "$want" ] || { IRB_CS=$((IRB_CS + 1)); IRB_DS="$IRB_DS r$k: $IRB_S;"; }
     if [ "$kind" != sv ]; then w="$(_irb_salv "$d")"; [ -z "$w" ] || { IRB_CV=$((IRB_CV + 1)); IRB_DV="$IRB_DV r$k:$w"; }; fi
     _irb_rm "$d"
@@ -191,6 +219,11 @@ _irb_rounds() {
   IRB_K=$k
 }
 _irb_ck() { if [ "$2" -eq 0 ]; then ok "$1"; else bad "$1" "$3"; fi; }   # NAME COUNT DETAIL
+_irb_rc() {   # NAME COUNT DETAIL: a race's assertion, from _irb_rounds; one that would pass is skipped when no round collided
+  if [ "$2" -eq 0 ] && [ "$IRB_CR" -eq 0 ]; then skip "$1" "no round of this race collided: the rival's plain removal died in 0 of $IRB_K rounds"
+  else _irb_ck "$1" "$2" "$3 (the rival's plain removal died in $IRB_CR of $IRB_K rounds)"; fi
+}
+_irb_note() { printf "  note  instrument removers: %s race: the rival's plain removal died in %s of %s rounds; it exited non-zero otherwise in %s\n" "$1" "$IRB_CR" "$IRB_K" "$IRB_CO"; }
 
 # ---------------------------------------------------------------- IR1, IR5 ---
 IRB_NS1="$IRB_P IR1: salvage moves the regular files at FROM/XX/* and FROM/pack/* to the same paths in TO, not pack/KEEP.*, nothing else, and overwrites nothing TO holds (control)"
@@ -260,26 +293,50 @@ _irb_rm "$IRB_D"
 # ------------------------------------------------------------- IR6 arming ---
 # The tree's size first: J doubles until one plain removal of it outlasts the window.
 while :; do
-  IRB_D="$IRB/cal$IRB_A"; perl -e "$IRB_MK" "$IRB_D" "$IRB_A" 10 10 "" 2>>"$IRB/err"
+  IRB_D="$IRB/cal$IRB_A"
+  perl -e "$IRB_MK" "$IRB_D" "$IRB_A" 10 10 "" 2>>"$IRB/err" || { IRB_T="no tree"; _irb_rm "$IRB_D"; break; }
   IRB_T="$(perl -e "$IRB_TM" "$IRB_D/J" 2>/dev/null)"; _irb_rm "$IRB_D"
   LC_ALL=C awk -v t="${IRB_T:-0}" 'BEGIN { exit !(t + 0 < 0.3) }' && [ "$IRB_A" -lt 160 ] || break
   IRB_A=$((IRB_A * 2))
 done
 printf '  note  instrument removers: J is %s directories of 10 directories of 10 files (%s entries); one plain removal of it took %s s\n' \
   "$IRB_A" "$((IRB_A * 111 + 1))" "${IRB_T:-?}"
-IRB_NA6="$IRB_P IR6: two plain File::Path::remove_tree calls in two processes, started together with no eval, collide on this part's tree: one dies in at least one round (arming)"
-IRB_AK=0; IRB_ARMED=0; IRB_AD=""
-while [ "$IRB_AK" -lt "$IRB_ARM" ]; do
-  IRB_AK=$((IRB_AK + 1)); IRB_D="$IRB/arm$IRB_AK"; perl -e "$IRB_MK" "$IRB_D" "$IRB_A" 10 10 "" 2>>"$IRB/err"
-  perl -e "$IRB_PL" "$IRB_D/go" "$IRB_D/J" </dev/null >/dev/null 2>&1 & IRB_P1=$!
-  perl -e "$IRB_PL" "$IRB_D/go" "$IRB_D/J" </dev/null >/dev/null 2>&1 & IRB_P2=$!
-  sleep 0.2; : > "$IRB_D/go"
-  { wait "$IRB_P1"; } 2>/dev/null; IRB_S1=$?; { wait "$IRB_P2"; } 2>/dev/null; IRB_S2=$?
-  IRB_AD="$IRB_AD $IRB_S1/$IRB_S2"
-  [ "$IRB_S1" = 0 ] && [ "$IRB_S2" = 0 ] || IRB_ARMED=$((IRB_ARMED + 1))
+
+# IR3's order (rev 2): no rival; the judge looks for BD and BD.list gone while J is there.
+IRB_N3O="$IRB_P IR3: with no other remover, a shell KILLed after _felix_instr_watch reaches a moment where BD and BD.list are gone while J, whose removal takes a while, is still there, in every round"
+IRB_K=0; IRB_CL=0; IRB_DL=""
+while [ "$IRB_K" -lt "$IRB_NO3" ]; do
+  IRB_K=$((IRB_K + 1)); IRB_R=$((IRB_R + 1)); IRB_D="$IRB/sh.$IRB_R"
+  _irb_sh "$IRB_D" 0 "$IRB_A" 1 1
+  IRB_X="$(cat "$IRB_D/see" 2>/dev/null)"
+  case "$IRB_X" in "seen=0 "*|"") IRB_CL=$((IRB_CL + 1)) ;; esac
+  IRB_DL="$IRB_DL r$IRB_K: [${IRB_X:-nothing looked at}] then [$IRB_LEFT];"
   _irb_rm "$IRB_D"
 done
-printf '  note  instrument removers: the plain pair died in %s of %s arming rounds (statuses%s)\n' "$IRB_ARMED" "$IRB_ARM" "$IRB_AD"
+_irb_ck "$IRB_N3O" "$IRB_CL" "BD and BD.list were never seen gone while J was there in $IRB_CL of $IRB_K rounds:$IRB_DL"
+
+IRB_NA6="$IRB_P IR6: two plain File::Path::remove_tree calls in two processes, started together with no eval, collide on this part's tree: one dies in at least one round (arming)"
+IRB_AK=0; IRB_ARMED=0; IRB_AO=0; IRB_AM=0; IRB_AD=""
+while [ "$IRB_AK" -lt "$IRB_ARM" ]; do
+  IRB_AK=$((IRB_AK + 1)); IRB_D="$IRB/arm$IRB_AK"
+  if ! perl -e "$IRB_MK" "$IRB_D" "$IRB_A" 10 10 "" 2>>"$IRB/err"; then
+    IRB_AM=$((IRB_AM + 1)); IRB_AD="$IRB_AD no-tree"; _irb_rm "$IRB_D"; continue
+  fi
+  perl -e "$IRB_PL" "$IRB_D/go" "$IRB_D/J" </dev/null >/dev/null 2>"$IRB_D/e1" & IRB_P1=$!
+  perl -e "$IRB_PL" "$IRB_D/go" "$IRB_D/J" </dev/null >/dev/null 2>"$IRB_D/e2" & IRB_P2=$!
+  sleep 0.2; : > "$IRB_D/go"
+  perl -e "$IRB_JG" "$IRB_P1" 30 >/dev/null; { wait "$IRB_P1"; } 2>/dev/null; IRB_S1=$?
+  perl -e "$IRB_JG" "$IRB_P2" 30 >/dev/null; { wait "$IRB_P2"; } 2>/dev/null; IRB_S2=$?
+  IRB_Y=0
+  for IRB_G in "$IRB_S1:e1" "$IRB_S2:e2"; do
+    [ "${IRB_G%%:*}" != 0 ] || continue
+    case "$(cat "$IRB_D/${IRB_G#*:}" 2>/dev/null)" in *"aborting."*) IRB_Y=1 ;; *) IRB_AO=$((IRB_AO + 1)) ;; esac
+  done
+  IRB_AD="$IRB_AD $IRB_S1/$IRB_S2"; [ "$IRB_Y" = 0 ] || { IRB_ARMED=$((IRB_ARMED + 1)); IRB_AD="$IRB_AD(died)"; }
+  _irb_rm "$IRB_D"
+done
+printf '  note  instrument removers: the plain pair died in %s of %s arming rounds, exited non-zero otherwise %s times, and %s trees could not be made (statuses%s)\n' \
+  "$IRB_ARMED" "$IRB_ARM" "$IRB_AO" "$IRB_AM" "$IRB_AD"
 IRB_N2L="$IRB_P IR2: the watchdog, its PATHs given J R UP HP BD BD.list and another process removing J once PARENT is gone, leaves none of them, in every round"
 IRB_N2S="$IRB_P IR2: the watchdog exits 0 in every round of that race"
 IRB_N2V="$IRB_P IR2: in that race the salvage still moves BD's objects into TO, a collision neither stops nor undoes it (control)"
@@ -287,31 +344,43 @@ IRB_N3L="$IRB_P IR3: a shell running _felix_instr_watch over its own bind copy, 
 IRB_N3V="$IRB_P IR3: in that race BD's loose objects and packs, less pack/KEEP.*, are found in _FELIX_BIND_HOME, in every round (control)"
 IRB_N4L="$IRB_P IR4: the supervisor's judge-gone path, another process removing J once the unit's group is gone, leaves none of J R U UP HP, in every round"
 IRB_N4S="$IRB_P IR4: the supervisor exits 125 in every round of that race"
+IRB_N2K="$IRB_P IR5: in the IR2 race the watchdog removes only its PATHs: keep/ beside them stays, in every round (control)"
+IRB_N3K="$IRB_P IR5: in the IR3 race the watchdog removes only its PATHs: keep/ beside them stays, in every round (control)"
+IRB_N4K="$IRB_P IR5: in the IR4 race the supervisor removes only its PATHs: keep/ beside them stays, in every round (control)"
+if [ "$IRB_AM" -gt 0 ]; then bad "$IRB_NA6" "a tree could not be made in $IRB_AM of $IRB_ARM rounds [$(head -c 200 "$IRB/err" 2>/dev/null | tr '\n' ' ')]"
+elif [ "$IRB_ARMED" -gt 0 ]; then ok "$IRB_NA6"
+else skip "$IRB_NA6" "the host gave no collision: two plain remove_tree calls died in 0 of $IRB_ARM rounds"; fi
 if [ "$IRB_ARMED" -eq 0 ]; then
   IRB_X="the host gave no collision: two plain remove_tree calls died in 0 of $IRB_ARM rounds"
-  for IRB_G in "$IRB_NA6" "$IRB_N2L" "$IRB_N2S" "$IRB_N2V" "$IRB_N3L" "$IRB_N3V" "$IRB_N4L" "$IRB_N4S"; do skip "$IRB_G" "$IRB_X"; done
+  for IRB_G in "$IRB_N2L" "$IRB_N2S" "$IRB_N2V" "$IRB_N2K" "$IRB_N3L" "$IRB_N3V" "$IRB_N3K" "$IRB_N4L" "$IRB_N4S" "$IRB_N4K"; do
+    skip "$IRB_G" "$IRB_X"
+  done
 else
-  ok "$IRB_NA6"
   # ---------------------------------------------------------------- IR2 ---
-  _irb_rounds wd "$IRB_N" 1 "$IRB_A"
-  _irb_ck "$IRB_N2L" "$IRB_CL" "a PATH was left in $IRB_CL of $IRB_K rounds:$IRB_DL"
-  _irb_ck "$IRB_N2S" "$IRB_CS" "the watchdog exited other than 0 in $IRB_CS of $IRB_K rounds:$IRB_DS"
-  _irb_ck "$IRB_N2V" "$IRB_CV" "the salvage was wrong in $IRB_CV of $IRB_K rounds:$IRB_DV"
+  _irb_rounds wd "$IRB_N" 1 "$IRB_A"; _irb_note IR2
+  _irb_rc "$IRB_N2L" "$IRB_CL" "a PATH was left in $IRB_CL of $IRB_K rounds:$IRB_DL"
+  _irb_rc "$IRB_N2S" "$IRB_CS" "the watchdog exited other than 0 in $IRB_CS of $IRB_K rounds:$IRB_DS"
+  _irb_rc "$IRB_N2V" "$IRB_CV" "the salvage was wrong in $IRB_CV of $IRB_K rounds:$IRB_DV"
+  _irb_rc "$IRB_N2K" "$IRB_CK" "keep/ was removed in $IRB_CK of $IRB_K rounds:$IRB_DK"
   # ---------------------------------------------------------------- IR3 ---
-  _irb_rounds sh "$IRB_N3" 1 "$IRB_A"
-  _irb_ck "$IRB_N3L" "$IRB_CL" "a path was left in $IRB_CL of $IRB_K rounds:$IRB_DL"
-  _irb_ck "$IRB_N3V" "$IRB_CV" "the salvage was wrong in $IRB_CV of $IRB_K rounds:$IRB_DV"
+  _irb_rounds sh "$IRB_N3" 1 "$IRB_A"; _irb_note IR3
+  _irb_rc "$IRB_N3L" "$IRB_CL" "a path was left in $IRB_CL of $IRB_K rounds:$IRB_DL"
+  _irb_rc "$IRB_N3V" "$IRB_CV" "the salvage was wrong in $IRB_CV of $IRB_K rounds:$IRB_DV"
+  _irb_rc "$IRB_N3K" "$IRB_CK" "keep/ was removed in $IRB_CK of $IRB_K rounds:$IRB_DK"
   # ---------------------------------------------------------------- IR4 ---
-  _irb_rounds sv "$IRB_N" 1 "$IRB_A"
-  _irb_ck "$IRB_N4L" "$IRB_CL" "a path was left in $IRB_CL of $IRB_K rounds:$IRB_DL"
-  _irb_ck "$IRB_N4S" "$IRB_CS" "the supervisor exited other than 125 in $IRB_CS of $IRB_K rounds:$IRB_DS"
+  _irb_rounds sv "$IRB_N" 1 "$IRB_A"; _irb_note IR4
+  _irb_rc "$IRB_N4L" "$IRB_CL" "a path was left in $IRB_CL of $IRB_K rounds:$IRB_DL"
+  _irb_rc "$IRB_N4S" "$IRB_CS" "the supervisor exited other than 125 in $IRB_CS of $IRB_K rounds:$IRB_DS"
+  _irb_rc "$IRB_N4K" "$IRB_CK" "keep/ was removed in $IRB_CK of $IRB_K rounds:$IRB_DK"
 fi
 
 chmod 0700 "$IRB"/*/UP 2>/dev/null; rm -rf "${IRB:?}"
-unset -f _irb_wait _irb_rm _irb_run _irb_is _irb_no _irb_salv _irb_intact _irb_go _irb_wd _irb_sv _irb_sh _irb_rounds _irb_ck
+unset -f _irb_wait _irb_rm _irb_run _irb_is _irb_no _irb_salv _irb_intact _irb_go _irb_wd _irb_sv _irb_sh _irb_rounds _irb_ck \
+         _irb_rc _irb_note
 unset IRB IRB_P IRB_LIB IRB_WD IRB_SV IRB_ME IRB_N IRB_N3 IRB_NA IRB_ARM IRB_R IRB_A IRB_L1 IRB_L2 IRB_DEAD IRB_REC IRB_MK \
       IRB_RV IRB_JG IRB_RDY IRB_PL IRB_TM IRB_RC IRB_LEFT IRB_S IRB_WP IRB_K IRB_CL IRB_DL IRB_CK IRB_CS IRB_DS IRB_CV IRB_DV \
       IRB_X IRB_W IRB_Y IRB_G IRB_J IRB_RW IRB_WW IRB_T IRB_AK IRB_ARMED IRB_AD IRB_P1 IRB_P2 IRB_S1 IRB_S2 \
       IRB_NS1 IRB_NS2 IRB_NL IRB_NG IRB_NU IRB_NV IRB_NR IRB_NWA IRB_NSA IRB_NO IRB_NA6 IRB_N2L IRB_N2S IRB_N2V IRB_N3L \
-      IRB_N3V IRB_N4L IRB_N4S IRB_D IRB_F
+      IRB_N3V IRB_N4L IRB_N4S IRB_D IRB_F IRB_NO3 IRB_SEE IRB_RVD IRB_DK IRB_CR IRB_CO IRB_AO IRB_AM IRB_N3O IRB_N2K IRB_N3K \
+      IRB_N4K
 # <<< instrument-removers

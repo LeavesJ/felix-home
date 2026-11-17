@@ -122,7 +122,7 @@ _irb_go() {
   rv=$!
   _irb_wait "$d/ready" 100 || :
   { kill -KILL "$pp"; wait "$pp"; } 2>/dev/null
-  IRB_WP="$(LC_ALL=C sed -n '1s/[^0-9]//gp' "$d/pid" 2>/dev/null)"
+  IRB_WP="$(LC_ALL=C sed -n '1{s/[^0-9]//g;p;}' "$d/pid" 2>/dev/null)"
   IRB_LEFT="$(perl -e "$IRB_JG" "${IRB_WP:-x}" "$to" "$@")"
   { wait "$rv"; } 2>/dev/null
   IRB_S="$(cat "$d/st" 2>/dev/null)"; IRB_S="${IRB_S:-none}"
@@ -150,7 +150,7 @@ _irb_sv() {   # DIR RACE A: a supervisor round, COMMAND a long sleep; RACE 1 add
     exec sleep 60 ) &
   pp=$!
   _irb_go "$d" "$pp" grp "$tg" 10 "$d/J" "$d/R" "$d/UP/u1" "$d/UP" "$d/HP"
-  g="$(LC_ALL=C sed -n '1s/[^0-9]//gp' "$d/grp" 2>/dev/null)"
+  g="$(LC_ALL=C sed -n '1{s/[^0-9]//g;p;}' "$d/grp" 2>/dev/null)"
   [ -z "$g" ] || ! kill -0 -- "-$g" 2>/dev/null || kill -KILL -- "-$g" 2>/dev/null
 }
 _irb_sh() {   # DIR RACE A OWN: a shell sources the lib, runs _felix_instr_watch over DIR and execs sleep; OWN 1 owns BD

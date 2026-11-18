@@ -12356,6 +12356,7 @@
 1	instrument removers: IR5: with no other remover, the supervisor's judge-gone path leaves none of J R U UP HP, removes nothing else and exits 125, in every round (control)
 1	instrument removers: IR5: with no other remover, the watchdog leaves none of its PATHs, removes nothing else and exits 0, in every round (control)
 1	instrument removers: IR6: the exit-status recorder this part puts in front of a program reads what wait reads, 0 for a watchdog ended by USR1 and 7 for a unit (control)
+1	instrument removers: IR6: the mark this part reads before each signal is found on a process it started and not on the suite's own shell (control)
 1	instrument removers: IR6: two plain File::Path::remove_tree calls in two processes, started together with no eval, collide on this part's tree: one dies in at least one round (arming)
 1	interpolating a credential is high
 1	into the generated shape

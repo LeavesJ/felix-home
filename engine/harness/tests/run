@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Felix harness self-test. The claim it tests, that Felix governs a project it knows nothing about, is in part 0004.
+# Felix harness self-test. The claim it tests, that Felix governs a project it knows nothing about, is in part 0004. Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 #   harness/tests/run                       the suite
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
 #   harness/tests/run --reuse               say the last run on this tree stands, or run
 #   harness/tests/run -j N | --part NAME... N units at a time | some parts alone (contract D)
-# Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 set -uo pipefail
 # The caller's environment must not change what a tool prints. Why: the comment above the same lines in engine/harness/felix.
 set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
@@ -414,6 +413,8 @@ fi
 . "$HERE/parts/2190-trust-step4-setup-publish-blind.sh"
 . "$HERE/parts/2191-trust-step4-setup-engine-copy-blind.sh"
 . "$HERE/parts/2192-trust-step4-setup-lock-and-e-blind.sh"
+. "$HERE/parts/2193-trust-step4-setup-hardening-engine-blind.sh"
+. "$HERE/parts/2194-trust-step4-setup-hardening-publish-and-e-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"
@@ -440,8 +441,7 @@ fi
 . "$HERE/parts/2510-instrument-removers-race-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
-# The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion
-# line (#371). The empty line before it is this suite's own, and the red block's marker assertion pins this printf.
+# The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion line (#371). The empty line before it is this suite's own, and the red block's marker assertion pins this printf.
 printf '\nreached\n'
 # What ran, against what is supposed to run (#67): one way only, and counted per name; part 0001 says why.
 _ran_counts="$TMP/ran.counts"

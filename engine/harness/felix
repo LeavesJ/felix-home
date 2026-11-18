@@ -396,6 +396,7 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 # The authority that holds main, and the founder's door (trust-plane step 4, stage 1, slice 1).
 # shellcheck source=lib/authority.sh
 . "${SCRIPT_DIR}/lib/authority.sh"
+. "${SCRIPT_DIR}/lib/authority-walk.sh"
 . "${SCRIPT_DIR}/lib/authority-paths.sh"
 . "${SCRIPT_DIR}/lib/door-read.sh"
 . "${SCRIPT_DIR}/lib/authority-tick.sh"

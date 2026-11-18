@@ -1,7 +1,9 @@
-# tests/lib/trust-step4-setup.sh: what parts 2190 to 2192 share (trust step 4, stage 1, the authority setup slice; blind).
-# Definitions only (contract C2): sourcing this file defines functions and nothing else. Written from the setup slice's
-# spec (rev 1) alone, with no implementation in view. felix authority publish, bin/authority-engine and bin/lock-macos
-# are driven as black boxes, and what they write is read with git, ls and find. Each part calls _ts4u_begin first, which
+# tests/lib/trust-step4-setup.sh: what parts 2190 to 2192, and the hardening's parts from 2193, share (trust step 4, stage 1,
+# the authority setup slice; blind). Definitions only (contract C2): sourcing this file defines functions and nothing else.
+# Written from the setup slice's spec (rev 1) alone, with no implementation in view; the readings of E2 (_ts4u_e2 and the
+# functions above it) were widened on 2026-11-16 from the hardening spec (audits/2026-11-16-trust-step4-setup-hardening,
+# rev 1, sections 0, 1 and 5) alone, to H1 and H2. felix authority publish, bin/authority-engine and bin/lock-macos are
+# driven as black boxes, and what they write is read with git, ls and find. Each part calls _ts4u_begin first, which
 # calls _ts4_begin (lib/trust-step4.sh) and sets the names below, and _ts4u_end last; every file is under $TS4.
 #
 # TS4U_OS is uname -s; TS4U_UID this login's uid; TS4U_AE and TS4U_LK the suite's copies of bin/authority-engine and
@@ -135,15 +137,85 @@ _ts4u_launcher() {   # FILE COMMIT: what a launcher holds, as E11 reads: its lin
   K="$2" LC_ALL=C awk 'NR == 1 { f = $0 } NR == 2 { c = (index($0, "#") == 1 && index($0, ENVIRON["K"])) ? "yes" : "no" } NR == 3 { t = $0 }
     END { printf "lines: %d; first: %s; second, a comment naming the commit: %s; third: %s", NR, f, c, t }' "$1"
 }
-_ts4u_e2() {   # -> "takes" when the git E2 names is a regular file, not a link, owned by uid 0, and neither it nor its directory can
-               # be written by group or other; otherwise the line E2 refuses with, here
+# ---- "only root can change", as the hardening spec's section 0 gives it, and the git E2, H1 and H2 read
+_ts4u_allows() {   # PATH: "yes" when PATH, read as itself, carries an access-control entry that is not a deny: a line of ls -lde that
+                   # starts with a space, a number and a colon and holds no " deny "; where ls takes no -e (ls -lde / fails), a mode
+                   # string whose eleventh character, as ls -ld prints it, is + (H8). Otherwise "no"
+  if ls -lde / >/dev/null 2>&1; then
+    ls -lde "$1" 2>/dev/null | LC_ALL=C awk '/^ [0-9]+: / && index($0, " deny ") == 0 { f = 1 } END { print (f ? "yes" : "no") }'
+  else
+    ls -ld "$1" 2>/dev/null | LC_ALL=C awk 'NR == 1 && substr($1, 11, 1) == "+" { f = 1 } END { print (f ? "yes" : "no") }'
+  fi
+}
+_ts4u_r0first() {   # PATH...: the first of them that only root cannot be said to change, each read as itself (ls -ldn, no link
+                    # followed): one that is not there, not owned by uid 0, writable by group or other (sticky or not), or carrying an
+                    # entry that allows; nothing when each is one only root can change. A link's own mode bits are not read: they
+                    # grant nothing (on Linux they are always rwxrwxrwx), and what it points at is read through it where H2 says so
+  local p
+  for p in "$@"; do
+    if [ -e "$p" ] || [ -L "$p" ]; then
+      if ls -ldn "$p" 2>/dev/null | LC_ALL=C awk 'NR == 1 { b = ($3 != 0 || (substr($1, 1, 1) != "l" && (substr($1, 6, 1) == "w" || substr($1, 9, 1) == "w"))) } END { exit (NR >= 1 && !b) ? 0 : 1 }' \
+         && [ "$(_ts4u_allows "$p")" = no ]; then continue; fi
+    fi
+    printf '%s' "$p"; return 0
+  done
+}
+_ts4u_above() {   # PATH: each directory above PATH, from its parent up to /, along PATH as written and then along its physical path
+                  # (cd -P), each once, one a line (the hardening spec's section 0, condition e's C3 walk)
+  local p="$1" q r
+  { q="$p"; while [ -n "$q" ] && [ "$q" != / ]; do q="${q%/*}"; [ -n "$q" ] || q=/; printf '%s\n' "$q"; done
+    if [ -d "$p" ]; then r="$(cd -P "$p" 2>/dev/null && pwd -P)"; else r="$(cd -P "${p%/*}/" 2>/dev/null && pwd -P)"; r="${r%/}/${p##*/}"; fi
+    q="$r"; while [ -n "$q" ] && [ "$q" != / ]; do q="${q%/*}"; [ -n "$q" ] || q=/; printf '%s\n' "$q"; done
+  } | LC_ALL=C awk '!s[$0]++'
+}
+_ts4u_xp() {   # GIT: what GIT --exec-path prints under E3's environment, its last newline cut, when that is an absolute path to a
+               # directory; otherwise nothing, and status 1
+  local x
+  x="$(env -i HOME="${TS4:-/}/x" PATH="$TS4U_SYSPATH" LC_ALL=C GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_ATTR_NOSYSTEM=1 \
+         GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 "$1" -c core.attributesFile=/dev/null --exec-path 2>/dev/null; printf x)"
+  x="${x%x}"; x="${x%$'\n'}"
+  case "$x" in /*) ;; *) return 1 ;; esac
+  case "$x" in *$'\n'*) return 1 ;; esac
+  [ -d "$x" ] || return 1
+  printf '%s' "$x"
+}
+_ts4u_r0tree() {   # DIR: nothing when each path under DIR at every depth, DIR among them, is one only root can change, read as itself
+                   # (find) and, through a link, as what it points at (find -L), H2's reading; otherwise the first that is not, or DIR
+                   # and why. A link read as itself is read for its owner and its entries, not its mode bits (as _ts4u_r0first);
+                   # its target is named by its physical path for the entries (macOS's ls -L reads the link's own)
+  local d="$1" f p; local -a t
+  { find "$d" -print && find -L "$d" -print; } >/dev/null 2>&1 || { printf '%s (find could not read all of it)' "$d"; return 0; }
+  f="$( { find "$d" \( ! -user 0 -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print; find -L "$d" \( ! -user 0 -o -perm -020 -o -perm -002 \) -print; } 2>/dev/null | LC_ALL=C awk 'NR == 1 { print }')"
+  [ -z "$f" ] || { printf '%s' "$f"; return 0; }
+  t=(); while IFS= read -r p; do t+=("$p"); done < <(find -L "$d" -print 2>/dev/null | perl -MCwd=abs_path -ne 'chomp; if (-l $_) { my $r = abs_path($_); print "$r\n" if defined $r }')
+  if ls -lde / >/dev/null 2>&1; then
+    f="$( { find "$d" -exec ls -lde {} +; [ "${#t[@]}" -eq 0 ] || ls -lde "${t[@]}"; } 2>/dev/null | LC_ALL=C awk '/^ [0-9]+: / && index($0, " deny ") == 0 { n++ } END { print n + 0 }')"
+  else
+    f="$( { find "$d" -exec ls -ld {} +; [ "${#t[@]}" -eq 0 ] || ls -ld "${t[@]}"; } 2>/dev/null | LC_ALL=C awk 'substr($1, 11, 1) == "+" { n++ } END { print n + 0 }')"
+  fi
+  [ "$f" = 0 ] || printf '%s (a path under it carries an access-control entry that allows)' "$d"
+}
+_ts4u_g0() {   # GIT -> "takes" when GIT is one E2, H1 and H2 take, as this test reads them; otherwise why not, from "E2: ", "H1: " or "H2: ".
+               # E2 and H1: a regular file, not a link, that only root can change, and each directory above it too, sticky or not.
+               # H2: its exec path (_ts4u_xp) a directory that only root can change, with each directory above it and each path under it
+  local g="$1" x d; local -a a
+  if [ -L "$g" ] || [ ! -f "$g" ]; then printf 'E2: %s is not a regular file, or is a link' "$g"; return 0; fi
+  d="$(_ts4u_r0first "$g")"; [ -z "$d" ] || { printf 'H1: %s is not a file only root can change' "$g"; return 0; }
+  a=(); while IFS= read -r d; do a+=("$d"); done < <(_ts4u_above "$g")
+  d="$(_ts4u_r0first ${a[@]+"${a[@]}"})"; [ -z "$d" ] || { printf 'H1: %s, a directory above it, is not one only root can change' "$d"; return 0; }
+  x="$(_ts4u_xp "$g")" || { printf 'H2: what it prints for --exec-path is not an absolute path to a directory'; return 0; }
+  a=(); while IFS= read -r d; do a+=("$d"); done < <(_ts4u_above "$x")
+  d="$(_ts4u_r0first "$x" ${a[@]+"${a[@]}"})"; [ -z "$d" ] || { printf 'H2: %s, its exec path %s or a directory above it, is not one only root can change' "$d" "$x"; return 0; }
+  d="$(_ts4u_r0tree "$x")"; [ -z "$d" ] || { printf 'H2: %s, under its exec path, is not one only root can change' "$d"; return 0; }
+  printf takes
+}
+_ts4u_e2() {   # -> "takes" when the git E2 names is one E2, H1 and H2 take, as _ts4u_g0 reads it; otherwise the line E2 refuses with, here
   local g="$TS4U_GIT"
   if [ ! -e "$g" ] && [ ! -L "$g" ]; then
     if [ "$TS4U_OS" = Darwin ]; then printf 'authority-engine: there is no %s; the Command Line Tools provide it' "$g"; else printf 'authority-engine: there is no %s' "$g"; fi
     return 0
   fi
-  if [ ! -L "$g" ] && [ -f "$g" ] && { ls -ldn "$g"; ls -ldn "$(dirname "$g")"; } 2>/dev/null | LC_ALL=C awk 'NR == 1 && $3 != 0 { b = 1 }
-       { if (substr($1, 6, 1) == "w" || substr($1, 9, 1) == "w") b = 1 } END { exit (NR == 2 && !b) ? 0 : 1 }'; then printf takes
+  if [ "$(_ts4u_g0 "$g")" = takes ]; then printf takes
   else printf 'authority-engine: %s is not a git only root can change' "$g"; fi
 }
 

@@ -156,11 +156,19 @@ felix_instr_dirs() {   # ROOT
   fi
   _felix_instr_watch
 }
+# A14, docs/2026-11-17-instrument-removers-contract.md IR2: each PATH removed on its own, as the watchdog and a gone
+# judge's supervisors remove J, R, UP and HP at once. File::Path croaks when the other removes the directory it stands
+# in, and leaves this process there, where the next remove_tree removes nothing (it reads getcwd first). So a removal
+# is caught, followed by a return to /, and tried again while the path is there: 20 attempts, 0.1 s apart.
+_felix_instr_rmpl='sub _rmeach { for my $d (@_) { next if $d eq ""; for (1 .. 20) { last if !-e $d && !-l $d;
+  chmod 0700, $d if -d $d && !-l $d; eval { File::Path::remove_tree($d) }; chdir "/"; last if !-e $d && !-l $d;
+  select(undef, undef, undef, 0.1) } } }'
 # A14. The watchdog: it waits for its parent, the judge, to be gone (the judge hands it its pid, as a supervisor is
 # handed its parent's, for a judge KILLed before the watchdog first looks), then moves what git wrote into bind.sh's copy
 # to the checkout (bind.sh's _felix_bind_salvage, the same rule) and removes the copy and every directory of the
-# run. USR1 ends it, unused, once the judge has removed them itself.
-_felix_instr_wdpl='use File::Path (); use File::Copy (); use File::Glob qw(bsd_glob);
+# run, the copy first (IR3): only the watchdog removes it, while the supervisors remove the rest too. USR1 ends it,
+# unused, once the judge has removed them itself.
+_felix_instr_wdpl='use File::Path (); use File::Copy (); use File::Glob qw(bsd_glob);'"$_felix_instr_rmpl"'
 my ($pp, $from, $to, $keep, @rm) = @ARGV; $pp = getppid() unless $pp =~ /^[1-9][0-9]*$/; setpgrp(0, 0);
 $SIG{$_} = "IGNORE" for qw(TERM INT HUP QUIT PIPE); $SIG{USR1} = sub { exit 0 };
 while (getppid() == $pp) { select(undef, undef, undef, 0.25) }
@@ -169,16 +177,15 @@ if ($from ne "" && $to ne "" && -d $from && -d $to) {
   for my $f (bsd_glob("$from/[0-9a-f][0-9a-f]/*"), bsd_glob("$from/pack/*")) { next unless -f $f;
     my $rel = substr($f, length($from) + 1); next if $keep ne "" && index($rel, "pack/$keep.") == 0;
     next if -e "$to/$rel"; my $dd = $rel; $dd =~ s{/[^/]*$}{}; mkdir "$to/$dd"; File::Copy::move($f, "$to/$rel") } }
-for my $d (@rm) { next if $d eq "" || !-e $d; chmod 0700, $d if -d $d && !-l $d; File::Path::remove_tree($d) }
-exit 0;'
+_rmeach(@rm); exit 0;'
 _felix_instr_watch() {
   local bd="" bh="" bp="" pp
   pp="${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}"   # this shell, the judge; before the fork, which expands the arguments
   if [ -n "${_FELIX_BIND_DIR:-}" ] && [ "${_FELIX_BIND_OWNER:-}" = "$_FELIX_INSTR_OWNER" ]; then
     bd="$_FELIX_BIND_DIR"; bh="${_FELIX_BIND_HOME:-}"; bp="${_FELIX_BIND_PACK:-}"
   fi
-  perl -e "$_felix_instr_wdpl" "$pp" "${bh:+$bd/objects}" "$bh" "$bp" "$_FELIX_INSTR_J" "$_FELIX_INSTR_R" "$_FELIX_INSTR_UP" \
-    "$_FELIX_INSTR_HP" ${bd:+"$bd"} ${bd:+"$bd.list"} </dev/null >/dev/null 2>&1 &
+  perl -e "$_felix_instr_wdpl" "$pp" "${bh:+$bd/objects}" "$bh" "$bp" ${bd:+"$bd"} ${bd:+"$bd.list"} "$_FELIX_INSTR_J" \
+    "$_FELIX_INSTR_R" "$_FELIX_INSTR_UP" "$_FELIX_INSTR_HP" </dev/null >/dev/null 2>&1 &
   _FELIX_INSTR_WD=$!
 }
 # A12. P's files in T as they are (DIR, then the paths T takes from P): one line an entry, its path in hex, size,
@@ -357,8 +364,9 @@ _felix_instr_repo() {   # DEST COMMIT BRANCH PACK BASE-PATHS: a repository of it
 # hands it its own pid (PARENT), so that a judge gone before the supervisor first looks is seen as gone (read from
 # getppid at the start, a judge KILLed in that window read as pid 1, and the supervisor waited on). A judge that is gone
 # was killed by a signal it could not trap (KILL, or one it does not trap): the supervisor then removes J, R, the
-# unit's own directory U, the parent of the units' directories (A14) and the units' HOMEs.
-_felix_instr_pl='use POSIX ();
+# unit's own directory U, the parent of the units' directories (A14) and the units' HOMEs, each on its own (IR4), as
+# the watchdog removes them at the same time.
+_felix_instr_pl='use POSIX ();'"$_felix_instr_rmpl"'
 my ($pp, $lim, $log, $pf, $jd, $rd, $ud, $up, $hp, @cmd) = @ARGV; $pp = getppid() unless $pp =~ /^[1-9][0-9]*$/; setpgrp(0, 0);
 my $u = fork(); exit 125 unless defined $u;
 if (!$u) { setpgrp(0, 0); $SIG{$_} = "DEFAULT" for qw(INT QUIT TERM HUP PIPE ALRM);
@@ -375,7 +383,7 @@ kill "TERM", -$u;
 for (1 .. 10) { last unless kill 0, -$u; select(undef, undef, undef, 0.1);
   if (!defined $st && waitpid($u, POSIX::WNOHANG()) == $u) { $st = $? } }
 kill "KILL", -$u; waitpid($u, 0) unless defined $st;
-if ($why == 126) { chdir "/"; require File::Path; chmod 0700, $up; File::Path::remove_tree($jd, $rd, $ud, $up, $hp); exit 125 }
+if ($why == 126) { chdir "/"; require File::Path; _rmeach($jd, $rd, $ud, $up, $hp); exit 125 }
 exit $why if $why; exit(($st & 127) ? 128 + ($st & 127) : ($st >> 8));'
 # One unit of a suite in part mode, in DIR, under its supervisor, in the background: the copy's object variables,
 # bind's other settings and felix merge's own variables unset, the units' TMPDIR (A7.5, A17), and A10's home:

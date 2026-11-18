@@ -16452,7 +16452,7 @@
 1	ts4 harden H8: where ls takes no -e, authority-engine refuses a HOME that carries a POSIX list, naming HOME with H3's line, and writes nothing in HOME
 1	ts4 harden H9 (control): the setup document is there, with one line that starts **Step 3. and one that starts **Step 4., and this test reads step 3 between them
 1	ts4 harden H9 (control): this test's reading of a sentence that says to note the id after origin-main: takes the words of 0.49.351 and leaves one that names it as a worker's word
-1	ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.354
+1	ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.356
 1	ts4 harden H9 (review trust 2): step 4's lines set no configuration, hook or replacement object of the system's or the login's for git, and make HOME/.felix fresh
 1	ts4 harden H9: the setup document's step 3 has that commit read on another device, his phone, which no login of this Mac reaches
 1	ts4 harden H9: the setup document's step 3 names the merged commit of the pull request he released as the id to type

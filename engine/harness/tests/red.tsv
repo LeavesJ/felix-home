@@ -8,11 +8,47 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	debec2c3779caddb3d313211e1aba2177af721ba	0.49.352
-run	6	17825	52
-instrument removers: IR2: the watchdog exits 0 in every round of that race	1
-instrument removers: IR2: the watchdog, its PATHs given J R UP HP BD BD.list and another process removing J once PARENT is gone, leaves none of them, in every round	1
-instrument removers: IR3: a shell running _felix_instr_watch over its own bind copy, KILLed while another process removes J, leaves none of BD, BD.list, J, R, UP and HP within a few seconds, in every round	1
-instrument removers: IR3: with no other remover, a shell KILLed after _felix_instr_watch reaches a moment where BD and BD.list are gone while J, whose removal takes a while, is still there, in every round	1
-instrument removers: IR4: the supervisor exits 125 in every round of that race	1
-instrument removers: IR4: the supervisor's judge-gone path, another process removing J once the unit's group is gone, leaves none of J R U UP HP, in every round	1
+base	origin/main	b03e7c100a04829f52902c1dc21c3d7f3ce4ef75	0.49.355
+run	42	17860	59
+ts4 harden C3 (security review of b417a831): a child of it the walk read through a link, which carries no flag, keeps it	1
+ts4 harden C3 (security review of b417a831): a directory above the code that is a link is kept, though each child of its target carries sunlnk	1
+ts4 harden H11 (security review of d1eecab1): a link in a PATH directory that leads to nothing, into a directory every login can write, names that directory, and not once the mode is taken back	1
+ts4 harden H11 (security review of d1eecab1): a program in a PATH directory that is a link into a directory every login can write names that directory, and is gone once the mode is taken back	1
+ts4 harden H12 (security review of e7056655): a program in a PATH directory that is a link to a link in a directory every login can write names that directory, and is gone once the mode is taken back	1
+ts4 harden H1: the seam copy refuses a hard link to the git E2 names made in a directory of this login's, a file only root can change in a directory that is not, with E2's line, writes no copy and no launcher, and runs nothing of the exec path beside it	1
+ts4 harden H1: the seam copy refuses that git named through a link of this login's above its directory, along the path as written, with E2's line, and writes no copy and no launcher	1
+ts4 harden H2: on macOS, the seam copy refuses /usr/bin/git, whose exec path is one H2 refuses, with E2's line, and writes no copy and no launcher	1
+ts4 harden H3: authority-engine refuses a HOME in a directory of mode 777 without the sticky bit, naming that directory, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME in a directory that carries an access-control entry that allows, on macOS, naming that directory, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME of mode 1777, naming HOME: the sticky bit makes HOME no more this login's alone, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME of mode 757, naming HOME, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME of mode 775 in a directory of mode 777, naming HOME, which is read first, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME of mode 775 whose .felix is a file, with H3's line and not E6's: H3 is read before E6 reads its four directories, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME of mode 775, naming HOME, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME reached through a link of this login's whose physical path runs through a directory of mode 777, naming that directory, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME reached through a link to a link that sits in a directory of mode 777 without the sticky bit, naming that directory (review trust 3), and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME that carries an access-control entry that allows, on macOS, naming HOME, and writes nothing in HOME	1
+ts4 harden H3: authority-engine refuses a HOME that is a link carrying an entry that allows, in a directory of mode 1777, naming the link, and writes nothing in HOME (review trust 4)	1
+ts4 harden H3: authority-engine refuses a HOME two of whose directories above are of mode 777, naming the nearer one, and writes nothing in HOME	1
+ts4 harden H5: a DIR another login makes, of mode 777, after H5 has read that it is not there, is not taken: publish refuses, and writes nothing in it (review trust 1)	1
+ts4 harden H5: publish refuses a DIR not there two levels under a directory of mode 777 without the sticky bit, naming that directory (a reading of each directory above), and writes nothing there	1
+ts4 harden H5: publish refuses a DIR not there under a directory of mode 777 without the sticky bit, naming that directory, and does not make DIR, and writes nothing there	1
+ts4 harden H5: publish refuses a DIR not there under a directory that carries an access-control entry that allows, naming that directory, and writes nothing there	1
+ts4 harden H5: publish refuses a DIR not there under a link to a directory whose parent every login can write without the sticky bit, naming that parent from the physical path, and writes nothing there	1
+ts4 harden H5: publish refuses a DIR not there under a link to a link that sits in a directory of mode 777 without the sticky bit, naming that directory (review trust 3), and writes nothing there	1
+ts4 harden H5: publish refuses an existing DIR of mode 1777: the sticky bit excuses a directory above, not DIR itself (a reading), and writes nothing there	1
+ts4 harden H5: publish refuses an existing DIR of mode 755 that carries an access-control entry that allows, and writes nothing there	1
+ts4 harden H5: publish refuses an existing DIR of mode 755 under a directory of mode 777 without the sticky bit, naming that directory, and writes nothing there	1
+ts4 harden H5: publish refuses an existing DIR of mode 775, and writes nothing there	1
+ts4 harden H5: publish refuses an existing DIR of mode 777, and writes nothing there	1
+ts4 harden H6 (review trust 6): a program in a PATH directory that is a link to a file carrying an entry that allows is named by condition e, at that file	1
+ts4 harden H6: PATH entries gl/b* and gl/b?n, each of whose globs would match gl/bin, writable by every login, do not name it: status prints the why lines of c and d alone	1
+ts4 harden H6: a PATH entry gl/[b]in is read as written: the literal directory, writable by every login, is named by condition e, and is gone once the mode is taken back	1
+ts4 harden H6: for a PATH entry gl/[b]in, the directory the glob would match, gl/bin, writable by every login, is not named: status prints the why lines of c and d alone	1
+ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.356	1
+ts4 harden H9 (review trust 2): step 4's lines set no configuration, hook or replacement object of the system's or the login's for git, and make HOME/.felix fresh	1
+ts4 harden H9: the setup document's step 3 has that commit read on another device, his phone, which no login of this Mac reaches	1
+ts4 harden H9: the setup document's step 3 names the merged commit of the pull request he released as the id to type	1
+ts4 harden H9: the setup document's step 3 no longer says to note the id publish prints after origin-main:	1
+ts4 setup C3 (security review): a PATH entry that is a link to a file, and one under a link to nothing, each name that link as one that leads to no directory	1
+ts4 setup C3 (security review): a lock that is a link is named as one, to nothing or to a file in a directory every login can write, and a lock that is a file only its owner writes is not	1

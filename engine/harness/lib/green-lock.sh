@@ -20,9 +20,9 @@ _gt_unlock() {
 
 # Seconds the process has run, from ps's [[dd-]hh:]mm:ss; empty when unreadable.
 _gt_age() {
-  LC_ALL=C ps -o etime= -p "$1" 2>/dev/null | LC_ALL=C awk 'NF { n = split($1, a, /[-:]/); s = 0
+  LC_ALL=C ps -o etime= -p "$1" 2>/dev/null | LC_ALL=C awk 'quit { next } NF { n = split($1, a, /[-:]/); s = 0
     if (n == 2) s = a[1] * 60 + a[2]; else if (n == 3) s = a[1] * 3600 + a[2] * 60 + a[3]
-    else if (n == 4) s = a[1] * 86400 + a[2] * 3600 + a[3] * 60 + a[4]; else exit; print s }'
+    else if (n == 4) s = a[1] * 86400 + a[2] * 3600 + a[3] * 60 + a[4]; else { quit = 1; next }; print s }'
 }
 
 # 0 when the lock directory names a live tick; sets _GT_HPID to its pid.

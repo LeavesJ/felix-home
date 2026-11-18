@@ -384,7 +384,7 @@ felix_route_best() {
   # play held a byte that is not UTF-8, so no prompt was routed at all, and BSD
   # cut failed on the picked line when the winner's own play held one. Both
   # read bytes in C.
-  line="$(felix_route_score "$1" "$2" "$3" | LC_ALL=C sort -k2,2nr -k3,3nr -k4,4n | head -1)"
+  line="$(felix_route_score "$1" "$2" "$3" | LC_ALL=C sort -k2,2nr -k3,3nr -k4,4n | LC_ALL=C sed -n 1p)"
   [ -n "$line" ] || return 1
   [ "$(printf '%s' "$line" | LC_ALL=C cut -f1)" -ge "$FELIX_ROUTE_MIN_SCORE" ] || return 1
   printf '%s' "$line"

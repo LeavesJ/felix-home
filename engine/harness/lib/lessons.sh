@@ -66,7 +66,7 @@ felix_lessons_for() {
 $words
 EOF
     [ "$score" -gt 0 ] && printf '%s\t%s\n' "$score" "$entry"
-  done | LC_ALL=C sort -rn | head -"$max" | cut -f2- | _felix_lessons_headline
+  done | LC_ALL=C sort -rn | { head -"$max"; cat >/dev/null; } | cut -f2- | _felix_lessons_headline
 }
 
 # A well-written lesson states itself in its first sentence and spends the rest

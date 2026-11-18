@@ -45,7 +45,7 @@ felix_guard_culprit() {
     [ -n "$name" ] || continue
     case "${#name}" in 1|2|3) continue ;; esac
     case "$hay" in *"$name"*) printf '%s\n' "$name"; return 0 ;; esac
-  done | head -1
+  done | LC_ALL=C sed -n 1p
 }
 
 # Whether a blocking message is Felix's own.

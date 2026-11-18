@@ -88,7 +88,7 @@ printf '%s\n' "$out" | while IFS= read -r line; do
   printf '  %-22s %-18s %-9s %-12s %s\n' "$name" "$cls" "$app" "$dis" "$det"
   # The evidence's own report, for every active row it did not discharge.
   if [ "$app" = "ACTIVE" ] && [ "$dis" != "SATISFIED" ]; then
-    ev="$(felix_obligation_rows "$PROJ" | awk -F'\t' -v n="$name" '$1 == n { print $5; exit }')"
+    ev="$(felix_obligation_rows "$PROJ" | awk -F'\t' -v n="$name" 'quit { next } $1 == n { print $5; quit = 1; next }')"
     bash -c "$ev" felix-obligation </dev/null 2>&1 | sed 's/^/      /'
   fi
 done

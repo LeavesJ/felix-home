@@ -313,7 +313,7 @@ felix_exceptions_malformed() { _felix_exceptions_scan bad; }
 # The hash a grant is keyed to: the ledger line, verbatim, with its newline.
 felix_obligation_row_hash() {   # proj obligation -> hash, or nothing
   local proj="$1" name="$2" line
-  line="$(felix_obligation_rows "$proj" | awk -F'\t' -v n="$name" '$1 == n { print; exit }')"
+  line="$(felix_obligation_rows "$proj" | awk -F'\t' -v n="$name" 'quit { next } $1 == n { print; quit = 1; next }')"
   [ -n "$line" ] || return 1
   printf '%s\n' "$line" | git hash-object --stdin 2>/dev/null
 }
@@ -384,7 +384,7 @@ felix_exceptions_judge() {   # proj [now] [run-output] -> lines
     name="$(printf '%s\n' "$row" | cut -f1)"; h="$(printf '%s\n' "$row" | cut -f2)"
     exp="$(printf '%s\n' "$row" | cut -f3)";  who="$(printf '%s\n' "$row" | cut -f4)"
     if [ -n "$doubt" ]; then printf 'refused\t%s\t%s\t%s\tnot honoured: %s\n' "$name" "$exp" "$who" "$doubt"; continue; fi
-    line="$(felix_obligation_rows "$proj" | awk -F'\t' -v n="$name" '$1 == n { print; exit }')"
+    line="$(felix_obligation_rows "$proj" | awk -F'\t' -v n="$name" 'quit { next } $1 == n { print; quit = 1; next }')"
     why=""
     if [ -z "$line" ]; then why="names an obligation the ledger does not admit"
     else
@@ -397,7 +397,7 @@ felix_exceptions_judge() {   # proj [now] [run-output] -> lines
       [ -z "$why" ] && ! [[ "$exp" > "$now" ]] && why="expired"
       [ -z "$why" ] && ! [ "${exp%%-*}" -le "$maxyear" ] 2>/dev/null && why="expires past the horizon, which is the end of next year"
     fi
-    appl="$(printf '%s\n' "$runout" | awk -F'\t' -v n="$name" '$1 == n { print $4; exit }')"
+    appl="$(printf '%s\n' "$runout" | awk -F'\t' -v n="$name" 'quit { next } $1 == n { print $4; quit = 1; next }')"
     if [ -n "$why" ]; then printf 'refused\t%s\t%s\t%s\t%s\n' "$name" "$exp" "$who" "$why"
     elif [ "$appl" = "DORMANT" ]; then printf 'armed\t%s\t%s\t%s\tclears %s if it becomes applicable, until %s\n' "$name" "$exp" "$who" "$name" "$exp"
     else printf 'live\t%s\t%s\t%s\tclears %s until %s\n' "$name" "$exp" "$who" "$name" "$exp"; fi

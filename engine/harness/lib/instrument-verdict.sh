@@ -121,7 +121,7 @@ _felix_instr_canary_prep() {   # ROOT LB LM TESTS-DIR
   _felix_instr_text drv "$root" "$lm" "$t/run"; rc=$?
   [ "$rc" -ne 1 ] || return 1
   [ "$rc" -eq 0 ] || { _felix_instr_add escape machinery "the canary could not run under this tree's driver: its $t/run holds a NUL byte"; return 0; }
-  _FELIX_INSTR_CDMODE="$(printf '%s\n' "$lm" | LC_ALL=C awk -v p="$t/run" '{ i = index($0, "\t") } i && substr($0, i + 1) == p { print $1; exit }')"
+  _FELIX_INSTR_CDMODE="$(printf '%s\n' "$lm" | LC_ALL=C awk -v p="$t/run" 'quit { next } { i = index($0, "\t") } i && substr($0, i + 1) == p { print $1; quit = 1 }')"
   case "$_FELIX_INSTR_CDMODE" in 100644|100755) ;; *) _FELIX_INSTR_CDMODE=100755 ;; esac
   id="$(od -An -N8 -tx1 /dev/urandom 2>/dev/null | LC_ALL=C tr -cd '0123456789abcdef')"
   [ -n "$id" ] || id="$$$(date +%s)"

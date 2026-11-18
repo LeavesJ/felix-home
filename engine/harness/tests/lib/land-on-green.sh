@@ -66,7 +66,7 @@ _lg_pr() {   # N [draft] [labels] [mergeable] [cross] [base] -> one pull request
 }
 _lg_prs() { local IFS=,; printf '[%s]\n' "$*" > "$LGK/prs.json"; }
 _lg_green() { local n s; for n in "$@"; do s="$(_lg_sha "$n")"; printf 'completed\tsuccess\t%s\n' "$s" > "$LGK/runs.$s"; done; }
-_lg_osa() { case "$(_lg_logs osa)" in *"$1"*) ok "$2" ;; *) bad "$2" "osascript was called with: $(_lg_logs osa | cut -f1 | head -8 | tr '\n' '|')" ;; esac; }
+_lg_osa() { case "$(_lg_logs osa)" in *"$1"*) ok "$2" ;; *) bad "$2" "osascript was called with: $(_lg_logs osa | cut -f1 | LC_ALL=C sed -n '1,8p' | tr '\n' '|')" ;; esac; }
 
 # 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
 _lg_cache() { rm -rf "$LGV/$1"; mkdir -p "$LGV/$1/.claude-plugin"; cp -R "$LGH/engine/harness" "$LGV/$1/harness"

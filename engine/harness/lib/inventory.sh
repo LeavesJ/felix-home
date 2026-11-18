@@ -96,7 +96,7 @@ felix_inventory_usage() {
 }
 _fi_refuse() { printf 'felix inventory: %s\n' "$1" >&2; felix_inventory_usage >&2; return 2; }
 _fi_git() { GIT_NO_LAZY_FETCH=1 git --no-optional-locks --literal-pathspecs -c core.fsmonitor=false -c log.showSignature=false "$@"; }
-_fi_git_244() { _fi_git --version 2>/dev/null | awk '{ split($3, v, "."); exit !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) }'; }
+_fi_git_244() { _fi_git --version 2>/dev/null | awk 'NR == 1 { split($3, v, "."); rc = !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) } END { exit rc }'; }
 # A row: kind ref states owner age content detail sig branch, the repository second; no tab or line break in a field, - for empty.
 _fi_row() {
   local a line=""

@@ -278,7 +278,7 @@ felix_discover_candidates() {
           printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
         fi
       done)"
-  printf '%s\n' "$rows" | LC_ALL=C grep . | LC_ALL=C sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
+  printf '%s\n' "$rows" | LC_ALL=C grep . | LC_ALL=C sort -k1,1nr | { head -"$FELIX_DISCOVER_MAX"; cat >/dev/null; }
   return 0
 }
 

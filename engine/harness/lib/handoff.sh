@@ -494,7 +494,7 @@ _felix_handoff_refold() {
   head -n "$n" "$t/order" > "$t/fold"
   while IFS= read -r f; do git -C "$root" show "$base:$f" > "$r/$f" 2>/dev/null; done < "$t/fold"
   if ! out="$(felix_handoff_fold "$r" "$t/fold")"; then
-    printf 'fold\tthe merge-base cannot be folded: %s\n' "$(printf '%s' "$out" | head -1)"; return 0
+    printf 'fold\tthe merge-base cannot be folded: %s\n' "$(printf '%s' "$out" | LC_ALL=C sed -n 1p)"; return 0
   fi
   for f in "$r/$FELIX_HANDOFF_DIR"/*.md; do
     [ -f "$f" ] || continue

@@ -8,7 +8,15 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	06bcc19353d4573b867b418d98d26ab648b295ed	0.49.356
-run	2	17903	59
-instrument removers: IR2: the watchdog, another process removing and making again what is under J for about 4 s after it starts removing and then stopping with J still there, leaves none of its PATHs, in every round	1
-instrument removers: IR4: the supervisor's judge-gone path, another process removing and making again what is under J for about 4 s after the unit's group is gone and then stopping with J still there, leaves none of J R U UP HP, in every round	1
+base	origin/main	ec8e44e044c45d895881d743b12d460e0f91a6b8	0.49.358
+run	10	17953	59
+D4: a unit that dies in its prelude, before @@prelude-done in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -	1
+R1: and once the record run after a unit that dies in its prelude, before @@prelude-done has exited no process of red's tree is left, stopped or running	1
+_felix_instr_sha over a listing past 256 KB that opens with a tree at the path and then the blob prints the blob's id, quietly and with status 0, with SIGPIPE at its default	1
+_felix_instr_sha over a listing past 256 KB that opens with a tree at the path and then the blob prints the blob's id, quietly and with status 0, with SIGPIPE ignored	1
+_felix_instr_sha over a listing past 256 KB whose first line is the blob prints its id and a newline, writes nothing on stderr and returns 0, with SIGPIPE at its default	1
+_felix_instr_sha over a listing past 256 KB whose first line is the blob prints its id and a newline, writes nothing on stderr and returns 0, with SIGPIPE ignored	1
+_gt_class 3 over felix merge output past 256 KB that opens with a receipt-only block prints receipt and a newline, writes nothing on stderr and returns 0, with SIGPIPE at its default	1
+_gt_class 3 over felix merge output past 256 KB that opens with a receipt-only block prints receipt and a newline, writes nothing on stderr and returns 0, with SIGPIPE ignored	1
+_gt_detail over felix merge output past 256 KB whose first line is a blocker prints that line with no newline, writes nothing on stderr and returns 0, with SIGPIPE ignored	1
+no awk in the engine or the suite's library reads a pipe and exits outside its END action, the allowance aside	1

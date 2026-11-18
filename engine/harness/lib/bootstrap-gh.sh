@@ -99,7 +99,7 @@ _felix_bs_json_facts() {
 
 # The value of one fact of $1 (a document) named $2 (d, u or g), or nothing.
 _felix_bs_fact() {
-  printf '%s\n' "$1" | _felix_bs_json_facts | LC_ALL=C awk -F '\t' -v k="$2" '$1 == k { print substr($0, 3); exit }'
+  printf '%s\n' "$1" | _felix_bs_json_facts | LC_ALL=C awk -F '\t' -v k="$2" 'quit { next } $1 == k { print substr($0, 3); quit = 1; next }'
 }
 
 # SLUG: the repository's default branch, from the top-level default_branch of

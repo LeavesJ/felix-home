@@ -358,5 +358,5 @@ _au_resume() {
 _au_before="$(_au_snap "$AU")"; _au_home_before="$(_au_snap "$AU/home")"
 _auo="$(_au --dir "$AUD")"; _aurc=$?
 _au_report=0
-[ "$_aurc" -eq 0 ] && _au_first "$_auo" | grep -qiE 'read[- ]only' && _au_report=1
+[ "$_aurc" -eq 0 ] && grep -qiE 'read[- ]only' <<<"$(_au_first "$_auo")" && _au_report=1
 }

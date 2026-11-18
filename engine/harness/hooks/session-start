@@ -515,7 +515,7 @@ _pending="$(for _p in "${_repo_root}"/docs/handoff/pending/*.md; do
 if [ -n "$_pending" ]; then
   _npend="$(printf '%s\n' "$_pending" | grep -c .)"
   read_lines="${read_lines}
-$(printf '%s\n' "$_pending" | head -5 | sed 's/^/                   /')"
+$(printf '%s\n' "$_pending" | LC_ALL=C sed -n '1,5p' | sed 's/^/                   /')"
   [ "$_npend" -gt 5 ] && read_lines="${read_lines}
                    and $((_npend - 5)) older in ${_repo_root}/docs/handoff/pending/"
 fi
@@ -604,7 +604,7 @@ if [ -f "$PROJ/routes.tsv" ] && command -v claude >/dev/null 2>&1; then
   _dst=fresh; felix_discover_stale "$PROJ" "$FELIX_HOME_DIR" && _dst=stale
   _dn="$(felix_discover_notice "$PROJ" "$FELIX_HOME_DIR" "$_dst")"; [ -z "$_dn" ] || context="$context"$'\n\n'"$_dn"
   [ "$_dst" = stale ] && felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
-  _new="$(felix_discover_unseen "$PROJ" "$FELIX_HOME_DIR" | head -4 | tr '\n' ' ')"
+  _new="$(felix_discover_unseen "$PROJ" "$FELIX_HOME_DIR" | LC_ALL=C sed -n '1,4p' | tr '\n' ' ')"
   if [ -n "$_new" ]; then
     _felix_found="$_new"
     context="$context

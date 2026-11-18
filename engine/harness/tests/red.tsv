@@ -8,5 +8,11 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	a4dc4b6c52d1e7277b434995014d119eb040270d	0.49.351
-run	0	17809	52
+base	origin/main	debec2c3779caddb3d313211e1aba2177af721ba	0.49.352
+run	6	17825	52
+instrument removers: IR2: the watchdog exits 0 in every round of that race	1
+instrument removers: IR2: the watchdog, its PATHs given J R UP HP BD BD.list and another process removing J once PARENT is gone, leaves none of them, in every round	1
+instrument removers: IR3: a shell running _felix_instr_watch over its own bind copy, KILLed while another process removes J, leaves none of BD, BD.list, J, R, UP and HP within a few seconds, in every round	1
+instrument removers: IR3: with no other remover, a shell KILLed after _felix_instr_watch reaches a moment where BD and BD.list are gone while J, whose removal takes a while, is still there, in every round	1
+instrument removers: IR4: the supervisor exits 125 in every round of that race	1
+instrument removers: IR4: the supervisor's judge-gone path, another process removing J once the unit's group is gone, leaves none of J R U UP HP, in every round	1

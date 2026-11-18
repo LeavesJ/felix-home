@@ -2,7 +2,8 @@
 printf '\n%s\n' "the judge's removers each finish, whatever the other is doing: the watchdog, the shell that starts it, the supervisor (contract 2026-11-17, IR1 to IR6, blind)"
 # Blind, written on 2026-11-17 from docs/2026-11-17-instrument-removers-contract.md (rev 1, IR1 to IR6), and amended from its
 # rev 2 (IR3's order, IR5 in the race rounds, IR6's per-race collisions and limited waits) and its rev 3 (limits above
-# the programs' own 30 s, and a worker under J past rev 2's attempts), alone, by an author
+# the programs' own 30 s, and a worker under J past rev 2's attempts) and its rev 4 (which worker rounds count, and the
+# supervisor's worker at work from PARENT gone), alone, by an author
 # who has not read lib/instrument-run.sh, lib/instrument.sh, lib/bind.sh or lib/merge-judge.sh. The programs are taken from
 # the fixture engine's lib/instrument-run.sh, _felix_instr_wdpl (the watchdog) and _felix_instr_pl (the supervisor), and run
 # as perl -e PROGRAM ARGS; _felix_instr_watch is run in a shell that sources that file. A name ending (control) holds on the
@@ -43,19 +44,25 @@ printf '\n%s\n' "the judge's removers each finish, whatever the other is doing: 
 #   assertion that would pass is skipped by name, saying no round of it collided; one that fails still fails, as a failure
 #   needs no arming.
 # - IR6 (rev 2), limits: every wait on another process or a file ends: the ready file 10 s; the rival 10 s to get ready and
-#   15 s for PARENT or the group, then the worker's 4.2 s; a program removing, 45 s (rev 3; rev 2 had 10 s, 6 s in IR3),
+#   15 s for PARENT or the group, then the worker's 4.2 s (the supervisor's worker: up to 15 s more for the group to go,
+#   then 4.2 s); a program removing, 45 s (rev 3; rev 2 had 10 s, 6 s in IR3),
 #   in the rounds and in the controls that run the watchdog; the pair's go file 10 s and each of the pair 30 s; USR1 1.5 s;
 #   a supervisor whose PARENT lives, which removes nothing, 10 s; a group leader 5 s. The part's own programs that make or
 #   time a tree run in the foreground, bounded by the tree; their status is read, and a tree not made ends its round as a
 #   failure ("no tree", or the arming assertion's).
-# - Rev 3, the worker: 5 rounds for each of the watchdog (run as its own program, as in IR2, PATHs in today's order) and
-#   the supervisor's judge-gone path, J small (2 directories). The rival waits as in the races, then for 4.2 s (about 4 s
-#   after the program starts removing: the watchdog starts within 0.25 s of PARENT gone, the supervisor once the group is
-#   gone) turns what is under J over: each cycle makes J/gK (4 x 5 directories, 100 files) and then removes J/g(K-1), its
-#   own deaths caught and followed by a chdir to /, so J is never left empty by it; it does not make J again. It stops with
-#   J as it is and writes rebuilds (gK made whole), cycles, deaths and whether J was there. A round whose worker wrote
-#   nothing or made nothing is a fixture failure (red); a PATH left is red; when in no round J was there as the worker
-#   stopped, so nothing outlasted the attempts, the assertion is skipped; else ok.
+# - Rev 3 and 4, the worker: for each of the watchdog (run as its own program, as in IR2, PATHs in today's order) and the
+#   supervisor's judge-gone path, J small (2 directories). The rival waits until the program is ready, as in the races,
+#   then until PARENT is gone, and then turns what is under J over: each cycle makes J/gK (4 x 5 directories, 100 files)
+#   and then removes J/g(K-1), its own deaths caught and followed by a chdir to /, so J is never left empty by it; it does
+#   not make J again. For the watchdog it works 4.2 s from PARENT gone (the watchdog starts removing within 0.25 s of
+#   that). For the supervisor it works from PARENT gone, while the supervisor ends the unit's group, until 4.2 s after it
+#   sees the group gone (rev 4; "about 4 s" read as 4.2 s). It stops with J as it is and writes rebuilds (gK made whole),
+#   cycles, deaths, whether J was there, and when it saw the group gone. Rev 4's counting: a round outlasted the program
+#   when rebuilds is above 0 and J was there as the worker stopped; any other round with a report did not, and counts
+#   neither way. Rounds go on until 5 have outlasted, 10 at most; a note line gives the counts. A worker that wrote no
+#   report is a fixture failure (red). A PATH left is red in any round, outlasted or not: a left PATH is a failure that
+#   needs no arming, and the worker never makes J itself, so it cannot be what left one. When none outlasted the
+#   assertion is skipped by name, saying so; else ok when at least one outlasted (the note says how many).
 # - IR3's order (rev 2): 3 rounds, no rival, J of the calibrated size, so its removal takes 0.3 s or more. From just after
 #   the KILL until the watchdog is gone the judge looks every 0.01 s (about 30 looks in that removal) for BD and BD.list
 #   gone while J is there; every round must show it. The detail gives the looks that saw it, those that saw J gone with
@@ -66,7 +73,7 @@ IRB_LIB="$FROOT/harness/lib/instrument-run.sh"
 IRB_WD="$( set +u; . "$IRB_LIB" >/dev/null 2>&1; printf '%s' "${_felix_instr_wdpl-}" )"
 IRB_SV="$( set +u; . "$IRB_LIB" >/dev/null 2>&1; printf '%s' "${_felix_instr_pl-}" )"
 IRB_ME="$(exec /bin/sh -c 'echo "$PPID"')"
-IRB_N=20; IRB_N3=20; IRB_NA=5; IRB_ARM=5; IRB_R=0; IRB_A=20; IRB_NO3=3; IRB_SEE=""; IRB_RVD=0; IRB_PLIM=45; IRB_NW=5; IRB_WS=4.2; IRB_WORK=""
+IRB_N=20; IRB_N3=20; IRB_NA=5; IRB_ARM=5; IRB_R=0; IRB_A=20; IRB_NO3=3; IRB_SEE=""; IRB_RVD=0; IRB_PLIM=45; IRB_NW=5; IRB_NWX=10; IRB_WS=4.2; IRB_WORK=""
 IRB_L1="$(printf '%038d' 0 | tr 0 1)"; IRB_L2="$(printf '%038d' 0 | tr 0 2)"
 sleep 30 & IRB_DEAD=$!; { kill -KILL "$IRB_DEAD"; wait "$IRB_DEAD"; } 2>/dev/null   # a PARENT that is gone
 
@@ -95,8 +102,9 @@ if (length $bd) {
 }
 chmod 0311, "$d/UP" or die "chmod $d/UP: $!\n";'
 # MODE WHO PIDFILE GRPFILE READY TARGET: the rival (see the readings). MODE pid waits on WHO, grp on the group in GRPFILE.
-# With IRB_WORK set to SECONDS and FILE, one a line, it is the worker (rev 3): for SECONDS it makes TARGET/gK and removes
-# TARGET/g(K-1), its own deaths caught, then stops with TARGET as it is and writes what it did to FILE.
+# With IRB_WORK set to SECONDS and FILE, one a line, it is the worker (rev 3, 4): from WHO gone it makes TARGET/gK and
+# removes TARGET/g(K-1), its own deaths caught, for SECONDS (MODE pid) or until SECONDS after the group is gone (MODE grp,
+# 15 s at most for the group), then stops with TARGET as it is and writes what it did to FILE.
 IRB_RV='use strict; use warnings; use File::Path qw(remove_tree); use Time::HiRes qw(sleep time);
 my ($ws, $wf) = split /\n/, (defined $ENV{IRB_WORK} ? $ENV{IRB_WORK} : "");
 sub mkg { my $g = shift; mkdir $g or return 0; for my $i (1 .. 4) { mkdir "$g/d$i" or return 0; for my $j (1 .. 5) {
@@ -108,16 +116,21 @@ until ($p = num($pf)) { exit 3 if time - $t > 10; sleep 0.01 }
 if ($mode eq "grp") { until ($g = num($gf)) { exit 3 if time - $t > 10; sleep 0.01 } }
 else { until (getpgrp($p) == $p) { last if time - $t > 10; sleep 0.01 } }
 open(my $r, ">", "$ready.t") or exit 3; print {$r} "1\n"; close $r; rename("$ready.t", $ready) or exit 3;
+my $wk = (defined $wf and length $path) ? 1 : 0;
 $t = time;
-while (time - $t < 15) { last unless kill(0, $mode eq "grp" ? -$g : $who); sleep 0.05 }
-if (defined $wf and length $path) {
-  my ($end, $k, $n, $died) = (time + $ws, 0, 0, 0);
-  while (time < $end) {
+while (time - $t < 15) { last unless kill(0, ($mode eq "grp" and !$wk) ? -$g : $who); sleep 0.05 }
+if ($wk) {
+  my $t0 = time; my ($end, $k, $n, $died, $gs) = ($mode eq "grp" ? undef : $t0 + $ws, 0, 0, 0, "-");
+  while (1) {
+    if (!defined $end) {
+      if (!kill(0, -$g)) { $gs = sprintf("%.2f", time - $t0); $end = time + $ws } elsif (time - $t0 > 15) { $gs = "never"; $end = time }
+    }
+    last if defined $end and time >= $end;
     $k++; if (mkg("$path/g$k")) { $n++ } else { sleep 0.01 }
     if ($k > 1) { eval { remove_tree("$path/g" . ($k - 1), { error => \my $e }); 1 } or $died++; chdir "/" }
   }
   my $there = lstat($path) ? 1 : 0;
-  open(my $o, ">", $wf) or exit 3; print {$o} "rebuilds=$n cycles=$k died=$died jthere=$there\n"; close $o; exit 0;
+  open(my $o, ">", $wf) or exit 3; print {$o} "rebuilds=$n cycles=$k died=$died jthere=$there groupgone=$gs\n"; close $o; exit 0;
 }
 remove_tree($path) if length $path;
 exit 0;'
@@ -251,23 +264,31 @@ _irb_rc() {   # NAME COUNT DETAIL: a race's assertion, from _irb_rounds; one tha
   else _irb_ck "$1" "$2" "$3 (the rival's plain removal died in $IRB_CR of $IRB_K rounds)"; fi
 }
 _irb_note() { printf "  note  instrument removers: %s race: the rival's plain removal died in %s of %s rounds; it exited non-zero otherwise in %s\n" "$1" "$IRB_CR" "$IRB_K" "$IRB_CO"; }
-# KIND NAME (rev 3): IRB_NW rounds of _irb_KIND, J small, the worker under J for IRB_WS s once PARENT (wd) or the unit's
-# group (sv) is gone; then NAME: red when the worker never ran or a PATH was left, skipped when no round's worker
-# stopped with J still there, ok otherwise. Each round's outcome and the worker's counts are in the detail.
+# KIND NAME (rev 3, 4): rounds of _irb_KIND, J small, the worker under J (see IRB_RV), until IRB_NW rounds have
+# outlasted the program or IRB_NWX have run. A round outlasted when the worker made something and J was there as it
+# stopped; one that did not is in the detail and counts neither way. NAME is red when a worker wrote no report or a
+# PATH was left, skipped when no round outlasted, ok otherwise; a note line gives the counts.
 _irb_work() {
-  local k=0 d w f=0 l=0 u=0 x=""
-  while [ "$k" -lt "$IRB_NW" ]; do
+  local k=0 d w f=0 l=0 o=0 x="" c
+  while [ "$o" -lt "$IRB_NW" ] && [ "$k" -lt "$IRB_NWX" ]; do
     k=$((k + 1)); IRB_R=$((IRB_R + 1)); d="$IRB/$1.w$IRB_R"
     IRB_WORK="$IRB_WS"$'\n'"$d/work"; "_irb_$1" "$d" 1 2; IRB_WORK=""
     w="$(cat "$d/work" 2>/dev/null)"
     [ "$IRB_LEFT" = exited ] || l=$((l + 1))
-    case "$w" in ""|"rebuilds=0 "*) f=$((f + 1)) ;; *"jthere=1"*) ;; *) u=$((u + 1)) ;; esac
-    x="$x r$k: [$IRB_LEFT] exit $IRB_S, worker [${w:-never ran}];"
+    case "$w" in
+      "") f=$((f + 1)); c="no report" ;;
+      "rebuilds=0 "*) c="did not outlast" ;;
+      *" jthere=1 "*) o=$((o + 1)); c="outlasted" ;;
+      *) c="did not outlast" ;;
+    esac
+    x="$x r$k $c: [$IRB_LEFT] exit $IRB_S, worker [${w:-none}];"
     _irb_rm "$d"
   done
-  if [ "$f" -gt 0 ]; then bad "$2" "the worker never ran in $f of $k rounds, a fixture failure:$x"
-  elif [ "$l" -gt 0 ]; then bad "$2" "a PATH was left in $l of $k rounds:$x"
-  elif [ "$u" -ge "$k" ]; then skip "$2" "in no round did the worker stop with J still there, so none outlasted the attempts:$x"
+  printf '  note  instrument removers: %s worker: %s rounds, %s outlasted the program, %s did not, %s wrote no report\n' \
+    "$([ "$1" = wd ] && printf IR2 || printf IR4)" "$k" "$o" "$((k - o - f))" "$f"
+  if [ "$f" -gt 0 ]; then bad "$2" "the worker wrote no report in $f of $k rounds, a fixture failure:$x"
+  elif [ "$l" -gt 0 ]; then bad "$2" "a PATH was left in $l of $k rounds ($o outlasted the program):$x"
+  elif [ "$o" -eq 0 ]; then skip "$2" "no round outlasted the program, in $k rounds:$x"
   else ok "$2"; fi
 }
 
@@ -431,5 +452,5 @@ unset IRB IRB_P IRB_LIB IRB_WD IRB_SV IRB_ME IRB_N IRB_N3 IRB_NA IRB_ARM IRB_R I
       IRB_X IRB_W IRB_Y IRB_G IRB_J IRB_RW IRB_WW IRB_T IRB_AK IRB_ARMED IRB_AD IRB_P1 IRB_P2 IRB_S1 IRB_S2 \
       IRB_NS1 IRB_NS2 IRB_NL IRB_NG IRB_NU IRB_NV IRB_NR IRB_NWA IRB_NSA IRB_NO IRB_NA6 IRB_N2L IRB_N2S IRB_N2V IRB_N3L \
       IRB_N3V IRB_N4L IRB_N4S IRB_D IRB_F IRB_NO3 IRB_SEE IRB_RVD IRB_DK IRB_CR IRB_CO IRB_AO IRB_AM IRB_N3O IRB_N2K IRB_N3K \
-      IRB_N4K IRB_PLIM IRB_NW IRB_WS IRB_WORK
+      IRB_N4K IRB_PLIM IRB_NW IRB_WS IRB_WORK IRB_NWX
 # <<< instrument-removers

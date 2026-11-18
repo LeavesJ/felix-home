@@ -1,4 +1,4 @@
-# Contract: the judge's removers each finish, whatever the other is doing (rev 2, 2026-11-17)
+# Contract: the judge's removers each finish, whatever the other is doing (rev 3, 2026-11-18)
 
 **Scope.** This contract covers the two perl programs in `engine/harness/lib/instrument-run.sh` that remove a
 judgement's directories after the judge is gone. One is the watchdog (`_felix_instr_wdpl`, started by
@@ -80,16 +80,22 @@ The arguments are `PARENT FROM TO KEEP PATH...`.
 ## IR2. The watchdog removes every PATH, whatever another process is doing
 
 After the watchdog exits, none of its PATHs is left. This holds when another process removes any of them, or anything
-under them, at the same time, and in whatever order the PATHs were given, as long as that process stops removing
-within the attempts below. It also exits 0.
+under them, at the same time, or makes something under them, and in whatever order the PATHs were given, as long as
+that process stops within 30 s. It also exits 0.
 
 How:
 - Each PATH is removed on its own.
 - A removal that dies is caught. The program changes back to `/` and removes that PATH again.
 - An attempt can die, or end without dying while the path is still there. Either way the program pauses about 0.1 s
-  and tries again: at least 10 attempts and at most 20 on one PATH. The pauses are bounded at about 2 s a PATH; each
-  attempt's own walk of the tree comes on top (rev 2: rev 1 said "at most about 3 s", which no code bounds, since a
-  tree a unit made unremovable is walked again on each attempt).
+  and tries again, while the path is there, for up to 30 s on one PATH from its first attempt. The last attempt can
+  run past 30 s by its own walk of the tree.
+- Rev 3: rev 2 allowed 20 attempts. On 2026-11-18 a record's red pass against main b03e7c10 (0.49.355), at -j 6
+  beside the record's own suite, load 21 to 28, failed IR4's two race assertions, which passed in the record's own
+  run. The red log was gone with its temporary directory, so the part's 10 s limit and the 20 attempts were not told
+  apart. Read from File::Path's walk, and not measured: a walker that trails another loses each collision, since the
+  one ahead removes the directory the other has just entered. So once the program has died once, it dies on every attempt until the other process ends, and on a slow
+  host that outlasts 20 attempts 0.1 s apart. A unit still writing into J before its supervisor ends it does the
+  same. A bound in time does not depend on the host's speed.
 - Then it goes on to the next PATH.
 - A PATH that is already gone costs nothing.
 
@@ -136,7 +142,7 @@ Interface (unchanged): the arguments are `PARENT LIMIT LOG GROUP-FILE J R U UP H
 
 IR4 itself: on the judge-gone path, each of J, R, U, UP and HP is removed on its own, as IR2 removes a PATH. After the
 supervisor exits 125, none of the five is left, when another process removes J, or any of the five, at the same time,
-as long as that process stops within IR2's attempts.
+as long as that process stops within IR2's 30 s.
 
 Today all five go to one `remove_tree`. A removal of J that dies leaves R, U, UP and HP, and the supervisor exits 2,
 not 125.
@@ -172,5 +178,13 @@ The rule is that a gate that cannot fail is not a gate.
   races are read on this Mac.
 - **No wait without a limit (rev 2).** Every wait the part makes ends within a stated time, and a round whose tree
   cannot be made is a failure of that round, not a hang.
+- **Limits above the program's (rev 3).** The part's limit on a program it waits for is above the program's own
+  30 s, with room for the program's other steps (a supervisor first ends its unit's group, about a second), so a slow
+  host reads as slow, not as left.
+- **Another process working under J for longer than rev 2's attempts (rev 3).** For each program (the watchdog run
+  directly, and the supervisor's judge-gone path), the part shows that it leaves none of its PATHs when another
+  process keeps working under J for about 4 s after the program starts removing: removing what is under J and making
+  it again, repeatedly, then stopping with J still there. That is longer than rev 2's 20 attempts 0.1 s apart. At
+  least 5 rounds each. On 0.49.355 (main b03e7c10), J is expected to be left in some rounds.
 - **Cost.** The part stays within about 90 s on this Mac, keeps everything under the suite's `$TMP`, and leaves no
   process behind.

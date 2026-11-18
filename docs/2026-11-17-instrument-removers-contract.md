@@ -93,9 +93,9 @@ How:
   beside the record's own suite, load 21 to 28, failed IR4's two race assertions, which passed in the record's own
   run. The red log was gone with its temporary directory, so the part's 10 s limit and the 20 attempts were not told
   apart. Read from File::Path's walk, and not measured: a walker that trails another loses each collision, since the
-  one ahead removes the directory the other has just entered. So once the program has died once, it dies on every attempt until the other process ends, and on a slow
-  host that outlasts 20 attempts 0.1 s apart. A unit still writing into J before its supervisor ends it does the
-  same. A bound in time does not depend on the host's speed.
+  one ahead removes the directory the other has just entered. So once the program has died once, it dies on every
+  attempt until the other process ends, and on a slow host that outlasts 20 attempts 0.1 s apart. A unit still writing
+  into J before its supervisor ends it does the same. A bound in time does not depend on the host's speed.
 - Then it goes on to the next PATH.
 - A PATH that is already gone costs nothing.
 

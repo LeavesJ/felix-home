@@ -10,12 +10,12 @@
 # names it, and the one code run out of it is the engine of the commit he names by its whole id, whose bytes that
 # id fixes. So nothing here checks who wrote the bundle, and DIR is left readable by every login on purpose.
 #
-# DIR IS THIS LOGIN'S TO WRITE, AND NO OTHER'S (H5, 0.49.354). P4 writes a name another login can know, then sets
+# DIR IS THIS LOGIN'S TO WRITE, AND NO OTHER'S (H5, 0.49.356). P4 writes a name another login can know, then sets
 # its mode and renames it, and chmod follows a link. So DIR must be this login's and writable by no group or other
 # login, and each directory above it root's or this login's, or sticky: no other login can then put a link in
 # its place, or own the drop's directory by making it first.
 #
-# THE ID IS NOT READ FROM HERE (H9, 0.49.354). origin-main: is this repository's refs/remotes/origin/main, which a
+# THE ID IS NOT READ FROM HERE (H9, 0.49.356). origin-main: is this repository's refs/remotes/origin/main, which a
 # worker can move with no push, printed by a worker's login. The commit the founder names at the authority's
 # Terminal is read on his phone: the merged commit of the pull request whose number he fixed when he released it,
 # all forty characters on the commit's own page. GitHub is not out of a worker's reach (Felix merges with his

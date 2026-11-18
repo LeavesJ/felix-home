@@ -151,7 +151,7 @@ _ts4_is "ts4 setup C3 (review): a PATH entry that is not there, under a director
 # Security review of b29d8468, C3 rev 3: an entry that is there and is not a directory is read as one not there. A
 # link to a file, or a link to nothing, leads wherever its target is later made a directory, so the link offends
 # itself; wk/ stands for a place a worker can write. A plain file is read for the directory it sits in.
-# 0.49.354 (review trust 3): the walk above the code follows each hop of a link, so each link's target is walked
+# 0.49.356 (review trust 3): the walk above the code follows each hop of a link, so each link's target is walked
 # too and wk/ itself, which every login can write without the sticky bit, is a second offender: 2 such, the link
 # still named first.
 mkdir -p "$TS4/sv/wk" "$TS4/sv/rt"; chmod 755 "$TS4/sv" "$TS4/sv/rt"; chmod 777 "$TS4/sv/wk"; : > "$TS4/sv/wk/f"; chmod 644 "$TS4/sv/wk/f"
@@ -163,7 +163,7 @@ TS4_ENV=(PATH="$TS4/sv/wk/f:$TS4_PATH"); TS4L_V="$(_ts4l_now)"; chmod 755 "$TS4/
 _ts4_is "ts4 setup C3 (security review): a PATH entry that is a plain file, in a directory every login can write, names that directory above the code, and in one only its owner writes does not" \
   "$TS4L_V, then $TS4L_W" "$(_ts4u_eline "$TS4/sv/wk (a directory above the code)" 1), then cd" "$(_ts4_why)"
 # A lock that is a link runs whatever is at its end: a file in wk/, or one made later where a link to nothing points.
-# Each is named, and a lock that is a file only its owner writes is not. 0.49.354 (security review of d1eecab1): the
+# Each is named, and a lock that is a file only its owner writes is not. 0.49.356 (security review of d1eecab1): the
 # directory a link's target sits in is read too, so with wk/ writable by every login the link to a file has wk/ as a
 # second offender: 2 such, the link still named first. This read 1 such until a run on 871e641f; on e7056655, which
 # reads it first, this block is skipped on a Mac whose system PATH reaches /System/Volumes/Preboot/Cryptexes.

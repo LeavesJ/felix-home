@@ -288,7 +288,7 @@ _fx_git "$TS4E_RS" bundle create -q "$TS4E_RB" --all >/dev/null 2>&1
 is "ts4 setup 2 (control): the real source's commit holds this suite's engine file by file, modes 100644 and 100755 only, no path outside printable ASCII, no two equal without case" \
   "$(_fx_git "$TS4E_RS" -c core.quotePath=false ls-tree -r "$TS4E_KR" 2>/dev/null | LC_ALL=C awk -F'\t' '{ split($1, a, " "); n++; if (a[1] != "100644" && a[1] != "100755") m++; if ($2 ~ /[^ -~]/) b++; l = tolower($2); if (l in s) d++; s[l] = 1 } END { printf "%d entries, %d other modes, %d outside ASCII, %d equal without case", n, m, b, d }'); felix: $(_fx_git "$TS4E_RS" ls-tree "$TS4E_KR" -- engine/harness/felix 2>/dev/null | cut -c1-6)" \
   "${TS4U_RN:-?} entries, 0 other modes, 0 outside ASCII, 0 equal without case; felix: 100755"
-# The document's step 4 lines (0.49.354, review trust 2), with G, COMMIT and S as arguments: this suite's git,
+# The document's step 4 lines (0.49.356, review trust 2), with G, COMMIT and S as arguments: this suite's git,
 # the commit, the bundle.
 printf '%s\n' 'umask 077; G="$1"' \
   'export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1' \

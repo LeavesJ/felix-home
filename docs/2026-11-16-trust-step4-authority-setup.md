@@ -6,7 +6,7 @@ same day. The contract the tests were written from is in the memory root,
 `audits/2026-11-16-trust-step4-authority-setup/spec.md` (revision 3), with the review and the log of each run
 named here. Engine version 0.49.351.
 
-**Revised the same day by the hardening change (0.49.354),** after two reviews of the code that landed, a
+**Revised the same day by the hardening change (0.49.356),** after two reviews of the code that landed, a
 review of the hardening's build, two automated security reviews of it, and a rehearsal of the new lines: where he reads the commit id (§2 step 1, §7 step 3), the lines he types (§2,
 §7 step 4), what `authority-engine` and `publish` read before they trust a path (§2, after the chain), what
 condition e reads (§4), and what is left open (§8). Its contract is
@@ -85,7 +85,7 @@ request's number is: he fixed the number, he read the id on his phone and not on
 request's merge commit does not change after the merge. A worker can put any bundle in the drop, and the most it
 can do is make the fetch or the copy fail.
 
-Before the copy, `authority-engine` reads what it relies on (0.49.354), and refuses unless each reads as follows.
+Before the copy, `authority-engine` reads what it relies on (0.49.356), and refuses unless each reads as follows.
 Root owns the git, each directory above it, the directory that git runs its helper programs from, each
 directory above that, and every path under it, with no write for a group or other and no access-control entry
 that allows, and so do what each link among them points at, read by its physical path, and each directory
@@ -121,9 +121,9 @@ program, and the lock with its directory. It now reads:
 |---|---|---|
 | C1 | Every path under the engine's root, at every depth, and the root itself | The lock program and the witness the launchers run are under it |
 | C2 | The directory `git --exec-path` prints, for the git first on `PATH`, read as a `PATH` directory is | On this Mac `/usr/bin/git` runs Xcode's git, whose programs are under `/Applications` (root, group admin, mode 775), and the founder's login is in admin |
-| C3 | Each directory above those, along the path as written, along its physical path, and along each hop of a link met on the way (0.49.354). One offends when a worker owns it, when every login or a worker's group can write it without the sticky bit, or when it carries an access-control entry that allows | A worker who can rename a directory above the code can replace the code |
-| A link's target | What each link under the engine's root, and each link directly in a `PATH` directory, points at: read for an access-control entry that allows, and each hop of the chain and each directory above each hop read as C3 reads them. A link that leads to nothing is read as a path not there yet (0.49.354) | macOS `ls -lLde` prints a link's own entries, not its target's; a worker who can write where a link, or a link it leads to, sits chooses what runs |
-| C3, a child no login can remove | On macOS, a directory above the code does not offend when each of its children on the code's paths carries `sunlnk` or `schg` (flags only root can clear), or `restricted` while System Integrity Protection is on (0.49.354). Its children are the paths the walk read whose parent is that directory by device and inode, however each was written. It still offends when it is a link, when a child is named `.` or `..` or cannot be read, when no child is found, or when the parent of any path read cannot be read. Protection counts as on only when the first line of `csrutil status` is exactly `System Integrity Protection status: enabled.` | As with the sticky bit, writing the directory then adds entries but cannot replace the one the code is reached through. `/System/Volumes/Preboot/Cryptexes` is mode 777, and what `/usr/bin/safaridriver` reaches through it carries `sunlnk` (read 2026-11-16). Matching by path text missed a child written through a link or in another letter case (`pwd -P` keeps the case typed). It also excused a link a worker owns when its target's children carry `sunlnk`: a probe made one in `/private/tmp` and b417a831 named nothing for it |
+| C3 | Each directory above those, along the path as written, along its physical path, and along each hop of a link met on the way (0.49.356). One offends when a worker owns it, when every login or a worker's group can write it without the sticky bit, or when it carries an access-control entry that allows | A worker who can rename a directory above the code can replace the code |
+| A link's target | What each link under the engine's root, and each link directly in a `PATH` directory, points at: read for an access-control entry that allows, and each hop of the chain and each directory above each hop read as C3 reads them. A link that leads to nothing is read as a path not there yet (0.49.356) | macOS `ls -lLde` prints a link's own entries, not its target's; a worker who can write where a link, or a link it leads to, sits chooses what runs |
+| C3, a child no login can remove | On macOS, a directory above the code does not offend when each of its children on the code's paths carries `sunlnk` or `schg` (flags only root can clear), or `restricted` while System Integrity Protection is on (0.49.356). Its children are the paths the walk read whose parent is that directory by device and inode, however each was written. It still offends when it is a link, when a child is named `.` or `..` or cannot be read, when no child is found, or when the parent of any path read cannot be read. Protection counts as on only when the first line of `csrutil status` is exactly `System Integrity Protection status: enabled.` | As with the sticky bit, writing the directory then adds entries but cannot replace the one the code is reached through. `/System/Volumes/Preboot/Cryptexes` is mode 777, and what `/usr/bin/safaridriver` reaches through it carries `sunlnk` (read 2026-11-16). Matching by path text missed a child written through a link or in another letter case (`pwd -P` keeps the case typed). It also excused a link a worker owns when its target's children carry `sunlnk`: a probe made one in `/private/tmp` and b417a831 named nothing for it |
 | C3, not there | A `PATH` entry, the exec-path directory or the lock's directory that is not a directory yet: the deepest directory above it that is there offends when a worker owns or can write it, sticky bit or not. A link on the way that leads to no directory offends itself. A lock that is a link offends | A worker who can make the missing directory, or the thing a link points at, chooses what runs |
 
 With the system's `PATH`, which the launchers set, the Command Line Tools' git comes first and its directories
@@ -180,7 +180,7 @@ implementation, before the build existed:
 - **What they do not reach:** a run as another login, a change of owner or group, the lock call, a fetch over
   `https` or `ssh`, Linux (CI runs it).
 
-**The hardening's tests (0.49.354).** Two more parts, written from the hardening's spec alone (revision 1) by an
+**The hardening's tests (0.49.356).** Two more parts, written from the hardening's spec alone (revision 1) by an
 author that did not read its implementation: 2193 (`authority-engine`: the git, its helper directory, `HOME`
 and above, the four directories and a copy in place by owner, entries where `ls` takes no `-e`) and 2194
 (`publish`'s directory and those above it, condition e's `PATH` with globbing off, step 3 of §7).
@@ -248,7 +248,7 @@ not one (the founder's login is; §8).
 writes down its number himself, off this Mac. On his phone, not this Mac: open the pull request with that
 number, tap its merged commit, and on the commit's own page read all 40 characters of its id. That is COMMIT.
 Read every character there; never type a short id and complete it on this Mac, where a worker chooses what it
-completes to. COMMIT must hold this change, 0.49.354, or a later one: an earlier engine copies without the
+completes to. COMMIT must hold this change, 0.49.356, or a later one: an earlier engine copies without the
 reads of §2. Then at his own desktop, in his checkout of this repository, after `git fetch`:
 `felix authority publish`. Do not take COMMIT from what it prints after `origin-main:`, from any window of his
 own login, or from whichever pull request was merged last: a worker can make each of them name any commit.
@@ -271,7 +271,7 @@ $G --git-dir=$B show COMMIT:engine/harness/bin/authority-engine |
 ```
 
 It prints `engine:`, `state: made` and the lines after them, the last `next:`. Read that its `version:` line
-says 0.49.354 or later. Type that `next:` line, with `a14808` in place of `WORKERS`. That makes the
+says 0.49.356 or later. Type that `next:` line, with `a14808` in place of `WORKERS`. That makes the
 authority's home and store, in shadow.
 
 **Step 5. Restart,** and from here as slice 1's §8 steps 4 to 6, with `~/.felix/bin/felix` for `felix` and
@@ -293,8 +293,8 @@ The items found so far.
 | A worker that replaces the drop with a bundle that is slow to read or large | The connector's slice |
 | `/etc/paths.d/homebrew` puts a directory a worker can write on every login's `PATH` | His; the launchers do not depend on it |
 | Upgrading the authority's engine: the eight lines stop at a `~/.felix` already there, so an upgrade needs steps of its own; nothing tells him one is due | A later slice |
-| A worker holds GitHub write access through his login's token (Felix merges with it), so GitHub does not say which merges were his: step 3 rests on the number he fixed (0.49.354) | The trust plane's signer |
-| What the flag rule of §4 trusts: that `sunlnk` and `schg` are root's alone to clear; that `restricted` binds while System Integrity Protection is on, as the first line of `/usr/bin/csrutil status` says; and that the walk reads every name the kernel looks up in a directory it excuses (0.49.354) | Before live, with the reach test |
+| A worker holds GitHub write access through his login's token (Felix merges with it), so GitHub does not say which merges were his: step 3 rests on the number he fixed (0.49.356) | The trust plane's signer |
+| What the flag rule of §4 trusts: that `sunlnk` and `schg` are root's alone to clear; that `restricted` binds while System Integrity Protection is on, as the first line of `/usr/bin/csrutil status` says; and that the walk reads every name the kernel looks up in a directory it excuses (0.49.356) | Before live, with the reach test |
 | What the eight lines rely on before `authority-engine` reads anything: the git they name, its helper programs, and the authority's `HOME`, as they are when he types them. `authority-engine`'s reads of the git passed on this Mac on 2026-11-16, under the founder's login | His, before step 4 |
 | A lock on a system that is not macOS | When one is needed |
 | What the lock call does on a later macOS. Exit 0 rests on the reading, so a missing call reads `NOT LOCKED` | Read on each macOS before relying on it |
@@ -302,4 +302,4 @@ The items found so far.
 | What the authority's Terminal runs as its shell starts: that login's own startup files and the system's. Its home held none of its own when read on 2026-11-16; one added later, such as a line that runs Homebrew's setup, would run from a directory a worker can write | His, before step 4; with the reach test |
 | Remote Login enabled, with admins admitted: the founder's login is an admin | His, with the reach test |
 | Slice 1's §7, less the three items this slice builds | As slice 1 says |
-| A signature on the commit he names, checked by the bootstrap against a key only he holds, so the id is checked and not only read on his phone (0.49.354) | The trust plane's signer; a key is his to make |
+| A signature on the commit he names, checked by the bootstrap against a key only he holds, so the id is checked and not only read on his phone (0.49.356) | The trust plane's signer; a key is his to make |

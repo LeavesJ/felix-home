@@ -1,12 +1,12 @@
 # Condition e's walk of the paths the code is reached through (W6 e, lib/authority.sh): the directories above a
 # path, along each hop of a link; the physical path a link leads to; and which directories above the code still
-# offend. Moved out of lib/authority.sh in 0.49.354 to keep that file under 500 lines; felix sources this after it.
+# offend. Moved out of lib/authority.sh in 0.49.356 to keep that file under 500 lines; felix sources this after it.
 # Each function reads and writes the caller's locals where it says so (_fa_code_offenders_raw's seen, ups, upl and
 # the path lists), as it did inline. Bash 3.2. No project is named here.
 
 # C3. Prints each directory above DIR up to /, along DIR as written and its physical path (cd -P), one a line (a
 # path with a newline is read as two). A part on the way that is a link adds its target, one hop, printed and
-# walked too, since cd -P skips the middle of a chain (0.49.354, review trust 3). Each link is followed once; one
+# walked too, since cd -P skips the middle of a chain (0.49.356, review trust 3). Each link is followed once; one
 # not followed (a 41st, or one whose target cannot be read) is printed as "LINK (a link not followed)", which
 # each reader of this list refuses (security review of d1eecab1: fail closed, not silent).
 _fa_above() {   # DIR
@@ -36,7 +36,7 @@ _fa_above() {   # DIR
     done
   done
 }
-# H11 (0.49.354). The physical path of what PATH, a link, points at (at most 40 hops); 1 when it leads nowhere.
+# H11 (0.49.356). The physical path of what PATH, a link, points at (at most 40 hops); 1 when it leads nowhere.
 _fa_real() {   # PATH
   local p="$1" l d i=0
   while [ -L "$p" ] && [ "$i" -lt 40 ]; do
@@ -61,7 +61,7 @@ _fa_up_add() {   # LINES
 $1
 EOF
 }
-# C3 (0.49.354). Prints each of LINES, a directory above the code that offends, unless (macOS) each of its
+# C3 (0.49.356). Prints each of LINES, a directory above the code that offends, unless (macOS) each of its
 # children on the code's paths can be renamed or removed by no worker: flag sunlnk or schg (root's alone to
 # clear), or restricted while SIP is on. As the sticky bit, that keeps a login that can write the directory from
 # replacing what the code is reached through. (/System/Volumes/Preboot/Cryptexes is mode 777, and what the

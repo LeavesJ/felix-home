@@ -199,7 +199,7 @@ _fa_code_offenders_raw() {
     [ ! -L "$_FA_LOCK" ] || printf '%s\n' "$_FA_LOCK (a lock that is a link: it runs wherever the link points)"
   fi
   case ":${PATH:-}:" in *::*) printf '%s\n' "PATH (an empty entry: the directory the command is run from)" ;; esac
-  # H6 (0.49.354): each entry as written, globbing off (the shell runs /x/[b]in itself), then set back as it was.
+  # H6 (0.49.356): each entry as written, globbing off (the shell runs /x/[b]in itself), then set back as it was.
   case "$-" in *f*) nf=1 ;; *) nf=0 ;; esac
   set -f; IFS=:
   for d in ${PATH:-}; do
@@ -214,7 +214,7 @@ _fa_code_offenders_raw() {
   # failing, or naming no directory adds nothing: a git that cannot run runs nothing from there.
   x="$(git --exec-path 2>/dev/null)" || x=""
   case "$x" in /*) if [ -d "$x" ]; then dirs[${#dirs[@]}]="$x/"; a[${#a[@]}]="$x/"; else m[${#m[@]}]="$x"; fi ;; esac
-  # H11, and the security reviews of d1eecab1 and e7056655 (0.49.354). What each link among these paths points at
+  # H11, and the security reviews of d1eecab1 and e7056655 (0.49.356). What each link among these paths points at
   # (lt) is read for an entry that allows (macOS ls -lLde prints a link's own); the directory it is in, or for a
   # chain its first hop (lh), is walked by C3 (_fa_above follows each link it meets, so each hop and the
   # directories above it are read). A link to nothing is a path not there yet (m); one not read offends itself.

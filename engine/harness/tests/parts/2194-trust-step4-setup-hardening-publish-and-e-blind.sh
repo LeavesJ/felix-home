@@ -114,9 +114,9 @@ _ts4_is "ts4 harden H9: the setup document's step 3 has that commit read on anot
 # that fails stops the ones after it (a pasted line otherwise runs whatever the one before it did). The two
 # directories are made by two mkdir joined by &&: one mkdir of both made engine inside a .felix already there
 # before it failed (the rehearsal of d1eecab1), and would have written through a .felix that is a link.
-_ts4_is "ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.354" \
-  "$(T="$TS4H_S3" LC_ALL=C awk 'BEGIN { t = tolower(ENVIRON["T"]); printf "%s %s %s %s", (index(t, "number") ? "number" : "-"), (index(t, "own page") ? "own-page" : "-"), (index(t, "short id") ? "short-id" : "-"), (index(t, "0.49.354") ? "0.49.354" : "-") }')" \
-  "number own-page short-id 0.49.354" "step 3: $TS4H_S3"
+_ts4_is "ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.356" \
+  "$(T="$TS4H_S3" LC_ALL=C awk 'BEGIN { t = tolower(ENVIRON["T"]); printf "%s %s %s %s", (index(t, "number") ? "number" : "-"), (index(t, "own page") ? "own-page" : "-"), (index(t, "short id") ? "short-id" : "-"), (index(t, "0.49.356") ? "0.49.356" : "-") }')" \
+  "number own-page short-id 0.49.356" "step 3: $TS4H_S3"
 TS4H_BLK="$(LC_ALL=C awk 'index($0, "**Step 4.") == 1 { s = 1 } s && /^```/ { b++; next } s && b == 1 { print }' "$TS4H_DOC" 2>/dev/null)"
 TS4H_WANT='umask 077; G=/Library/Developer/CommandLineTools/usr/bin/git
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1

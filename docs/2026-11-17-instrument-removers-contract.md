@@ -1,4 +1,4 @@
-# Contract: the judge's removers each finish, whatever the other is doing (rev 4, 2026-11-18)
+# Contract: the judge's removers each finish, whatever the other is doing (rev 5, 2026-11-18)
 
 **Scope.** This contract covers the two perl programs in `engine/harness/lib/instrument-run.sh` that remove a
 judgement's directories after the judge is gone. One is the watchdog (`_felix_instr_wdpl`, started by
@@ -197,5 +197,17 @@ The rule is that a gate that cannot fail is not a gate.
   - Why: on 2026-11-18, rev 3's part counted a round in which the other process made nothing as a fixture failure.
     Run alone on the fixed engine, that failed 2 of the supervisor's 5 rounds. In each of them, the other process ran
     about 340 cycles and found J gone before it made anything.
+- **What the part signals is what it started (rev 5).** During a suite, pids and process-group ids wrap within
+  minutes. So a number the part read earlier, from a file or a poll, can name another part's process or group by the
+  time the part signals it. Before the part sends any signal other than 0 to a process or group, it checks that the
+  target is still one it started, by a mark that only its own processes carry, such as a name unique to the part in
+  their command lines. A process it still holds as an unreaped child of its own shell needs no check. When the check
+  fails, the part leaves the target alone and says so in the detail. A probe with signal 0 only reads: a reused
+  number can make the probe wait, and every wait is already bounded.
+  - Why: on 2026-11-18 a full gate's part 1293 failed D4 and R1, with its record runner KILLed from outside (exit
+    137). That pair has failed beside other suites since 2026-11-13, before this part existed, so its own race is
+    the likelier cause. But rev 4's part KILLs a supervisor round's unit group by a number read before the round,
+    whenever that group still answers to signal 0, and its waiter KILLs a program's pid after a timeout. Either could
+    hit another part's process once pids wrap. That reading is not measured.
 - **Cost.** The part stays within about 3 minutes on this Mac, and at worst 4. It keeps everything under the suite's
   `$TMP` and leaves no process behind. Rev 2's part already took 118 s, beyond rev 1's 90 s, and rev 3's took 144 s.

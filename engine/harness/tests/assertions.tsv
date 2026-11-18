@@ -16382,6 +16382,82 @@
 1	ts4 door case 9, D6: each of twelve asks about one commit shows a card whose brackets hold the id's own four characters at their place, under a nonce of 32 hex digits no other ask had
 1	ts4 door case 9, D6: over those twelve asks the brackets stand in more than one place
 1	ts4 door case 9: over this part's asks, at least twenty, the brackets stood in more than one place
+1	ts4 harden C3 (security review of b417a831) (control): a directory whose one child on the code's paths carries sunlnk is excused
+1	ts4 harden C3 (security review of b417a831): a child of it the walk read through a link, which carries no flag, keeps it
+1	ts4 harden C3 (security review of b417a831): a directory above the code that is a link is kept, though each child of its target carries sunlnk
+1	ts4 harden H1 (control): bin/authority-engine holds the seam line section 5 quotes once, and the seam copy differs from it in that one line alone
+1	ts4 harden H1 (control): the hard link is the git E2 names, the same file, root's and written by no group or other, in a directory this login owns; on macOS it prints, for --exec-path, the directory beside it
+1	ts4 harden H1 (control): the seam copy naming that same git does the same
+1	ts4 harden H1 (control): the unchanged program takes a commit of the fixture source with the git E2 names here, where this test reads that git as one E2, H1 and H2 take, and refuses it with E2's line where it does not
+1	ts4 harden H1 (control): this test reads / and the directory of the git E2 names as only root's, a directory of this login's as not, and a directory of root's of mode 1777, where there is one, as not: H1 takes no sticky bit
+1	ts4 harden H1 (control): through x/gup, a link this login owns to the directory two above the git E2 names, that git is a regular file of root's, not itself a link, and its directory as written is a directory of root's, not a link
+1	ts4 harden H1, H2 (control): this test's walk of the directories above a path through a link names them along the path as written, nearest first, up to /, then those of its physical path not named yet
+1	ts4 harden H11 (security review of d1eecab1): a link in a PATH directory that leads to nothing, into a directory every login can write, names that directory, and not once the mode is taken back
+1	ts4 harden H11 (security review of d1eecab1): a program in a PATH directory that is a link into a directory every login can write names that directory, and is gone once the mode is taken back
+1	ts4 harden H12 (security review of e7056655): a program in a PATH directory that is a link to a link in a directory every login can write names that directory, and is gone once the mode is taken back
+1	ts4 harden H1: the seam copy refuses a hard link to the git E2 names made in a directory of this login's, a file only root can change in a directory that is not, with E2's line, writes no copy and no launcher, and runs nothing of the exec path beside it
+1	ts4 harden H1: the seam copy refuses that git named through a link of this login's above its directory, along the path as written, with E2's line, and writes no copy and no launcher
+1	ts4 harden H2 (allowance): the exec path the git E2 names here prints under E3's environment is an absolute path to a directory that this test reads as only root's, with each directory above it and each path under it at every depth, as itself and through links; and the run with that git succeeded
+1	ts4 harden H2 (control): on macOS, this test reads /usr/bin/git as a file E2 and H1 take, and the exec path it prints, as the git xcode-select points at prints it, as one H2 refuses
+1	ts4 harden H2: on macOS, the seam copy refuses /usr/bin/git, whose exec path is one H2 refuses, with E2's line, and writes no copy and no launcher
+1	ts4 harden H3 (allowance): a HOME in a directory of mode 1777, which the sticky bit keeps another login from renaming or removing, is not refused by H3
+1	ts4 harden H3 (allowance): on macOS, a HOME, and the directory it is in, each carrying only an entry that denies, are not refused by H3
+1	ts4 harden H3 (control): on macOS, the entries are staged, and this test reads the two that allow, on a HOME and on a directory above one, as entries that allow, and the two that deny as none
+1	ts4 harden H3 (control): the homes and the directories above them are staged with the modes their cases name
+1	ts4 harden H3 (control, review trust 3): a link of this login's points at a link in a directory of mode 777, which points at a directory of this login's
+1	ts4 harden H3: authority-engine refuses a HOME in a directory of mode 777 without the sticky bit, naming that directory, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME in a directory that carries an access-control entry that allows, on macOS, naming that directory, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME of mode 1777, naming HOME: the sticky bit makes HOME no more this login's alone, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME of mode 757, naming HOME, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME of mode 775 in a directory of mode 777, naming HOME, which is read first, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME of mode 775 whose .felix is a file, with H3's line and not E6's: H3 is read before E6 reads its four directories, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME of mode 775, naming HOME, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME owned by another uid, naming HOME
+1	ts4 harden H3: authority-engine refuses a HOME reached through a link of this login's whose physical path runs through a directory of mode 777, naming that directory, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME reached through a link to a link that sits in a directory of mode 777 without the sticky bit, naming that directory (review trust 3), and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME that carries an access-control entry that allows, on macOS, naming HOME, and writes nothing in HOME
+1	ts4 harden H3: authority-engine refuses a HOME that is a link carrying an entry that allows, in a directory of mode 1777, naming the link, and writes nothing in HOME (review trust 4)
+1	ts4 harden H3: authority-engine refuses a HOME two of whose directories above are of mode 777, naming the nearer one, and writes nothing in HOME
+1	ts4 harden H4: authority-engine refuses a .felix, .felix/engine, boot.git or .felix/bin owned by another uid, with E6's line
+1	ts4 harden H5 (control): publish writes the drop in a DIR it makes under a directory of this login's of mode 755: exit 0, DIR 755, the bundle lists r's main
+1	ts4 harden H5 (control): the fixture's directory and each directory above it, as written and along its physical path, is root's or this login's to change alone, by section 0's rule as this test reads it
+1	ts4 harden H5 (control): the modes staged read as given: 775, 777, 1777, 770, and the parents 777 and 1777
+1	ts4 harden H5: a DIR another login makes, of mode 777, after H5 has read that it is not there, is not taken: publish refuses, and writes nothing in it (review trust 1)
+1	ts4 harden H5: a DIR publish makes under a directory of mode 1777 is written: exit 0, DIR 755, the bundle lists r's main
+1	ts4 harden H5: an existing DIR of mode 755 whose one access-control entry denies is taken, and the drop written there (a reading of section 0)
+1	ts4 harden H5: publish refuses a DIR not there two levels under a directory of mode 777 without the sticky bit, naming that directory (a reading of each directory above), and writes nothing there
+1	ts4 harden H5: publish refuses a DIR not there under a directory of mode 777 without the sticky bit, naming that directory, and does not make DIR, and writes nothing there
+1	ts4 harden H5: publish refuses a DIR not there under a directory that carries an access-control entry that allows, naming that directory, and writes nothing there
+1	ts4 harden H5: publish refuses a DIR not there under a link to a directory whose parent every login can write without the sticky bit, naming that parent from the physical path, and writes nothing there
+1	ts4 harden H5: publish refuses a DIR not there under a link to a link that sits in a directory of mode 777 without the sticky bit, naming that directory (review trust 3), and writes nothing there
+1	ts4 harden H5: publish refuses an existing DIR of mode 1777: the sticky bit excuses a directory above, not DIR itself (a reading), and writes nothing there
+1	ts4 harden H5: publish refuses an existing DIR of mode 755 that carries an access-control entry that allows, and writes nothing there
+1	ts4 harden H5: publish refuses an existing DIR of mode 755 under a directory of mode 777 without the sticky bit, naming that directory, and writes nothing there
+1	ts4 harden H5: publish refuses an existing DIR of mode 770 with P1's line, cannot be read by another login, which comes before H5's (a reading of the order), and writes nothing there
+1	ts4 harden H5: publish refuses an existing DIR of mode 775, and writes nothing there
+1	ts4 harden H5: publish refuses an existing DIR of mode 777, and writes nothing there
+1	ts4 harden H6 (control): from the copied engine, with that login as the one worker, the standing is shadow with the why lines of c and d alone
+1	ts4 harden H6 (control): gl/bin on PATH as it is named, writable by every login, is named by condition e, and is gone once the mode is taken back
+1	ts4 harden H6 (control): ps lists this machine's processes, and it has a login other than this one that runs none
+1	ts4 harden H6 (control): the literal directory [b]in, moved to a name with no glob character and made writable by every login, is named, and is gone once the mode is taken back
+1	ts4 harden H6 (control): with globbing on, this shell reads gl/[b]in as gl/bin, gl/b* as b*, b?n and bin, and gl/b?n as b?n and bin: each entry matches another directory
+1	ts4 harden H6 (review trust 6): a program in a PATH directory that is a link to a file carrying an entry that allows is named by condition e, at that file
+1	ts4 harden H6: PATH entries gl/b* and gl/b?n, each of whose globs would match gl/bin, writable by every login, do not name it: status prints the why lines of c and d alone
+1	ts4 harden H6: a PATH entry gl/[b]in is read as written: the literal directory, writable by every login, is named by condition e, and is gone once the mode is taken back
+1	ts4 harden H6: for a PATH entry gl/[b]in, the directory the glob would match, gl/bin, writable by every login, is not named: status prints the why lines of c and d alone
+1	ts4 harden H7: a copy in place, or a path under it, owned by another uid is one that differs, refused by E10 and left as it is
+1	ts4 harden H8 (control): where ls takes no -e, setfacl puts a list on a directory and on a file here, which ls -ld shows as a + at the eleventh character, the mode bits as they were
+1	ts4 harden H8: where ls takes no -e, a copy in place a file of which carries a POSIX list is refused by E10, and left as it is
+1	ts4 harden H8: where ls takes no -e, authority-engine refuses a .felix/bin that carries a POSIX list, with E6's line, and makes no copy
+1	ts4 harden H8: where ls takes no -e, authority-engine refuses a HOME that carries a POSIX list, naming HOME with H3's line, and writes nothing in HOME
+1	ts4 harden H9 (control): the setup document is there, with one line that starts **Step 3. and one that starts **Step 4., and this test reads step 3 between them
+1	ts4 harden H9 (control): this test's reading of a sentence that says to note the id after origin-main: takes the words of 0.49.351 and leaves one that names it as a worker's word
+1	ts4 harden H9 (review clauses 2, 3, 9): step 3 names the pull request by a number he fixed, has the forty characters read on the commit's own page and no short id completed here, and names 0.49.356
+1	ts4 harden H9 (review trust 2): step 4's lines set no configuration, hook or replacement object of the system's or the login's for git, and make HOME/.felix fresh
+1	ts4 harden H9: the setup document's step 3 has that commit read on another device, his phone, which no login of this Mac reaches
+1	ts4 harden H9: the setup document's step 3 names the merged commit of the pull request he released as the id to type
+1	ts4 harden H9: the setup document's step 3 no longer says to note the id publish prints after origin-main:
+1	ts4 harden engine (control): the fixture source's commit K1 holds the small engine, seven entries under engine/, and its bundle lists main at K1
 1	ts4 reach (control): ps lists this machine's processes, and it has a login other than this one that runs none and one, not root, that runs some
 1	ts4 reach (control): the records to be refused are staged: a plain file outside the home, a directory, a record inside that directory, a path through .. to a plain file, a plain file with another first line, and a name that is not there
 1	ts4 reach D4, D8, T4: reach fail with a record, confirmed by reach fail, is kept in shadow: the statement names no commit, says fail, and carries the record's git blob id as its witness
@@ -16496,7 +16572,9 @@
 1	ts4 reading case 5, K6: when main has moved so that the merge is another tree, the override is not in effect: the head waits, and the detail ends ; override N names another tree
 1	ts4 reading case 6, W9: a candidate that adds a file whose name holds a newline waits for his authorization, and the tick shows the name with \x0a; so does one whose name holds a byte above 0x7e
 1	ts4 setup 2 (control): the real source's commit holds this suite's engine file by file, modes 100644 and 100755 only, no path outside printable ASCII, no two equal without case
+1	ts4 setup 2 (rehearsal of d1eecab1): the founder's lines make nothing in a HOME/.felix that is there already
 1	ts4 setup 2 (review E1-builtin-fn): run under env -i with HOME alone, the program reads no BASH_ENV of the caller's
+1	ts4 setup 2 (review trust 2): the founder's lines stop when HOME/.felix is there already: no hook of a store left there runs, and no copy is made
 1	ts4 setup 2, E9: that copy holds the engine under test, each file its blob's bytes and mode
 1	ts4 setup 2: the program read with git show from the bundle's commit and run with /bin/bash -s, its own path unknown, copies that commit's engine and exits 0
 1	ts4 setup 5: an option with no value is a usage error: exit 2
@@ -16607,7 +16685,7 @@
 1	ts4 setup P (control): the repository holds main, feat, two tags, origin/main, origin/other, upstream/main, a stash and a note, and git finds no repository in x/plain
 1	ts4 setup P (control): this test reads a bundle's refs: one made by hand of main lists main's commit
 1	ts4 setup P1, P4: under a umask of 077 the directory is made with mode 755 and the bundle given 644, and it holds source.bundle alone: no .source.bundle. file is left
-1	ts4 setup P1: a directory there before, of mode 775, is taken and its mode left as it is
+1	ts4 setup P1: a directory there before, of mode 705, is taken and its mode left as it is
 1	ts4 setup P1: with no --to where /Users/Shared is no directory, publish refuses with status 2
 1	ts4 setup P2 (control): in r, a GIT_DIR naming r2 makes plain git read r2
 1	ts4 setup P2: the caller's GIT_ variables are unset: with GIT_DIR, GIT_WORK_TREE and GIT_NAMESPACE naming r2, --from r publishes r

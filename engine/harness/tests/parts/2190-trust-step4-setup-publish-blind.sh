@@ -108,9 +108,11 @@ _ts4u_pub "$TS4/t" --to "$TS4/d6" --from "$TS4P_R2"
 _ts4_is "ts4 setup P4: a file there before is replaced whole, and so is a bundle: a later publish of r2 holds r2's main alone" \
   "$TS4P_V; then: exit $TS4_RC, $(_ts4p_heads "$TS4/d6/source.bundle"); temporary files: $(_ts4p_tmps "$TS4/d6")" \
   "first: exit 0, $TS4P_C3 refs/heads/feat|$TS4P_C2 refs/heads/main|$TS4P_C1 refs/remotes/origin/main; then: exit 0, $TS4P_D2 refs/heads/main; temporary files: 0" "$(_ts4_why)"
-mkdir -p "$TS4/d7"; chmod 775 "$TS4/d7"; _ts4u_pub "$TS4/t" --to "$TS4/d7" --from "$TS4P_R2"
-_ts4_is "ts4 setup P1: a directory there before, of mode 775, is taken and its mode left as it is" "exit $TS4_RC; $(_ts4u_m "$TS4/d7"); $(_ts4p_heads "$TS4/d7/source.bundle")" \
-  "exit 0; drwxrwxr-x; $TS4P_D2 refs/heads/main" "$(_ts4_why)"
+# Hardening H5 (0.49.356) refuses a directory a group can write, so the mode that shows "left as it is" is 705:
+# readable and searchable by another login, writable by none but this one, and not the 755 publish would set.
+mkdir -p "$TS4/d7"; chmod 705 "$TS4/d7"; _ts4u_pub "$TS4/t" --to "$TS4/d7" --from "$TS4P_R2"
+_ts4_is "ts4 setup P1: a directory there before, of mode 705, is taken and its mode left as it is" "exit $TS4_RC; $(_ts4u_m "$TS4/d7"); $(_ts4p_heads "$TS4/d7/source.bundle")" \
+  "exit 0; drwx---r-x; $TS4P_D2 refs/heads/main" "$(_ts4_why)"
 
 # ------------------------------------------------------------------ what publish refuses (P1 to P4) ---
 _ts4p_no "a --to that is not absolute" "exit 1; stderr: felix: --to names a directory that is not an absolute path" "$TS4/t" --to rel/drop --from "$TS4P_R"

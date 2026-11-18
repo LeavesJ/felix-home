@@ -15,7 +15,9 @@
 #
 # WHY THE WHOLE ID. The source is a worker's to write. A commit made to match a short prefix is within a
 # worker's reach; the bytes of a commit named by all forty digits are not. So the id is the one thing here the
-# founder vouches for, and every check below reads the commit and the store, not the drop's word.
+# founder vouches for, and every check below reads the commit and the store, not the drop's word. The id is his
+# only when he reads it where no login of this machine can write (H9, 0.49.356): the pull request he released,
+# on another device. What a worker's login prints, publish's origin-main: line with it, is a worker's word.
 #
 # HOW THE FOUNDER GETS THIS PROGRAM ONTO THAT LOGIN: from the commit itself, with the root-owned git, read on
 # standard input: `git --git-dir=B show COMMIT:engine/harness/bin/authority-engine | /bin/bash -s -- COMMIT`.
@@ -71,6 +73,7 @@ esac
 _ae_bin() { if [ -x "/bin/$1" ]; then printf '/bin/%s' "$1"; else printf '/usr/bin/%s' "$1"; fi; }
 _AE_MKDIR="$(_ae_bin mkdir)"; _AE_CHMOD="$(_ae_bin chmod)"; _AE_MV="$(_ae_bin mv)"; _AE_RM="$(_ae_bin rm)"
 _AE_ID=/usr/bin/id; _AE_FIND=/usr/bin/find; _AE_AWK=/usr/bin/awk; _AE_SORT=/usr/bin/sort; _AE_WC=/usr/bin/wc; _AE_LS="$(_ae_bin ls)"
+_AE_READLINK="$(_ae_bin readlink)"
 _AE_NEW=""
 
 _ae_no() { printf 'authority-engine: %s\n' "$1" >&2; exit "${2:-1}"; }   # LINE [STATUS]: a refusal
@@ -100,16 +103,93 @@ _ae_g() {   # ARG...: git, in the boot store
 # one with an access-control entry that is not a deny (review E6-acl): it can let a login write what the mode
 # says it cannot. The entries are read where ls prints them (ls -lde, a line that starts with a space, a number
 # and a colon), as condition e reads them; where ls takes no -e, there is nothing more to read.
-_ae_acl() {   # PATH...: prints the first entry that is not a deny, of these paths and each path under them
-  "$_AE_LS" -lde / >/dev/null 2>&1 || return 0
-  "$_AE_FIND" "$@" -exec "$_AE_LS" -lde {} + 2>/dev/null | "$_AE_AWK" '/^ [0-9]+: / && $0 !~ / deny / { print; exit }'
+# H8 (0.49.356): where ls takes no -e (Linux), a mode string with + as its eleventh character carries a list,
+# read as one that allows, as condition e reads it. With -L first, find descends through links to directories;
+# ls still reads each path it is handed as itself (macOS ls -ldeL prints a link's own entries, not its
+# target's), so a link's target is read by its physical path (_ae_real). Each awk reads all it is given, so
+# the writer is never cut off mid-list.
+_ae_acl() {   # [-L] PATH...: prints the first entry that is not a deny, of these paths and each path under them
+  local l=""
+  if [ "${1-}" = -L ]; then l=-L; shift; fi
+  if "$_AE_LS" -lde / >/dev/null 2>&1; then
+    "$_AE_FIND" $l "$@" -exec "$_AE_LS" -lde {} + 2>/dev/null | "$_AE_AWK" '!n && /^ [0-9]+: / && $0 !~ / deny / { n = 1; print }'
+  else
+    "$_AE_FIND" $l "$@" -exec "$_AE_LS" -ld {} + 2>/dev/null | "$_AE_AWK" '!n && substr($1, 11, 1) == "+" { n = 1; print }'
+  fi
 }
+# The physical path of what PATH, a link, points at: each link on the way followed, at most 40, then its
+# directory read with cd -P. Nothing when it leads nowhere.
+_ae_real() {   # PATH
+  local p="$1" l d i=0
+  while [ -L "$p" ] && [ "$i" -lt 40 ]; do
+    l="$("$_AE_READLINK" "$p" 2>/dev/null)" && [ -n "$l" ] || return 1
+    case "$l" in /*) p="$l" ;; *) p="${p%/*}/$l" ;; esac
+    i=$((i + 1))
+  done
+  [ -e "$p" ] && [ ! -L "$p" ] || return 1
+  if [ -d "$p" ]; then (cd -P -- "$p" 2>/dev/null && pwd -P); return; fi
+  d="$(cd -P -- "${p%/*}/" 2>/dev/null && pwd -P)" || return 1
+  printf '%s/%s\n' "${d%/}" "${p##*/}"
+}
+# H4 (0.49.356): each of the four is this login's, too. One that another login owns is that login's to write.
 _ae_dir_ok() {   # PATH
   if [ -e "$1" ] || [ -L "$1" ]; then
     [ -d "$1" ] && [ ! -L "$1" ] || _ae_no "$(_ae_show "$1") is not a directory"
-    [ -z "$("$_AE_FIND" "$1" -prune \( -perm -020 -o -perm -002 \) -print 2>/dev/null)" ] \
+    [ -n "$("$_AE_FIND" "$1" -prune -user "$_AE_UID" ! -perm -020 ! -perm -002 -print 2>/dev/null)" ] \
       && [ -z "$(_ae_acl "$1" -prune)" ] || _ae_no "$(_ae_show "$1") can be written by another login"
   fi
+}
+# Each directory above PATH up to /, along PATH as written and along its physical path, each once (condition e's
+# C3 walk, _fa_above in lib/authority.sh, written again here: this program sources nothing). A part met on either
+# path that is a link adds the path its target names, one hop, read against the link's directory; that path is
+# printed and walked too (review trust 3: cd -P goes to the end of a chain at once). Each link is followed once.
+# One not followed (a 41st, or one whose target cannot be read) is printed as "LINK (a link not followed)", a
+# path that is not there, so each reader of this list refuses it (security review of d1eecab1: fail closed).
+_ae_above() {   # PATH
+  local p q l seen=$'\n' sl=$'\n' i=0 j=0
+  local -a t
+  t=("$1" "$(cd -P -- "$1" 2>/dev/null && pwd -P)")
+  while [ "$j" -lt "${#t[@]}" ]; do
+    p="${t[$j]}"; j=$((j + 1))
+    case "$p" in /*) ;; *) continue ;; esac
+    if [ "$j" -gt 2 ]; then
+      case "$seen" in *$'\n'"$p"$'\n'*) ;; *) seen="$seen$p"$'\n'; printf '%s\n' "$p" ;; esac
+    fi
+    while :; do
+      case "$p" in /) break ;; */) p="${p%/}"; continue ;; esac
+      if [ -L "$p" ]; then
+        case "$sl" in
+          *$'\n'"$p"$'\n'*) ;;
+          *) sl="$sl$p"$'\n'
+             if [ "$i" -lt 40 ] && l="$("$_AE_READLINK" "$p" 2>/dev/null)" && [ -n "$l" ]; then
+               case "$l" in /*) ;; *) l="${p%/*}/$l" ;; esac
+               i=$((i + 1)); t[${#t[@]}]="$l"
+             else
+               printf '%s (a link not followed)\n' "$p"
+             fi ;;
+        esac
+      fi
+      q="${p%/*}"; [ -n "$q" ] || q=/
+      case "$seen" in *$'\n'"$q"$'\n'*) ;; *) seen="$seen$q"$'\n'; printf '%s\n' "$q" ;; esac
+      p="$q"
+    done
+  done
+}
+# H1, H2 (0.49.356). 0 when each PATH is there and only root can change it: owner 0, no write by group or other,
+# no access-control entry that allows. Each is read as itself, so a link on the way is read as the link: for its
+# owner and its entries, not its mode bits, which grant nothing (on Linux every link's are rwxrwxrwx).
+_ae_rootly() {   # PATH...
+  [ "$#" -gt 0 ] || return 0
+  [ "$("$_AE_FIND" "$@" -prune -user 0 \( -type l -o \( ! -perm -020 ! -perm -002 \) \) -print 2>/dev/null | "$_AE_AWK" 'END { print NR }')" = "$#" ] \
+    && [ -z "$(_ae_acl "$@" -prune)" ]
+}
+# DIR, its physical path, and each directory above it: the list H1 and H2 read, into _AE_L.
+_ae_chain() {   # DIR
+  local p
+  _AE_L=("$1"); p="$(cd -P -- "$1" 2>/dev/null && pwd -P)" && [ -n "$p" ] && _AE_L[${#_AE_L[@]}]="$p"
+  while IFS= read -r p; do [ -z "$p" ] || _AE_L[${#_AE_L[@]}]="$p"; done <<EOF
+$(_ae_above "$1")
+EOF
 }
 # The next line is a command the founder types, so a word of it that holds a byte other than a letter, a digit
 # or one of _./:@%+=,- is put in single quotes for the shell, each single quote in it as '\'' (review
@@ -123,7 +203,8 @@ _ae_sh() {   # WORD
 # E2. The git only root can change. On macOS /usr/bin/git runs the git xcode-select points at, which on this
 # Mac is inside /Applications, a directory the admin group writes; the Command Line Tools' git is root's.
 _ae_git() {
-  local d
+  local d x o p l k sd=$'\n'
+  local -a lk=() tg=()
   if [ "$_AE_OS" = Darwin ]; then _AE_GIT=/Library/Developer/CommandLineTools/usr/bin/git; else _AE_GIT=/usr/bin/git; fi
   if [ ! -e "$_AE_GIT" ] && [ ! -L "$_AE_GIT" ]; then
     [ "$_AE_OS" != Darwin ] || _ae_no "there is no $_AE_GIT; the Command Line Tools provide it"
@@ -131,8 +212,72 @@ _ae_git() {
   fi
   d="${_AE_GIT%/*}"
   [ -n "$("$_AE_FIND" "$_AE_GIT" -prune -type f -user 0 ! -perm -020 ! -perm -002 -print 2>/dev/null)" ] \
-    && [ -n "$("$_AE_FIND" "$d" -prune -type d ! -perm -020 ! -perm -002 -print 2>/dev/null)" ] \
+    && [ -z "$(_ae_acl "$_AE_GIT" -prune)" ] && [ -n "$("$_AE_FIND" "$d" -prune -type d -print 2>/dev/null)" ] \
     || _ae_no "$_AE_GIT is not a git only root can change"
+  # H1. Its directory, as written and as its physical path, and each directory above it to /, sticky or not:
+  # a login that can write or rename any of them can put another file where G is.
+  _ae_chain "$d"; _ae_rootly "${_AE_L[@]}" || _ae_no "$_AE_GIT is not a git only root can change"
+  # H2. The directory it runs its helpers from, each directory above that, and each path under it at every
+  # depth, as itself and as what a link points at. The Command Line Tools' git finds that directory from where
+  # its own file is, so its programs are only as safe as the place G sits (read 2026-11-16, the spec's top).
+  x="$(GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_ATTR_NOSYSTEM=1 GIT_NO_REPLACE_OBJECTS=1 GIT_TERMINAL_PROMPT=0 \
+       "$_AE_GIT" --exec-path 2>/dev/null)" || x=""
+  case "$x" in /*) ;; *) _ae_no "$_AE_GIT is not a git only root can change" ;; esac
+  case "$x" in *[!\ -~]*) _ae_no "$_AE_GIT is not a git only root can change" ;; esac
+  [ -d "$x" ] || _ae_no "$_AE_GIT is not a git only root can change"
+  _ae_chain "$x"; _ae_rootly "${_AE_L[@]}" || _ae_no "$_AE_GIT is not a git only root can change"
+  o="$("$_AE_FIND" "$x" \( ! -user 0 -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print 2>/dev/null)" && [ -z "$o" ] \
+    && o="$("$_AE_FIND" -L "$x" \( ! -user 0 -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print 2>/dev/null)" && [ -z "$o" ] \
+    && [ -z "$(_ae_acl "$x")" ] && [ -z "$(_ae_acl -L "$x")" ] || _ae_no "$_AE_GIT is not a git only root can change"
+  # What each link under X points at, at every depth find -L reaches (a link inside a directory a link points at,
+  # too: review trust 5), by its physical path, for its entries (and its owner and mode once more); and, as H1
+  # reads G's, each hop of its chain and each directory above each hop: the walk starts at its first hop, and
+  # _ae_above follows every link it meets (security reviews of d1eecab1 and e7056655: a login that can write one
+  # of those directories can put another file, or another link, where the chain leads). Each first hop once, and
+  # one readlink reads every link (per link, the reads took seconds: 149 of the 201 paths under X are links).
+  while IFS= read -r o; do [ -n "$o" ] && [ -L "$o" ] && lk[${#lk[@]}]="$o"; done <<EOF
+$("$_AE_FIND" -L "$x" -print 2>/dev/null; "$_AE_FIND" "$x" -type l -print 2>/dev/null)
+EOF
+  [ ${#lk[@]} -eq 0 ] || while IFS= read -r l; do tg[${#tg[@]}]="$l"; done <<EOF
+$("$_AE_READLINK" -- "${lk[@]}" 2>/dev/null)
+EOF
+  [ ${#tg[@]} -eq ${#lk[@]} ] || _ae_no "$_AE_GIT is not a git only root can change"
+  for ((k = 0; k < ${#lk[@]}; k++)); do
+    o="${lk[$k]}"; l="${tg[$k]}"
+    [ -n "$l" ] || _ae_no "$_AE_GIT is not a git only root can change"
+    case "$l" in /*) ;; *) l="${o%/*}/$l" ;; esac
+    case "$sd" in *$'\n'"$l"$'\n'*) continue ;; esac
+    sd="$sd$l"$'\n'
+    p="$(_ae_real "$l")" && [ -n "$p" ] || _ae_no "$_AE_GIT is not a git only root can change"
+    _ae_chain "$l"; _ae_rootly "$p" "${_AE_L[@]}" || _ae_no "$_AE_GIT is not a git only root can change"
+  done
+}
+
+# H3 (0.49.356). Only this login can change HOME (read at its physical path), and only root or this login can
+# change each directory above it, as written and physical, unless that one has the sticky bit: a login that
+# could write HOME, or rename a directory above it, could put its own .felix there between E6's read and its
+# mkdir, or move the whole home. HOME is named first, then the directories above in the order the walk prints.
+_ae_home() {
+  local h="${_AE_H:-/}" p y l
+  # A HOME that is itself a link (review trust 4) is read as a directory above is: root's or this login's, and no
+  # entry that allows, which would let another login remove it and put its own in its place. Named first.
+  l="$h"; while :; do case "$l" in /) break ;; */) l="${l%/}" ;; *) break ;; esac; done
+  if [ -L "$l" ]; then
+    [ -n "$("$_AE_FIND" "$l" -prune \( -user 0 -o -user "$_AE_UID" \) -print 2>/dev/null)" ] \
+      && [ -z "$(_ae_acl "$l" -prune)" ] || _ae_no "$(_ae_show "$h") can be written by another login"
+  fi
+  p="$(cd -P -- "$h" 2>/dev/null && pwd -P)" || p=""
+  case "$p" in /*) ;; *) _ae_no "HOME is not an absolute path to a directory" ;; esac
+  [ -n "$("$_AE_FIND" "$p" -prune -type d -user "$_AE_UID" ! -perm -020 ! -perm -002 -print 2>/dev/null)" ] \
+    && [ -z "$(_ae_acl "$p" -prune)" ] || _ae_no "$(_ae_show "$h") can be written by another login"
+  while IFS= read -r y; do
+    [ -n "$y" ] || continue
+    case "$y" in *" (a link not followed)") _ae_no "$(_ae_show "${y% (a link not followed)}") is a link whose target was not read" ;; esac
+    [ -n "$("$_AE_FIND" "$y" -prune \( -user 0 -o -user "$_AE_UID" \) \( -type l -o \( ! -perm -020 ! -perm -002 \) -o -perm -1000 \) -print 2>/dev/null)" ] \
+      && [ -z "$(_ae_acl "$y" -prune)" ] || _ae_no "$(_ae_show "$y") can be written by another login"
+  done <<EOF
+$(_ae_above "$h")
+EOF
 }
 
 # E8. Reads `ls-tree -r COMMIT -- engine` into _AE_E (MODE ID PATH, NUL-free, one a line) and refuses, before
@@ -171,6 +316,8 @@ _ae_same() {   # -> 0 when C is the commit's copy
   # C itself is a directory of the copy, so 700 too, and no path in it carries an entry that allows (review E10).
   [ -n "$("$_AE_FIND" "$_AE_C" -prune -perm 700 -print 2>/dev/null)" ] && [ -z "$(_ae_acl "$_AE_C")" ] || return 1
   [ -z "$("$_AE_FIND" "$_AE_C" ! -type f ! -type d -print 2>/dev/null)" ] || return 1
+  # H7 (0.49.356): C and every path under it are this login's; one another login owns is that login's to change.
+  [ -z "$("$_AE_FIND" "$_AE_C" ! -user "$_AE_UID" -print 2>/dev/null)" ] || return 1
   want="$(printf '%s' "$_AE_E" | "$_AE_AWK" '{ m = ($1 == "100755") ? "700" : "600"; p = substr($0, length($1) + length($2) + 3)
            print "f " m " " $2 " " p; n = split(p, c, "/"); q = ""; for (i = 1; i < n; i++) { q = (i == 1) ? c[1] : q "/" c[i]; d[q] = 1 } }
            END { for (q in d) print "d 700 - " q }' | "$_AE_SORT")"
@@ -251,6 +398,10 @@ _ae_main() {
   _AE_ME="$("$_AE_ID" -un 2>/dev/null)"
   case "$_AE_ME" in ""|[!A-Za-z_]*|*[!A-Za-z0-9_.-]*) _ae_no "this login's name cannot be written in a launcher" ;; esac
   _ae_git
+  # H3, H4, H7 read who owns a path against this login's uid.
+  _AE_UID="$("$_AE_ID" -u 2>/dev/null)"
+  case "$_AE_UID" in ""|*[!0123456789]*) _ae_no "this login's uid could not be read" ;; esac
+  _ae_home
   # E6. The four directories: each that exists is read before any is made, and each is made 700.
   _AE_B="$_AE_H/.felix/engine/boot.git"; _AE_C="$_AE_H/.felix/engine/$_AE_K"
   _ae_dir_ok "$_AE_H/.felix"; _ae_dir_ok "$_AE_H/.felix/engine"; _ae_dir_ok "$_AE_B"; _ae_dir_ok "$_AE_H/.felix/bin"

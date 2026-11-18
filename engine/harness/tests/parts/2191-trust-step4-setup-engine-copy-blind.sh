@@ -288,9 +288,16 @@ _fx_git "$TS4E_RS" bundle create -q "$TS4E_RB" --all >/dev/null 2>&1
 is "ts4 setup 2 (control): the real source's commit holds this suite's engine file by file, modes 100644 and 100755 only, no path outside printable ASCII, no two equal without case" \
   "$(_fx_git "$TS4E_RS" -c core.quotePath=false ls-tree -r "$TS4E_KR" 2>/dev/null | LC_ALL=C awk -F'\t' '{ split($1, a, " "); n++; if (a[1] != "100644" && a[1] != "100755") m++; if ($2 ~ /[^ -~]/) b++; l = tolower($2); if (l in s) d++; s[l] = 1 } END { printf "%d entries, %d other modes, %d outside ASCII, %d equal without case", n, m, b, d }'); felix: $(_fx_git "$TS4E_RS" ls-tree "$TS4E_KR" -- engine/harness/felix 2>/dev/null | cut -c1-6)" \
   "${TS4U_RN:-?} entries, 0 other modes, 0 outside ASCII, 0 equal without case; felix: 100755"
-printf '%s\n' 'umask 077; G="$1"; B="$HOME/.felix/engine/boot.git"' \
-  'mkdir -p "$HOME/.felix/engine" && "$G" init -q --bare "$B" && "$G" --git-dir="$B" -c transfer.fsckObjects=true fetch -q -- "$3" '"'"'+refs/*:refs/boot/*'"'"'' \
-  '"$G" --git-dir="$B" show "$2:engine/harness/bin/authority-engine" | /usr/bin/env -i HOME="$HOME" /bin/bash -s -- "$2" "$3"' > "$TS4E_X/boot.sh"
+# The document's step 4 lines (0.49.356, review trust 2), with G, COMMIT and S as arguments: this suite's git,
+# the commit, the bundle.
+printf '%s\n' 'umask 077; G="$1"' \
+  'export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_NO_REPLACE_OBJECTS=1' \
+  'export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=/dev/null' \
+  'B="$HOME/.felix/engine/boot.git"; S="$3"' \
+  '/bin/mkdir -m 700 "$HOME/.felix" && /bin/mkdir -m 700 "$HOME/.felix/engine" && "$G" init -q --bare --template= "$B" &&' \
+  '"$G" --git-dir="$B" -c transfer.fsckObjects=true fetch -q -- "$S" '"'"'+refs/*:refs/boot/*'"'"' &&' \
+  '"$G" --git-dir="$B" show "$2:engine/harness/bin/authority-engine" |' \
+  '  /usr/bin/env -i HOME="$HOME" /bin/bash -s -- "$2" "$S"' > "$TS4E_X/boot.sh"
 TS4E_HB="$TS4/h/boot"; mkdir -p "$TS4E_HB"
 # Spec rev 3 (review E1-builtin-fn, F7): the third line runs the program under env -i with HOME alone. A BASH_ENV of
 # the caller's runs for the bash that runs boot.sh, and must not run for the one that reads the program from its
@@ -303,6 +310,23 @@ _ts4_is "ts4 setup 2: the program read with git show from the bundle's commit an
 _ts4_is "ts4 setup 2 (review E1-builtin-fn): run under env -i with HOME alone, the program reads no BASH_ENV of the caller's" \
   "inner runs: $(if [ -s "$TS4E_X/benv.out" ]; then LC_ALL=C awk 'END { print NR }' "$TS4E_X/benv.out"; else printf 0; fi)" "inner runs: 0" "$(_ts4_why)"
 _ts4_is "ts4 setup 2, E9: that copy holds the engine under test, each file its blob's bytes and mode" "$(_ts4u_cmp "$TS4E_RS" "$TS4E_KR" "$TS4E_HB/.felix/engine/$TS4E_KR")" same
+# After the hardening's build review (not blind; trust 2), shown red on d4ac2338 first: the founder's lines stop
+# when HOME/.felix is there already, before git runs anything out of a store someone left there.
+TS4E_HC="$TS4/h/boot-pre"; mkdir -p "$TS4E_HC/.felix/engine"; chmod 700 "$TS4E_HC" "$TS4E_HC/.felix" "$TS4E_HC/.felix/engine"
+_fx_git "$TS4E_HC/.felix/engine" init -q --bare boot.git >/dev/null 2>&1; mkdir -p "$TS4E_HC/.felix/engine/boot.git/hooks"
+printf '#!/bin/sh\necho ran >> "%s"\n' "$TS4E_X/hook.out" > "$TS4E_HC/.felix/engine/boot.git/hooks/reference-transaction"
+chmod 755 "$TS4E_HC/.felix/engine/boot.git/hooks/reference-transaction"
+TS4_ENV=(HOME="$TS4E_HC" PATH="$TS4_PATH"); _ts4u_run "$TS4/t" bash "$TS4E_X/boot.sh" "$TS4U_GIT" "$TS4E_KR" "$TS4E_RB"; TS4_ENV=()
+_ts4_is "ts4 setup 2 (review trust 2): the founder's lines stop when HOME/.felix is there already: no hook of a store left there runs, and no copy is made" \
+  "exit $(if [ "$TS4_RC" = 0 ]; then printf 0; else printf 'not 0'; fi); hook runs: $(if [ -s "$TS4E_X/hook.out" ]; then LC_ALL=C awk 'END { print NR }' "$TS4E_X/hook.out"; else printf 0; fi); copy: $(_ts4_yn test -e "$TS4E_HC/.felix/engine/$TS4E_KR")" \
+  "exit not 0; hook runs: 0; copy: no" "$(_ts4_why)"
+# Found by the rehearsal of d1eecab1 (not blind), shown red first with one mkdir of both: a .felix already there
+# gets nothing made in it, since one mkdir of two names makes the second after the first fails.
+TS4E_HE="$TS4/h/boot-felix"; mkdir -p "$TS4E_HE/.felix"; chmod 700 "$TS4E_HE" "$TS4E_HE/.felix"
+TS4_ENV=(HOME="$TS4E_HE" PATH="$TS4_PATH"); _ts4u_run "$TS4/t" bash "$TS4E_X/boot.sh" "$TS4U_GIT" "$TS4E_KR" "$TS4E_RB"; TS4_ENV=()
+_ts4_is "ts4 setup 2 (rehearsal of d1eecab1): the founder's lines make nothing in a HOME/.felix that is there already" \
+  "exit $(if [ "$TS4_RC" = 0 ]; then printf 0; else printf 'not 0'; fi); .felix holds: [$(ls -A "$TS4E_HE/.felix" 2>/dev/null | tr '\n' ' ')]" \
+  "exit not 0; .felix holds: []" "$(_ts4_why)"
 TS4_ENV=(FELIX_AUTHORITY_HOME="$TS4E_X/caller-ah"); _ts4u_run "$TS4/t" self "$TS4E_HB/.felix/bin/felix" authority status; TS4_ENV=()
 _ts4_is "ts4 setup E11 (section 6): the felix launcher runs the copied engine, whose felix authority status says no authority is set up at HOME/.felix/authority, whatever the caller's FELIX_AUTHORITY_HOME" \
   "exit $TS4_RC; names HOME/.felix/authority: $(_ts4_said "$TS4E_HB/.felix/authority" "$TS4/o" "$TS4/e"); the caller's home made: $(_ts4_yn test -e "$TS4E_X/caller-ah")" \
@@ -311,5 +335,5 @@ TS4_SKIP=""
 
 _ts4u_end
 unset TS4E_X TS4E_S TS4E_B TS4E_F TS4E_FB TS4E_RS TS4E_RB TS4E_K1 TS4E_K2 TS4E_K3 TS4E_K4 TS4E_KN TS4E_KM TS4E_KL TS4E_KS TS4E_KA TS4E_KC TS4E_KO TS4E_KF TS4E_KR \
-  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_RW TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4U_RN
+  TS4E_T1 TS4E_A TS4E_SUB3 TS4E_SUB4 TS4E_PA TS4E_BAD TS4E_E2 TS4E_LOCKS TS4E_V TS4E_W TS4E_RW TS4E_U TS4E_RV TS4E_H1 TS4E_C1 TS4E_XS TS4E_HB TS4E_HC TS4E_HE TS4U_RN
 # <<< trust-step4-setup-engine-copy

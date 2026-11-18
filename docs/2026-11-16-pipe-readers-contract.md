@@ -244,4 +244,4 @@ Each part was run alone through a one-part runner, not `tests/run`, on this Mac:
   passes 34 and 24. The amendment's 8 new samples each failed when run against
   rev 2's matcher.
 
-Engine 0.49.357. It was 0.49.353 until #521 landed as 0.49.355 and #520 took 0.49.356.
+Engine 0.49.359. It was 0.49.353, then 0.49.357, while #521, #520 and #523 landed as 0.49.355, 0.49.356 and 0.49.358.

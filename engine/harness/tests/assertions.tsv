@@ -12372,6 +12372,7 @@
 1	instrument removers: IR1: with KEEP empty, salvage moves pack/KEEP.* too (control)
 1	instrument removers: IR2: in that race the salvage still moves BD's objects into TO, a collision neither stops nor undoes it (control)
 1	instrument removers: IR2: the watchdog exits 0 in every round of that race
+1	instrument removers: IR2: the watchdog, another process removing and making again what is under J for about 4 s after it starts removing and then stopping with J still there, leaves none of its PATHs, in every round
 1	instrument removers: IR2: the watchdog, its PATHs given J R UP HP BD BD.list and another process removing J once PARENT is gone, leaves none of them, in every round
 1	instrument removers: IR3: a shell running _felix_instr_watch over its own bind copy, KILLed while another process removes J, leaves none of BD, BD.list, J, R, UP and HP within a few seconds, in every round
 1	instrument removers: IR3: a shell that does not own the bind copy hands the watchdog no BD and no BD.list: both stay, and J R UP HP go (control)
@@ -12379,6 +12380,7 @@
 1	instrument removers: IR3: with no other remover, a shell KILLed after _felix_instr_watch reaches a moment where BD and BD.list are gone while J, whose removal takes a while, is still there, in every round
 1	instrument removers: IR4: the supervisor exits 125 in every round of that race
 1	instrument removers: IR4: the supervisor's judge-gone path, another process removing J once the unit's group is gone, leaves none of J R U UP HP, in every round
+1	instrument removers: IR4: the supervisor's judge-gone path, another process removing and making again what is under J for about 4 s after the unit's group is gone and then stopping with J still there, leaves none of J R U UP HP, in every round
 1	instrument removers: IR5: TERM, INT, HUP and QUIT leave a watchdog waiting on a live PARENT alive, and nothing is removed or moved (control)
 1	instrument removers: IR5: USR1 ends a watchdog waiting on a live PARENT with status 0 within about a second, moving and removing nothing (control)
 1	instrument removers: IR5: a supervisor whose PARENT lives removes nothing and exits with its unit's status (control)
@@ -12388,6 +12390,7 @@
 1	instrument removers: IR5: with no other remover, the supervisor's judge-gone path leaves none of J R U UP HP, removes nothing else and exits 125, in every round (control)
 1	instrument removers: IR5: with no other remover, the watchdog leaves none of its PATHs, removes nothing else and exits 0, in every round (control)
 1	instrument removers: IR6: the exit-status recorder this part puts in front of a program reads what wait reads, 0 for a watchdog ended by USR1 and 7 for a unit (control)
+1	instrument removers: IR6: the mark this part reads before each signal is found on a process it started and not on the suite's own shell (control)
 1	instrument removers: IR6: two plain File::Path::remove_tree calls in two processes, started together with no eval, collide on this part's tree: one dies in at least one round (arming)
 1	interpolating a credential is high
 1	into the generated shape

@@ -1,4 +1,4 @@
-### 2026-11-16: a pipe's reader reads to the end, so no writer is cut off mid-list (0.49.357)
+### 2026-11-16: a pipe's reader reads to the end, so no writer is cut off mid-list (0.49.359)
 
 **Scope.** Pipes in `engine/harness` (felix, lib, bin, hooks, tests/run, tests/lib) whose reader left before its input ended, where the reader was an awk that exits outside END, a `head` fed by shell code, or the suite library's one piped `grep -q`. The contract is `docs/2026-11-16-pipe-readers-contract.md` (rev 3, PR1 to PR8). Program-fed `head`s and the other early readers found in the sweep are under Open and are not changed.
 

@@ -1,4 +1,4 @@
-# Contract: the judge's removers each finish, whatever the other is doing (rev 3, 2026-11-18)
+# Contract: the judge's removers each finish, whatever the other is doing (rev 4, 2026-11-18)
 
 **Scope.** This contract covers the two perl programs in `engine/harness/lib/instrument-run.sh` that remove a
 judgement's directories after the judge is gone. One is the watchdog (`_felix_instr_wdpl`, started by
@@ -186,5 +186,16 @@ The rule is that a gate that cannot fail is not a gate.
   process keeps working under J for about 4 s after the program starts removing: removing what is under J and making
   it again, repeatedly, then stopping with J still there. That is longer than rev 2's 20 attempts 0.1 s apart. At
   least 5 rounds each. On 0.49.355 (main b03e7c10), J is expected to be left in some rounds.
-- **Cost.** The part stays within about 90 s on this Mac, keeps everything under the suite's `$TMP`, and leaves no
-  process behind.
+- **The other process is at work before the supervisor removes (rev 4).** For the supervisor, the other process
+  begins working under J once the PARENT is gone, while the supervisor is still ending the unit's group. It keeps on
+  until about 4 s after the group is gone. For the watchdog, it begins once the PARENT is gone, as in rev 3.
+- **A round that did not outlast the program (rev 4).** A rev 3 round outlasts the program only when the other process
+  made something under J and J was still there when it stopped. A round that did not outlast shows nothing either way.
+  The part gives it in the detail and counts it as neither a pass nor a failure. A round in which the other process
+  wrote no report at all is a failure of the fixture. Rounds go on until 5 have outlasted, up to 10 in all. When none
+  outlasted, the assertion is skipped by name, saying so.
+  - Why: on 2026-11-18, rev 3's part counted a round in which the other process made nothing as a fixture failure.
+    Run alone on the fixed engine, that failed 2 of the supervisor's 5 rounds. In each of them, the other process ran
+    about 340 cycles and found J gone before it made anything.
+- **Cost.** The part stays within about 3 minutes on this Mac, and at worst 4. It keeps everything under the suite's
+  `$TMP` and leaves no process behind. Rev 2's part already took 118 s, beyond rev 1's 90 s, and rev 3's took 144 s.

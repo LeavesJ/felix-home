@@ -410,7 +410,7 @@ NF='{"message":"Not Found","status":"404"}'
 out() { if [ -n "$q" ]; then jq -r "$q"; else jq -cS .; fi; }
 nf()  { printf '%s\n' "$NF"; echo 'gh: Not Found (HTTP 404)' >&2; exit 1; }
 no()  { echo 'gh: the stand-in serves reads only' >&2; exit 1; }
-qv()  { printf '%s' "&$qs&" | tr '&' '\n' | sed -n "s/^$1=//p" | head -n 1; }
+qv()  { printf '%s' "&$qs&" | tr '&' '\n' | sed -n "s/^$1=//p" | LC_ALL=C sed -n 1p; }
 cmd="${1:-}"; [ $# -gt 0 ] && shift
 sub=""
 case "$cmd" in pr|repo|auth) sub="${1:-}"; [ $# -gt 0 ] && shift ;; esac

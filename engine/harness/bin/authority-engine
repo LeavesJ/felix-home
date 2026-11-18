@@ -299,9 +299,9 @@ _ae_tree() {
   done < <(_ae_g ls-tree -r -z "$_AE_K" -- engine 2>/dev/null)
   [ -z "$odd" ] || _ae_no "$(_ae_show "$odd") in $_AE_K is a link or a submodule, and the copy holds files only"
   [ -z "$name" ] || _ae_no "$(_ae_show "$name") in $_AE_K cannot be written on this file system as it is named"
-  k="$(printf '%s' "$_AE_E" | "$_AE_AWK" '{ p = substr($0, length($1) + length($2) + 3); n = split(p, c, "/"); q = ""
+  k="$(printf '%s' "$_AE_E" | "$_AE_AWK" 'quit { next } { p = substr($0, length($1) + length($2) + 3); n = split(p, c, "/"); q = ""
          for (i = 1; i <= n; i++) { q = (i == 1) ? c[1] : q "/" c[i]; if (q in seen) continue; seen[q] = 1
-           l = tolower(q); if (l in low) { print low[l]; exit } low[l] = q } }')"
+           l = tolower(q); if (l in low) { print low[l]; quit = 1; next } low[l] = q } }')"
   [ -z "$k" ] || _ae_no "$(_ae_show "$k") in $_AE_K cannot be written on this file system as it is named"
   [ "$_AE_N" -gt 0 ] || _ae_no "$_AE_K holds no engine (engine/harness/felix)"
 }
@@ -434,7 +434,7 @@ _ae_main() {
   _ae_launcher felix felix; _ae_launcher reach-witness bin/reach-witness
   if [ "$_AE_OS" = Darwin ]; then _ae_launcher lock bin/lock-macos; lock="$_AE_H/.felix/bin/lock"; fi
   # E12. The subject is the message's first line as the commit holds it, cut to 200 bytes, then shown.
-  subject="$(_ae_g cat-file commit "$_AE_K" 2>/dev/null | "$_AE_AWK" 'b { print; exit } $0 == "" { b = 1 }')"
+  subject="$(_ae_g cat-file commit "$_AE_K" 2>/dev/null | "$_AE_AWK" 'quit { next } b { print; quit = 1; next } $0 == "" { b = 1 }')"
   subject="${subject:0:200}"
   date="$(_ae_g show -s --no-show-signature --format=%cI "$_AE_K" 2>/dev/null)"
   version="$("$_AE_AWK" -F'"' '$2 == "version" { print $4; exit }' "$_AE_C/engine/.claude-plugin/plugin.json" 2>/dev/null)"

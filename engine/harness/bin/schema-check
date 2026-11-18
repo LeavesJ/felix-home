@@ -159,7 +159,7 @@ while IFS= read -r entry; do
          [ -n "$res" ] && add "$res"
        fi ;;
     1) add "$res" ;;
-    *) add "$(printf '%s:-\tunexaminable\t%s' "$f" "$(printf '%s' "$res" | cut -f3 | head -1)")" ;;
+    *) add "$(printf '%s:-\tunexaminable\t%s' "$f" "$(printf '%s' "$res" | cut -f3 | LC_ALL=C sed -n 1p)")" ;;
   esac
   case "${f##*/}" in
     commissioning.tsv|obligations.tsv|setup.tsv|maintenance.tsv)
@@ -184,8 +184,9 @@ NOTES=""
 while IFS= read -r name; do
   [ -n "$name" ] || continue
   printf '%s\n' "$TABLES" | N="$name" LC_ALL=C awk -F'\t' '
+      found { next }
       { p = $2; if (p ~ /^".*"$/) p = substr(p, 2, length(p) - 2); sub(/.*\//, "", p)
-        if (p == ENVIRON["N"]) { found = 1; exit } }
+        if (p == ENVIRON["N"]) found = 1 }
       END { exit !found }' \
     || NOTES="${NOTES}  note  $name is declared and nothing here is named that
 "

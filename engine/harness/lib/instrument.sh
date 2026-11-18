@@ -78,10 +78,12 @@ _felix_instr_rd() {   # VAR command...
   while case "$_fi_o" in *$'\n') true ;; *) false ;; esac; do _fi_o="${_fi_o%$'\n'}"; done
   printf -v "$1" '%s' "$_fi_o"
 }
-# A listing (ls-tree -r) -> the object id of the blob at PATH, or nothing when there is none.
+# A listing (ls-tree -r) -> the object id of the blob at PATH, or nothing when there is none. The awk reads the
+# listing to its end: one that left at the match cut printf off mid-listing, and with SIGPIPE ignored (CI's runner)
+# bash printed "printf: write error: Broken pipe" naming this file (docs/2026-11-16-pipe-readers-contract.md, PR1).
 _felix_instr_sha() {   # LISTING PATH
-  printf '%s\n' "$1" | LC_ALL=C awk -v p="$2" '{ t = index($0, "\t"); if (!t || substr($0, t + 1) != p) next
-    split(substr($0, 1, t - 1), m, " "); if (m[2] == "blob") { print m[3]; exit } }'
+  printf '%s\n' "$1" | LC_ALL=C awk -v p="$2" 'quit { next } { t = index($0, "\t"); if (!t || substr($0, t + 1) != p) next
+    split(substr($0, 1, t - 1), m, " "); if (m[2] == "blob") { print m[3]; quit = 1 } }'
 }
 # VAR is the text of PATH in LISTING (empty when the listing holds no such file). 1 when the read failed, and 2
 # when the file holds a NUL byte, which a shell variable cannot (bash drops it): the bytes are then not the text.

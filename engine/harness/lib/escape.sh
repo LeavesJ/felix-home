@@ -594,22 +594,24 @@ _felix_merge_gate_held() {
   # them, as status, conclusion and the commit the run is on, with `-` for a
   # field gh left empty so no field is ever missing between two tabs.
   #
-  # The first run that is on this commit decides, and nothing after it is read:
+  # The first run that is on this commit decides, and what follows it is passed over (the awk
+  # still reads the list to its end, so printf is never cut off mid-list):
   # a run before it that cannot be read or placed might have been the newest on
   # this commit, so it is unreadable and not skipped, and an older success never
   # outvotes a newer run that failed or has not finished.
   verdict="$(printf '%s\n' "$runs" | LC_ALL=C awk -F'\t' -v sha="$sha" '
-    NR == 1 { if ($0 !~ /^[0-9]+$/) { bad = "gh run list printed no run count"; exit }
+    quit { next }
+    NR == 1 { if ($0 !~ /^[0-9]+$/) { bad = "gh run list printed no run count"; quit = 1; next }
               total = $0 + 0; next }
     { lines++
       st = $1; co = $2; on = $3
-      if (st !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a run whose status cannot be read"; exit }
-      if (on == "-" || on == "") { bad = "gh run list listed a run without the commit it is on"; exit }
+      if (st !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a run whose status cannot be read"; quit = 1; next }
+      if (on == "-" || on == "") { bad = "gh run list listed a run without the commit it is on"; quit = 1; next }
       if (on != sha) { other++; next }
-      if (st != "completed") { newest = "status\t" st; exit }
-      if (co !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a completed run without a conclusion"; exit }
+      if (st != "completed") { newest = "status\t" st; quit = 1; next }
+      if (co !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a completed run without a conclusion"; quit = 1; next }
       newest = (co == "success") ? "pass" : ("concluded\t" co)
-      exit
+      quit = 1
     }
     END {
       if (NR == 0) { print "unreadable\tgh run list printed nothing"; exit }

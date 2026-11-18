@@ -95,7 +95,7 @@ _gt_home_exact() {   # -> 0 when the home is main's; else 1, with the path and w
     printf '%s does not hash to the blob origin/main holds, or cannot be read' "$x"; return 1
   fi
   rm -rf "$t"
-  x="$(git -C "$home" ls-files -v -- engine "$pj" 2>/dev/null | LC_ALL=C awk '/^[a-zS] / { print substr($0, 3); exit }')"
+  x="$(git -C "$home" ls-files -v -- engine "$pj" 2>/dev/null | LC_ALL=C awk 'quit { next } /^[a-zS] / { print substr($0, 3); quit = 1; next }')"
   [ -z "$x" ] || { printf '%s carries assume-unchanged or skip-worktree in the index' "$x"; return 1; }
   x="$(git -C "$home" ls-files --others -- engine 2>/dev/null | LC_ALL=C sed -n 1p)"
   [ -z "$x" ] || { printf '%s is untracked or ignored under engine/' "$x"; return 1; }
@@ -152,9 +152,10 @@ _gt_clause() { case "$1" in receipt) printf '%s' "$_GT_CR" ;; final) printf '%s'
 _gt_class() {   # STATUS OUTPUT -> receipt, final or hourly
   [ "$1" = 3 ] || { printf hourly; return 0; }
   printf '%s\n' "$2" | LC_ALL=C awk 'BEGIN { s = 0; n = 0; b = 0; h = 0; p = 0 }
+    quit { next }
     s == 0 { if ($0 == "not merging") s = 1; next }
     s == 1 { s = 2; if ($0 == "") next }
-    $0 == "" { exit }
+    $0 == "" { quit = 1; next }
     { n++; if ($1 == "base" && $2 == "provider") p = 1
       else if ($1 == "not-green" || $1 == "unverified") { if ($2 == "tests") h = 1 } else if (!($1 == "commission" && $2 == "receipt")) b = 1 }
     END { if (p) print (n == 1 ? "hourly" : "final"); else print (n > 0 && !b) ? (h ? "hourly" : "receipt") : "final" }'

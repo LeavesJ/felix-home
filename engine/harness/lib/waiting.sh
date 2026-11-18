@@ -191,7 +191,7 @@ felix land --resume ends the pause."
 Which pull requests wait could not be read: ${f} is not a readable file."
       _felix_wait_toks="${_felix_wait_toks} · PRs waiting: unknown"
     elif [ "$m" -gt 0 ]; then
-      body="$(printf '%s\n' "$out" | sed 1d | head -5 | LC_ALL=C awk -F'\t' '{ printf "  #%s %s\n", $1, $2 }' | _fw_clean)"
+      body="$(printf '%s\n' "$out" | sed 1d | LC_ALL=C sed -n '1,5p' | LC_ALL=C awk -F'\t' '{ printf "  #%s %s\n", $1, $2 }' | _fw_clean)"
       waits_line="${waits_line}
 Pull requests waiting longer than four hours, as the lander last saw them (felix land --prs says more):
 ${body}"

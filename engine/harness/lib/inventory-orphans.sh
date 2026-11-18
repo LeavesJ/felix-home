@@ -154,6 +154,11 @@ _fi_uniq() {
     --directory ${ex:+"$ex"} > "$T/oiz" 2> "$T/oie"; lr=$?
   tr '\000' '\n' < "$T/oiz" > "$T/oi"
   if [ -s "$T/oi" ]; then
+    # The awk leaves after 2000 files on purpose. What it cuts off is find and /usr/bin/printf, never shell code,
+    # and the loop's status is not read, so no bash write error and no status rests on it; part 2500's lint holds
+    # this one site by name. The cut stops the walk only where SIGPIPE is at its default: where it is ignored, each
+    # find takes EPIPE and walks on, and its unreadable directories reach oie and the count below. That is open
+    # (docs/2026-11-16-pipe-readers-contract.md, PR3 and PR8).
     while IFS= read -r f <&3; do
       find "$o/${f%/}" -name .git -prune -o -type f -size -2049 -print -o -type f -exec printf '\001%s\n' {} + 2>> "$T/oie"
     done 3< "$T/oi" | awk -v st="$T/oib" 'substr($0, 1, 1) == "\001" { b++; next } ++n > 2000 { p = 1; exit } { print }

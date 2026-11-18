@@ -118,7 +118,7 @@ _ibmany() { local r="$1" k="$2" f="$3" s o=""; shift 3
             for s in "$@"; do o="$o${o:+ }$s=$(_ibholds "$r" "$k" "$f" "$s")"; done; printf '%s' "$o"; }
 _ibcount() { LC_ALL=C awk -F'\t' -v k="$2" -v p="${3:-}" '$1 == k && (p == "" || $2 == p) { n++ } END { print n + 0 }' "$(_ibo "$1")"; }
 # The element of a detail that starts with PREFIX (elements are joined by "; ").
-_ibelem() { _ibcol "$1" "$2" "$3" 8 | LC_ALL=C awk -v p="$4" '{ n = split($0, e, "; "); for (i = 1; i <= n; i++) if (index(e[i], p) == 1) { print e[i]; exit } }'; }
+_ibelem() { _ibcol "$1" "$2" "$3" 8 | LC_ALL=C awk -v p="$4" 'quit { next } { n = split($0, e, "; "); for (i = 1; i <= n; i++) if (index(e[i], p) == 1) { print e[i]; quit = 1; next } }'; }
 _ibhaselem() { [ -n "$(_ibrow "$1" "$2" "$3")" ] || { printf 'no row'; return; }
                _ibcol "$1" "$2" "$3" 8 | LC_ALL=C awk -v w="$4" '{ n = split($0, e, "; "); for (i = 1; i <= n; i++) if (e[i] == w) f = 1 } END { print (f ? "yes" : "no") }'; }
 _ibsnap() { ( cd "$1" && find . -print | LC_ALL=C sort && find . -type f -exec cksum {} + | LC_ALL=C sort ) 2>&1; }

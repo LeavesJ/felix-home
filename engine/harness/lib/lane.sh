@@ -92,7 +92,7 @@ _lane_partial_old() {
     pc="$(_lane_git -C "$1" config --bool --get-regexp '^remote\..*\.promisor$')"; rc=$?
     case "$rc:$pc"$'\n' in 0:*" true"$'\n'*) rc=0 ;; [01]:*) rc=1 ;; esac
   fi
-  if [ "$rc" -eq 0 ]; then _lane_git --version | LC_ALL=C awk '{ split($3, v, "."); exit !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) }' && rc=1; fi
+  if [ "$rc" -eq 0 ]; then _lane_git --version | LC_ALL=C awk 'NR == 1 { split($3, v, "."); rc = !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) } END { exit rc }' && rc=1; fi
   if [ "$rc" -eq 1 ]; then _LANE_POV=1; fi
   return "$_LANE_POV"
 }

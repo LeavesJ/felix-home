@@ -159,10 +159,11 @@ felix_instr_dirs() {   # ROOT
 # A14, docs/2026-11-17-instrument-removers-contract.md IR2: each PATH removed on its own, as the watchdog and a gone
 # judge's supervisors remove J, R, UP and HP at once. File::Path croaks when the other removes the directory it stands
 # in, and leaves this process there, where the next remove_tree removes nothing (it reads getcwd first). So a removal
-# is caught, followed by a return to /, and tried again while the path is there: 20 attempts, 0.1 s apart.
-_felix_instr_rmpl='sub _rmeach { for my $d (@_) { next if $d eq ""; for (1 .. 20) { last if !-e $d && !-l $d;
-  chmod 0700, $d if -d $d && !-l $d; eval { File::Path::remove_tree($d) }; chdir "/"; last if !-e $d && !-l $d;
-  select(undef, undef, undef, 0.1) } } }'
+# is caught, followed by a return to /, and tried again while the path is there, 0.1 s apart, for up to 30 s a path
+# (rev 3): a walker trailing another dies at each attempt until the other ends, however slow the host makes that.
+_felix_instr_rmpl='sub _rmeach { for my $d (@_) { next if $d eq ""; my $t = time; while (-e $d || -l $d) {
+  chmod 0700, $d if -d $d && !-l $d; eval { File::Path::remove_tree($d) }; chdir "/";
+  last if (!-e $d && !-l $d) || time - $t >= 30; select(undef, undef, undef, 0.1) } } }'
 # A14. The watchdog: it waits for its parent, the judge, to be gone (the judge hands it its pid, as a supervisor is
 # handed its parent's, for a judge KILLed before the watchdog first looks), then moves what git wrote into bind.sh's copy
 # to the checkout (bind.sh's _felix_bind_salvage, the same rule) and removes the copy and every directory of the
@@ -250,7 +251,7 @@ _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
       _felix_instr_rg "$root" "$r/t.idx" read-tree --prefix="$p/" "$b:$p" >/dev/null 2>&1 </dev/null || return 1
     done
     if [ -n "$gp" ] && s="$(_felix_instr_sha "$lb" "$gp")" && [ -n "$s" ]; then
-      m="$(printf '%s\n' "$lb" | LC_ALL=C awk -v p="$gp" '{ i = index($0, "\t") } i && substr($0, i + 1) == p { print $1; exit }')"
+      m="$(printf '%s\n' "$lb" | LC_ALL=C awk -v p="$gp" 'quit { next } { i = index($0, "\t") } i && substr($0, i + 1) == p { print $1; quit = 1 }')"
       _felix_instr_rg "$root" "$r/t.idx" update-index --add --cacheinfo "$m,$s,$gp" >/dev/null 2>&1 </dev/null || return 1
     fi
     _felix_instr_rgo t "$root" "$r/t.idx" write-tree || return 1

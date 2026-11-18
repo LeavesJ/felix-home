@@ -588,5 +588,5 @@ felix_mem_promotable() {
         [ -n "${term:-}" ] || continue
         case "$lessons" in *"$term"*) continue ;; esac
         printf '%s\t%s\n' "$n" "$term"
-      done | head -12
+      done | LC_ALL=C sed -n '1,12p'
 }

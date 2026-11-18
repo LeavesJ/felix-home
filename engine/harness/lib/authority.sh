@@ -331,10 +331,11 @@ EOF
 _fa_acl() {   # DIR
   if ls -lde "$1" >/dev/null 2>&1; then
     find "$1" -exec ls -lde {} + 2>/dev/null | LC_ALL=C awk '
-      /^ [0-9]+: / { if (last != "") { print last; exit } next }
+      quit { next }
+      /^ [0-9]+: / { if (last != "") { print last; quit = 1 } next }
       { last = $0 }' | LC_ALL=C sed -n 1p
   else
-    find "$1" -exec ls -ld {} + 2>/dev/null | LC_ALL=C awk 'substr($1, 11, 1) == "+" { print; exit }' | LC_ALL=C sed -n 1p
+    find "$1" -exec ls -ld {} + 2>/dev/null | LC_ALL=C awk 'quit { next } substr($1, 11, 1) == "+" { print; quit = 1; next }' | LC_ALL=C sed -n 1p
   fi
 }
 

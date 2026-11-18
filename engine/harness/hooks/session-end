@@ -47,7 +47,7 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
 felix_hook_enter "$raw" "$FELIX_HOME_DIR"
 
 session="$(printf '%s' "$raw" \
-  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 
 # A session nobody in it typed into is not a session to fold (#264): whatever
 # it reached for, it reached for on nobody's behalf. Consulted first, before the

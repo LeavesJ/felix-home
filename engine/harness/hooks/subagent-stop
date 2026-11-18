@@ -56,7 +56,7 @@ ROOT="$(felix_repo_root "$PWD" 2>/dev/null)"
 git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 
 SID="$(printf '%s' "$raw" \
-  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 
 # Nothing changed in this checkout: there is no claim to qualify, so say
 # nothing. This is the common case for a reader or a reviewer.

@@ -2,7 +2,7 @@
 
 **Scope.** This section covers `_rmeach`, the removal routine that the watchdog and a gone judge's supervisors share
 in `lib/instrument-run.sh`, and part 2510, which tests it. The contract is
-`docs/2026-11-17-instrument-removers-contract.md`, now rev 4. Which of two candidates failed the red pass that led
+`docs/2026-11-17-instrument-removers-contract.md`, now rev 5. Which of two candidates failed the red pass that led
 here is under Open and is not settled.
 
 **Why.** On 2026-11-18 the pipe-readers branch's record ran its red pass against main b03e7c10 (0.49.355). That
@@ -28,14 +28,19 @@ does the same. A bound in time does not depend on the host's speed.
   - rev 4: such a round counts only when it outlasted the program, that is, when the rival made something and J was
     still there as it stopped. Rounds go on until 5 have outlasted, 10 at most. For the supervisor, the rival starts
     at PARENT gone. The cost clause says what the part takes.
-- Part 2510, amended blind from rev 3 and then rev 4, now has 24 assertions:
+  - rev 5: the part sends a signal other than 0 only to a process that carries a mark of its own, checked first,
+    since a pid or group id read earlier can name another part's process once pids wrap during a suite.
+- Part 2510, amended blind from rev 3, rev 4 and rev 5, now has 25 assertions:
   - every wait on a program while it removes is 45 s, where it was 10 s (6 s in IR3);
   - two assertions are new, one for the watchdog and one for the supervisor's judge-gone path. In each, a worker
     turns over what is under J until 4.2 s after PARENT is gone (the watchdog) or after the unit's group is gone
     (the supervisor).
+  - the mark is the run's own directory, in each started process's command line, and is read with `ps -o command=`
+    before each KILL and before the watchdog's signals. A target without it is left alone, and its round fails with
+    the reason. One control is new: the mark is found on a process the part started, and not on the suite's shell.
 - `engine/.claude-plugin/plugin.json`: 0.49.358. 0.49.356 is #520, and 0.49.357 is the pipe-readers branch.
 
-**Measured.** All on this Mac, each run of part 2510 alone, one engine after another, on battery under `caffeinate`.
+**Measured.** All on this Mac. Each run of part 2510 was alone, one engine after another, under `caffeinate`.
 - At rev 3 (7142c0ae), 05:42 to 05:51Z, at load about 4 to 6:
 
   | Engine | Result | Time |
@@ -59,7 +64,24 @@ does the same. A bound in time does not depend on the host's speed.
 - A first run of main's lib and the mutant at rev 4 is not counted. The lid closed at 05:59Z, and the power log shows
   that run in dark-wake slices. In it, each program once reached the part's 45 s limit with nothing removed, and
   IR3's order assertion saw no look in one round. Both fit processes frozen while the wall clock ran on.
-- The record, the gate and the merge dry run: in the pull request.
+- A record and a gate at rev 4, on AC power, with no sleep in the power log:
+  - the record on 46cb1a69, 10:14 to 10:59Z: 17,905 passed, 0 failed, 58 skipped. `red.tsv` failed 2 against main
+    06bcc193 (0.49.356), both of them part 2510's worker assertions. Under the suite's load, few worker rounds
+    outlasted the program: 2 of 10 for the watchdog, 1 of 10 for the supervisor.
+  - `felix gate` on 46cb1a69, 10:59 to 11:28Z, as far as known the only suite on the Mac: red on part 1293's D4 and
+    R1 only. That part's record runner was KILLed from outside (exit 137), and a process of its tree was left. That
+    pair has failed beside other suites since 2026-11-13, so its own race is the likelier cause. But rev 4's part
+    KILLed a unit group by a number read before its round, which could hit another part once pids wrap. Contract
+    rev 5 (4aa419ad) and the part's amendment (7b029fd2) remove that.
+- At rev 5, on AC power, with the lid open and no sleep in the power log:
+
+  | Engine | Result | Time | Worker rounds: watchdog, supervisor |
+  | --- | --- | --- | --- |
+  | Fixed (this branch) | 25 ok | 128 s | 5 of 7 outlasted; 5 of 8 outlasted |
+  | Main's lib (0.49.355) | 23 ok, 2 FAIL | 186 s | J left in 5 of 9; in 5 of 7 |
+
+  No target was left alone in either run.
+- The record and the gate at rev 5, and the merge dry run: in the pull request.
 
 **Open.**
 - Which candidate failed the red pass. A rerun at that load, with its log kept, would tell them apart.
@@ -67,6 +89,8 @@ does the same. A bound in time does not depend on the host's speed.
   limit was 20 attempts. A file a unit marked immutable with `chflags uchg` is one example. That makes up to 150 s
   over the supervisor's five paths. Nobody waits on these processes after a KILL. The bind copy still goes first, so
   it is not delayed.
+- Under a record's load, few worker rounds outlasted the program (2 of 10 and 1 of 10). One is enough for the
+  assertion to judge. A heavier load could leave none, and the assertion would then be skipped, not failed.
 - The worker makes and removes about 500 trees of 125 entries in each of its rounds. After the slept run,
   `fseventsd` was at about 100% CPU. Whether the part's churn slows the parts beside it in a record was not measured.
 - What #521's section left open still stands:
